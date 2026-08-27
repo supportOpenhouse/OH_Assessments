@@ -1,0 +1,584 @@
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V5
+ * Hallmark · genre: modern-minimal · macrostructure: The Record
+ * theme: openhouse-light · anchor hue: orange 37° · nav: edge-aligned minimal
+ * enrichment: pure-CSS ruled board + stamp · palette: openhouse.in verbatim
+ *
+ * Position: this is an instrument, not a dashboard. It measures a performance
+ * and issues a verdict a human acts on. Rules separate, whitespace does not.
+ * Every figure is monospaced and tabular. The machine's reasoning is set in
+ * serif, because it is an argument.
+ */
+
+/* ───────── Tokens · light ─────────
+   Brand values are lifted verbatim from openhouse.in's own :root. Their neutral
+   ramp is zero-chroma; we keep their exact lightness and add 0.006–0.012 chroma
+   at their own orange hue (37°) so the greys stop reading dead beside #fa541c.
+   openhouse ground truth: --oh-orange #fa541c · --oh-purple #d946ef
+   --oh-dark #2a2a2a · --oh-light #f7f7f7 · --oh-gray #767676
+   --oh-green #00a699 · --oh-blue #007a87 · --radius .75rem                    */
+:root {
+  /* Paper — openhouse lightness, warm-tinted. Base is never pure white. */
+  --paper:      oklch(97.6% 0.006 37);   /* = --oh-light #f7f7f7, tinted */
+  --paper-2:    oklch(100%  0     0 );   /* card surface — openhouse --card */
+  --paper-3:    oklch(95.5% 0.008 37);   /* = --muted #f0f0f0, tinted */
+  --paper-4:    oklch(91.6% 0.010 37);   /* inset fills */
+
+  /* Ink */
+  --ink:        oklch(26.9% 0.010 37);   /* = --foreground #262626 */
+  --ink-2:      oklch(38.0% 0.010 37);
+  --ink-mute:   oklch(55.6% 0.012 37);   /* = --oh-gray #767676 */
+  --rule:       oklch(85.0% 0.012 37);
+  --hairline:   oklch(91.6% 0.008 37);   /* = --border #e3e3e3 */
+
+  /* Accent — openhouse orange, exact. Kept under ~5% of any viewport. */
+  --accent:       oklch(66.8% 0.211 37); /* #fa541c */
+  --accent-press: oklch(58.0% 0.200 34); /* :active only */
+  --accent-mute:  oklch(85.0% 0.070 37);
+  --accent-wash:  oklch(96.5% 0.028 37);
+
+  /* Verdict bands — openhouse's own semantics where they exist */
+  --band-go:    oklch(65.2% 0.115 185);  /* = --oh-green #00a699  → 4-5 */
+  --band-hold:  oklch(70.0% 0.150  70);  /* amber                 → 2   */
+  --band-stop:  oklch(63.7% 0.208  25);  /* = --destructive       → 0-1 */
+  --band-mid:   oklch(55.6% 0.012  37);  /*                       → 3   */
+  --info:       oklch(53.0% 0.091 208);  /* = --oh-blue #007a87 */
+
+  /* Focus — instant, never animated, ≥3:1 against paper */
+  --focus:      oklch(53.0% 0.091 208);
+
+  /* Type — four faces, one job each */
+  --font-display: "Bricolage Grotesque", "Archivo", system-ui, sans-serif;
+  --font-ui:      "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-read:    "Newsreader", "Source Serif 4", Georgia, serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs:   .75rem;
+  --text-sm:   .8125rem;
+  --text-base: .9375rem;
+  --text-lg:   1.0625rem;
+  --text-xl:   1.375rem;
+  --text-2xl:  1.75rem;
+  --text-3xl:  clamp(2rem, 4vw, 2.75rem);
+  --text-mark: clamp(2.75rem, 7vw, 5rem);
+
+  /* 4pt spacing scale — nothing off it */
+  --space-2xs: .25rem;
+  --space-xs:  .5rem;
+  --space-sm:  .75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6.5rem;
+
+  --rule-hair:  1px solid var(--hairline);
+  --rule-thick: 2px solid var(--ink);
+
+  /* Radius — openhouse's --radius: .75rem on cards. The board has none. */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+
+  /* Motion */
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 480ms;
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  accent-color: var(--accent);
+  color-scheme: light;
+}
+
+/* ───────── Tokens · dark ─────────
+   openhouse.in ships no dark mode; light is the committed design. This exists
+   because admin sessions are long. Warm near-black only, never #000.          */
+[data-theme='dark'] {
+  --paper:   oklch(15.0% 0.010 37);
+  --paper-2: oklch(19.5% 0.012 37);
+  --paper-3: oklch(24.0% 0.013 37);
+  --paper-4: oklch(29.0% 0.014 37);
+
+  --ink:      oklch(95.0% 0.010 60);
+  --ink-2:    oklch(80.0% 0.012 60);
+  --ink-mute: oklch(62.0% 0.014 50);
+  --rule:     oklch(38.0% 0.014 37);
+  --hairline: oklch(27.0% 0.012 37);
+
+  --accent:       oklch(72.0% 0.190 40);  /* lifted — #fa541c is dense on dark */
+  --accent-press: oklch(64.0% 0.195 37);
+  --accent-mute:  oklch(42.0% 0.110 37);
+  --accent-wash:  oklch(24.0% 0.045 37);
+
+  --band-go:   oklch(72.0% 0.130 175);
+  --band-hold: oklch(78.0% 0.150  75);
+  --band-stop: oklch(70.0% 0.180  25);
+  --band-mid:  oklch(62.0% 0.014  50);
+  --focus:     oklch(78.0% 0.120 208);
+
+  color-scheme: dark;
+}
+
+/* ───────── Base ───────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* `clip`, not `hidden` — clip preserves position:sticky on descendants. */
+html, body { margin: 0; overflow-x: clip; }
+html, body, #root { min-height: 100%; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  font-feature-settings: "kern", "liga";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+p { margin: 0 0 var(--space-md); }
+p:last-child { margin-bottom: 0; }
+
+a { color: inherit; text-decoration: none; text-underline-offset: 4px; }
+a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+img, svg { display: block; max-width: 100%; }
+::selection { background: var(--accent); color: var(--paper-2); }
+
+/* Instant. Focus rings never transition into existence. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--r-xs);
+}
+
+audio { width: 100%; }
+
+/* ───────── Type utilities ───────── */
+.mono, .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The machine's argument, in serif. 45–75ch measure. */
+.verdict {
+  font-family: var(--font-read);
+  font-size: var(--text-lg);
+  line-height: 1.6;
+  max-width: 68ch;
+  color: var(--ink-2);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-mute);
+}
+
+.muted { color: var(--ink-mute); }
+.measure { max-width: 68ch; }
+
+/* ───────── Shell ───────── */
+.shell {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl));
+}
+
+.nav {
+  display: flex;
+  align-items: center;          /* explicit — flex default is stretch */
+  gap: var(--space-md);
+  padding-block: var(--space-md);
+  border-bottom: var(--rule-hair);
+}
+.nav-mark { font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: -0.02em; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+.nav-who { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
+
+.main { padding-block: var(--space-xl) var(--space-3xl); }
+
+.page-head { margin-bottom: var(--space-xl); }
+.page-head h2 { font-size: var(--text-3xl); margin-top: var(--space-2xs); }
+
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--r-sm);
+  color: var(--ink-mute);
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover { background: var(--paper-3); color: var(--ink); }
+.icon-btn:active { background: var(--paper-4); }
+.icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ───────── Buttons ─────────
+   Four states minimum on every one. Each transition names its properties.     */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--r-md);
+  font-weight: 500;
+  font-size: var(--text-base);
+  border: 1px solid transparent;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+
+.btn-primary { background: var(--accent); color: oklch(100% 0 0); }
+.btn-primary:hover    { background: var(--accent-press); }
+.btn-primary:active   { background: var(--accent-press); transform: translateY(1px); }
+.btn-primary:disabled { background: var(--accent-mute); cursor: not-allowed; }
+
+.btn-ghost { background: transparent; color: var(--ink-2); border-color: var(--hairline); }
+.btn-ghost:hover    { background: var(--paper-3); border-color: var(--rule); }
+.btn-ghost:active   { background: var(--paper-4); }
+.btn-ghost:disabled { color: var(--ink-mute); cursor: not-allowed; }
+
+.btn-danger { background: transparent; color: var(--band-stop); border-color: var(--band-stop); }
+.btn-danger:hover    { background: var(--band-stop); color: var(--paper-2); }
+.btn-danger:active   { transform: translateY(1px); }
+.btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-sm { padding: var(--space-2xs) var(--space-sm); font-size: var(--text-sm); }
+
+/* ───────── Callout ───────── */
+.callout {
+  display: flex; gap: var(--space-sm); align-items: flex-start;
+  padding: var(--space-md);
+  background: var(--accent-wash);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: var(--text-sm);
+  margin-block: var(--space-lg);
+}
+.callout svg { flex: none; margin-top: 2px; }
+.callout-warn { background: var(--paper-3); border-left-color: var(--band-hold); }
+.callout-stop { background: var(--paper-3); border-left-color: var(--band-stop); }
+
+/* ───────── Toasts ─────────
+   Failures and invisible effects only. Never a success toast for an effect the
+   user can already see.                                                       */
+.toaster {
+  position: fixed; right: var(--space-lg); bottom: var(--space-lg);
+  display: flex; flex-direction: column; gap: var(--space-xs);
+  z-index: 100;
+}
+.toast {
+  display: flex; gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--paper-2);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--ink-mute);
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+  max-width: 380px;
+  box-shadow: 0 4px 16px oklch(0% 0 0 / 8%);
+  animation: toast-in var(--dur-base) var(--ease-out);
+}
+.toast-error { border-left-color: var(--band-stop); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* ───────── Landing · off-axis split ─────────
+   Nothing sits on a shared centre line. The mark is anchored bottom-left, the
+   sign-in panel starts at 38% down its own column.                            */
+.landing { display: grid; grid-template-columns: 1.15fr 1fr; min-height: 100vh; }
+
+.landing-mark {
+  background: var(--paper-3);
+  border-right: var(--rule-hair);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: var(--space-3xl);
+  gap: var(--space-md);
+}
+.landing-mark h1 { font-size: var(--text-mark); line-height: .95; }
+.landing-rule { width: 64px; height: 2px; background: var(--accent); }
+
+.landing-panel {
+  display: flex; flex-direction: column; justify-content: flex-start;
+  padding: 38vh var(--space-2xl) var(--space-2xl);
+  gap: var(--space-lg);
+}
+.landing-copy { max-width: 34ch; color: var(--ink-2); }
+.landing-signin { min-height: 44px; }
+.landing-foot { margin-top: auto; padding-top: var(--space-xl); }
+
+@media (max-width: 860px) {
+  .landing { grid-template-columns: 1fr; min-height: auto; }
+  .landing-mark {
+    border-right: 0; border-bottom: var(--rule-hair);
+    padding: var(--space-2xl); min-height: 52vh;
+  }
+  .landing-panel { padding: var(--space-2xl); }
+}
+
+/* ───────── Numbered steps ───────── */
+.steps { border-top: var(--rule-hair); }
+.step {
+  display: grid; grid-template-columns: 3rem 1fr; gap: var(--space-lg);
+  padding-block: var(--space-lg);
+  border-bottom: var(--rule-hair);
+}
+.step-n {
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  color: var(--accent); padding-top: .2rem;
+}
+.step-body { max-width: 68ch; }
+.step-body h3 { font-size: var(--text-lg); margin-bottom: var(--space-2xs); }
+.step-body ul { margin: 0; padding-left: 1.1rem; }
+.step-body li { margin-bottom: var(--space-2xs); }
+
+@media (max-width: 620px) {
+  .step { grid-template-columns: 2rem 1fr; gap: var(--space-md); }
+}
+
+/* ───────── Dropzone ───────── */
+.drop {
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-lg);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  color: var(--ink-mute);
+  background: var(--paper-2);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-wash); }
+.drop.over { border-style: solid; }
+.drop:focus-visible { border-color: var(--focus); }
+.drop-hint { font-family: var(--font-mono); font-size: var(--text-xs); margin-top: var(--space-xs); }
+
+.picked {
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  background: var(--paper-2);
+  padding: var(--space-lg);
+}
+.picked-head { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
+.picked-name { font-weight: 500; }
+.picked-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
+.picked-actions { display: flex; gap: var(--space-sm); margin-top: var(--space-lg); flex-wrap: wrap; }
+
+/* ───────── Scoring progress ─────────
+   The rule fills to an honest ceiling and stops. Neither Scribe nor Claude
+   reports progress, so there is no percentage to show.                         */
+.progress { height: 2px; background: var(--paper-4); overflow: hidden; margin-block: var(--space-md); }
+.progress-fill { height: 100%; background: var(--accent); width: 0; animation: fill 45s var(--ease-out) forwards; }
+@keyframes fill { to { width: 88%; } }
+@media (prefers-reduced-motion: reduce) { .progress-fill { animation: none; width: 88%; } }
+.progress-copy { font-family: var(--font-mono); font-size: var(--text-sm); letter-spacing: .08em; text-transform: uppercase; }
+
+/* ───────── Stamp ───────── */
+.stamp {
+  display: inline-block;
+  transform: rotate(-1.5deg);
+  border: 2px solid var(--band-go);
+  border-radius: var(--r-sm);
+  padding: var(--space-sm) var(--space-lg);
+  color: var(--band-go);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+/* ───────── The board ─────────
+   Wayfare's departure board, carrying our data. Rules separate; no cards, no
+   zebra, no shadows. Hover changes exactly one property.                       */
+.board-wrap { overflow-x: auto; }
+.board { width: 100%; border-collapse: collapse; min-width: 640px; }
+
+.board thead th {
+  font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-mute);
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--rule-thick);
+  white-space: nowrap;
+}
+.board td {
+  padding: var(--space-sm);
+  border-bottom: var(--rule-hair);
+  vertical-align: baseline;
+}
+.board tbody tr {
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.board tbody tr:hover { background: var(--paper-3); }
+.board tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.board .num { color: var(--ink-2); white-space: nowrap; }
+.board .cand { font-weight: 500; }
+.board .cand small { display: block; color: var(--ink-mute); font-size: var(--text-xs); font-weight: 400; }
+
+/* Status — a mono word and a dot. Not a pill, not a badge. */
+.status {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em;
+  white-space: nowrap;
+}
+.status::before { content: "\25CF"; margin-right: 6px; }
+.status-scored::before     { color: var(--band-go); }
+.status-queued::before,
+.status-processing::before { color: var(--band-hold); }
+.status-failed::before     { color: var(--band-stop); }
+.status-voided::before     { color: var(--ink-mute); }
+
+/* Segmented filter */
+.seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--r-sm); overflow: hidden; }
+.seg button {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--ink-mute);
+  border-right: 1px solid var(--hairline);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.seg button:last-child { border-right: 0; }
+.seg button:hover { background: var(--paper-3); color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent-press); }
+.seg button:active { background: var(--paper-4); }
+.seg button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ───────── Verdict ─────────
+   A display numeral, not five glyphs: five empty stars read as "not scored",
+   which is fatal when 0 is a real band meaning Irrelevant.                     */
+.stars { display: inline-flex; align-items: baseline; gap: var(--space-xs); }
+.stars[data-tone="go"]   { --band: var(--band-go); }
+.stars[data-tone="hold"] { --band: var(--band-hold); }
+.stars[data-tone="stop"] { --band: var(--band-stop); }
+.stars[data-tone="mid"]  { --band: var(--band-mid); }
+
+.stars-mark {
+  font-family: var(--font-display); line-height: 1;
+  color: var(--band); font-variant-numeric: tabular-nums;
+}
+.stars-sm .stars-mark { font-size: var(--text-lg); }
+.stars-md .stars-mark { font-size: var(--text-2xl); }
+.stars-lg .stars-mark { font-size: var(--text-mark); }
+
+.stars-of { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-mute); }
+.stars-band {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-2); margin-left: var(--space-xs);
+}
+
+/* ───────── Metrics strip ───────── */
+.metrics {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  border-block: var(--rule-hair);
+  margin-block: var(--space-xl);
+}
+.metric { padding: var(--space-md) var(--space-sm); border-left: var(--rule-hair); }
+.metric:first-child { border-left: 0; }
+.metric-v {
+  font-family: var(--font-mono); font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.metric-k {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-mute); margin-top: var(--space-2xs);
+}
+.metric-flag {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--band-hold);
+  margin: calc(var(--space-xl) * -1 + var(--space-xs)) 0 var(--space-xl);
+}
+
+/* ───────── Axis blocks ─────────
+   Band colour on a 2px TOP rule — never a thick left side-stripe. Not a card,
+   so nothing nests.                                                            */
+.axis {
+  display: grid; grid-template-columns: 3rem 1fr; gap: var(--space-lg);
+  padding-block: var(--space-xl);
+  border-top: 2px solid var(--band);
+}
+.axis[data-tone="go"]   { --band: var(--band-go); }
+.axis[data-tone="hold"] { --band: var(--band-hold); }
+.axis[data-tone="stop"] { --band: var(--band-stop); }
+.axis[data-tone="mid"]  { --band: var(--band-mid); }
+.axis-n { font-family: var(--font-mono); color: var(--ink-mute); font-size: var(--text-sm); padding-top: .35rem; }
+.axis-label { font-size: var(--text-xl); margin-bottom: var(--space-sm); }
+.axis-body > .stars { margin-bottom: var(--space-md); }
+.axis-overall { border-top: var(--rule-thick); }
+
+@media (max-width: 620px) {
+  .axis { grid-template-columns: 2rem 1fr; gap: var(--space-md); }
+}
+
+/* ───────── Transcript ───────── */
+.transcript {
+  max-height: 340px; overflow-y: auto;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  background: var(--paper-2);
+  padding: var(--space-lg);
+  font-family: var(--font-read);
+  line-height: 1.65;
+  max-width: 68ch;
+  color: var(--ink-2);
+}
+
+.record-foot {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--ink-mute);
+  border-top: var(--rule-hair);
+  margin-top: var(--space-xl); padding-top: var(--space-md);
+  display: flex; gap: var(--space-md); flex-wrap: wrap;
+}
+
+/* ───────── Dialog ───────── */
+.scrim {
+  position: fixed; inset: 0; z-index: 200;
+  background: oklch(20% 0.01 37 / 45%);
+  display: grid; place-items: center;
+  padding: var(--space-lg);
+  animation: scrim-in var(--dur-base) var(--ease-out);
+}
+.dialog {
+  background: var(--paper-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  padding: var(--space-xl);
+  width: 100%; max-width: 440px;
+  animation: dialog-in var(--dur-base) var(--ease-out);
+}
+.dialog h3 { font-size: var(--text-xl); margin-bottom: var(--space-sm); }
+.dialog-actions { display: flex; gap: var(--space-sm); justify-content: flex-end; margin-top: var(--space-xl); }
+@keyframes scrim-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .scrim, .dialog { animation: none; }
+}
+
+/* ───────── Loading ───────── */
+.splash { display: grid; place-items: center; min-height: 100vh; }
+.rows { display: flex; flex-direction: column; gap: var(--space-xs); }
+.empty {
+  padding: var(--space-3xl) var(--space-lg);
+  text-align: center; color: var(--ink-mute);
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  border-bottom: var(--rule-hair);
+}

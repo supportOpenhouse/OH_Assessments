@@ -1,0 +1,24 @@
+# Claude's private lab notebook — not team documentation
+CLAUDE.md
+
+# env
+.env
+.env.local
+.env*.local
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# node
+node_modules/
+dist/
+.vercel/
+
+# scratch
+*.log
+.DS_Store
+.pytest_cache/

@@ -1,0 +1,241 @@
+# 02 — Architecture
+
+**Two deploy targets: frontend on Vercel, backend on Render.**
+
+Frontend design is specified in [07-frontend.md](07-frontend.md) — the
+[Hallmark](https://github.com/nutlope/hallmark) method on openhouse.in's palette.
+The sibling repo `Direct_Inventory/frontend` is the reference for the **auth
+architecture, the mock-API pattern, and this exact deploy split** (its Vercel
+frontend rewrites `/api/*` to a Render backend); none of its visual language is used.
+
+---
+
+## 1. Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Frontend | React 18 + Vite, **plain JavaScript** | No TypeScript, no build ceremony |
+| Routing | `react-router-dom` v6 | |
+| Styling | **Plain CSS, one `styles.css`, OKLCH custom properties** | Hallmark token system. No Tailwind, no CSS-in-JS, no component library |
+| Auth (client) | `@react-oauth/google` | Popup flow, no redirect |
+| Backend | **FastAPI + uvicorn** in a Render web service | Always-on container. No function limits |
+| DB | **Neon Postgres** via `psycopg[binary,pool]`, hand-written SQL | No ORM. Two tables |
+| Object storage | **Cloudflare R2** via `boto3` | S3-compatible, zero egress, survives redeploys |
+| STT | **ElevenLabs Scribe v2** | Word timestamps + audio events at $0.22/hr |
+| AI scoring | **Claude Opus 5** (`claude-opus-5`), `effort: max` | |
+| Deploy | Vercel (static) + Render **Starter** | Starter is always-on — no cold start, background tasks safe |
+
+## 2. What moving off Vercel serverless changed
+
+Three constraints that shaped the previous revision no longer exist. Each one
+deleted work:
+
+| Was | Now | Consequence |
+|---|---|---|
+| 4.5 MB request body cap | No cap | **Vercel Blob and its Node function are deleted.** Audio POSTs straight to the backend |
+| 300s function ceiling | No timeout | Pipeline length is no longer a design constraint |
+| ~250 MB bundle limit | No limit | `librosa` / `parselmouth` now fit — **vocal pitch is unblocked**, though still deferred ([05-scoring.md §7](05-scoring.md)) |
+
+One new constraint replaces them: a Render web service is a **long-lived process
+that can restart**. A background task interrupted by a deploy or a restart leaves
+a row stuck in `processing`. Handled explicitly in §6.
+
+## 3. Repository layout
+
+```
+OH_Assessments/
+├── frontend/                    →  Vercel
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── vercel.json              # rewrite /api/* → Render, SPA fallback
+│   ├── package.json
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── styles.css           # the entire Hallmark design system
+│       ├── api/{client.js,mock.js}
+│       ├── contexts/{AuthContext.jsx,ThemeContext.jsx}
+│       ├── components/{Layout,Toaster,Stars,AxisBlock,MetricsStrip,
+│       │               UploadDrop,ScoringProgress,icons}.jsx
+│       └── pages/{Landing,Assessment,Dashboard,AdminList,AdminDetail}.jsx
+│
+├── backend/                     →  Render
+│   ├── app/
+│   │   ├── main.py              # FastAPI app + every route
+│   │   ├── auth.py              # Google verify, our JWT, FastAPI deps
+│   │   ├── db.py                # psycopg pool + every SQL statement
+│   │   ├── storage.py           # R2 put / presign
+│   │   ├── metrics.py           # PURE: word timestamps → delivery numbers
+│   │   ├── scoring.py           # Scribe → metrics → Claude
+│   │   └── tasks.py             # background scoring + the stale sweep
+│   ├── tests/{test_metrics,test_auth,test_scoring}.py
+│   ├── rubric.md                # THE rubric. Hashed into rubric_version
+│   ├── instructions.md          # candidate-facing brief
+│   ├── requirements.txt
+│   └── render.yaml
+│
+├── schema.sql
+└── docs/
+```
+
+Two folders, two deploy targets, one repo. Render's root directory is set to
+`backend/`; Vercel's to `frontend/`.
+
+## 4. How the two halves connect
+
+The browser only ever talks to **one origin**. Vercel rewrites `/api/*` to Render,
+so there is no CORS in the happy path, no second base URL in the bundle, and no
+cross-origin token handling.
+
+`frontend/vercel.json`:
+
+```jsonc
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://oh-assessments-api.onrender.com/api/$1" },
+    { "source": "/(.*)",     "destination": "/index.html" }
+  ]
+}
+```
+
+**CORS is still configured on the backend**, restricted to the Vercel production
+and preview domains. The Render URL is discoverable, and the rewrite being
+same-origin is a convenience, not a security boundary.
+
+## 5. Request flow
+
+Every request is short. Scoring runs in the background, so **no connection is
+ever held open across the slow work** — which is what makes the Vercel proxy hop
+safe.
+
+```
+┌─ browser ─────────────────────────────────────────────────────────────┐
+│  1. Google popup sign-in  ──id_token──▶  POST /api/auth/google        │
+│                           ◀──our JWT───  (verified, role resolved)    │
+│  2. GET /api/me                       →  { role, submission_status }  │
+│  3. POST /api/submissions (multipart) →  202 { id }        ~2-4s      │
+│  4. GET  /api/submissions/{id}/status →  poll every 2s     <100ms     │
+└───────────────────────────────────────────────────────────────────────┘
+        │                                          ▲
+        ▼                                          │
+┌─ Render (always-on) ─────────────────────────────┴────────────────────┐
+│  POST handler (fast path)                                             │
+│    a. validate type + size + duration                                 │
+│    b. put object → Cloudflare R2                                      │
+│    c. INSERT submissions status='queued'   ← claims the one-attempt   │
+│    d. schedule background task, return 202                            │
+│                                                                        │
+│  background task (no timeout)                                          │
+│    e. status='processing'                                              │
+│    f. ElevenLabs Scribe v2          ~8-20s                             │
+│    g. metrics.derive()              <10ms                              │
+│    h. Claude Opus 5, effort=max     ~15-35s                            │
+│    i. status='scored'  (or 'failed' with the reason)                   │
+└────────────────────────────────────────────────────────────────────────┘
+                            │                    │
+                            ▼                    ▼
+                   Cloudflare R2          Neon Postgres
+```
+
+## 6. Background tasks, honestly
+
+FastAPI's `BackgroundTasks` runs the scoring in the same process after the
+response is sent. **No Celery, no Redis, no worker dyno** — a single always-on
+Starter instance handling a handful of submissions a day does not need a queue.
+
+The failure mode this creates, and its fix:
+
+> A deploy, a crash, or a restart mid-scoring leaves a row in `processing`
+> forever. On startup the app sweeps rows in `queued`/`processing` older than 10
+> minutes and marks them `failed` with `"interrupted by restart"`. An admin sees
+> the failure and can void it, which returns the attempt to the candidate.
+
+```python
+# app/tasks.py
+STALE_AFTER = timedelta(minutes=10)
+
+async def sweep_stale():
+    """Run once on startup. Rows stuck in-flight across a restart are dead."""
+    db.fail_stale(STALE_AFTER, "interrupted by a backend restart")
+```
+
+**When to outgrow this:** more than one Render instance, or submissions arriving
+faster than they score. Then the background task becomes a real queue. Not before.
+
+## 7. Auth
+
+1. `@react-oauth/google` opens a **popup on the landing page** — no route change,
+   no redirect — and returns a Google ID token.
+2. `POST /api/auth/google { id_token }`.
+3. Backend verifies signature and `aud` with `google.oauth2.id_token.verify_oauth2_token`.
+   Never by decoding unverified.
+4. Role resolves from the table: `SELECT 1 FROM admins WHERE email = %s` → `admin`, else `user`.
+5. Backend mints **our own** JWT (7 days, HS256, `JWT_SECRET`) and returns `{ token, user }`.
+6. Frontend stores it under `oha_token` and sends `Authorization: Bearer`.
+7. Any `401` fires an `auth:expired` window event → toast → back to the landing page.
+
+> Google ID tokens expire in an hour, which would sign a candidate out mid-upload.
+> Our own token avoids that, and `Direct_Inventory` already does exactly this, so
+> the `AuthContext` logic ports cleanly — only its visual layer is discarded.
+
+## 8. Object storage
+
+Audio is written to R2 under `audio/{submission_id}{ext}` and **never made
+public**. The `submissions` row stores the key, not a URL.
+
+Admin playback uses a **presigned GET URL with a 1-hour TTL**, generated at read
+time and returned only from the admin detail endpoint. A candidate-facing
+response never contains a key or a URL.
+
+```python
+# app/storage.py
+def put(key: str, data: bytes, content_type: str) -> None: ...
+def presign(key: str, ttl_s: int = 3600) -> str: ...
+```
+
+## 9. Environment variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Render | Neon pooled connection string |
+| `JWT_SECRET` | Render | Signs our session tokens |
+| `GOOGLE_OAUTH_CLIENT_ID` | Render | `aud` claim to verify against |
+| `ELEVENLABS_API_KEY` | Render | Scribe v2 |
+| `ANTHROPIC_API_KEY` | Render | Claude |
+| `R2_ACCOUNT_ID` | Render | R2 endpoint host |
+| `R2_ACCESS_KEY_ID` | Render | |
+| `R2_SECRET_ACCESS_KEY` | Render | |
+| `R2_BUCKET` | Render | |
+| `ALLOWED_ORIGINS` | Render | Comma-separated Vercel domains for CORS |
+| `VITE_GOOGLE_OAUTH_CLIENT_ID` | Vercel | Same client id, public half |
+| `VITE_API_BASE` | Vercel | Blank — the rewrite makes it same-origin |
+| `VITE_USE_MOCKS` | Vercel | `false` in production |
+
+`render.yaml`:
+
+```yaml
+services:
+  - type: web
+    name: oh-assessments-api
+    runtime: python
+    plan: starter                 # always-on; free tier suspends background tasks
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+```
+
+## 10. Security posture
+
+- **No candidate-facing route can return a score.** `GET /api/me` and
+  `/api/submissions/{id}/status` return `pending` / `submitted` / `queued` /
+  `processing` / `scored` — a state name, never a number. There is no
+  candidate-shaped serialization of a score to leak.
+- `GET /api/submissions` and `/api/submissions/{id}` hard-require `role == 'admin'`.
+- R2 objects are private. Presigned URLs are admin-only and expire in an hour.
+- Every DB call is parameterised. No interpolation into SQL, anywhere.
+- Upload validation runs **before** the object is written: content type, ≤25 MB,
+  ≤10 minutes.
+- CORS restricted to the Vercel domains, even though the rewrite is same-origin.
