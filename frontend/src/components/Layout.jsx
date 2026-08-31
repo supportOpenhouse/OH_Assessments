@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { IconSun, IconMoon, IconSignOut } from './icons.jsx';
@@ -20,6 +20,12 @@ export default function Layout() {
         <nav className="nav">
           <img className="brand-logo" src="/openhouse-logo.png" alt="Openhouse" width="640" height="128" />
           <span className="eyebrow">Sales Assessment</span>
+          {user?.role === 'admin' && (
+            <div className="nav-links">
+              <NavLink className="nav-link" to="/admin" end>Submissions</NavLink>
+              <NavLink className="nav-link" to="/admin/activity">Activity</NavLink>
+            </div>
+          )}
           <div className="nav-right">
             {user && <span className="nav-who">{user.email}</span>}
             <button

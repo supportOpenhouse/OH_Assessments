@@ -14,7 +14,9 @@ const SUBMISSIONS = [
     id: '9f1c0a3e-0000-4000-8000-000000000001',
     email: 'asha.r@example.com',
     name: 'Asha Ramesh',
+    assessment_type: 'sales_insight',
     status: 'scored',
+    overall_stars: 3,
     duration_s: 184.3,
     audio_bytes: 2914304,
     created_at: '2026-08-27T09:12:03Z',
@@ -134,6 +136,43 @@ property owner on a first call.
 Your recording is transcribed and assessed. You will not see a result here —
 the hiring team reviews every submission and will be in touch.`;
 
+// Audit fixtures. Shapes match what the backend actually writes — note that no
+// entry carries a score, a transcript, or audio.
+const LOGS = [
+  { id: '9', at: '2026-08-27T09:12:48Z', actor_email: null, actor_role: 'system',
+    action: 'submission.scored', entity: 'submission',
+    entity_id: '9f1c0a3e-0000-4000-8000-000000000001',
+    data: { rubric_version: 'a91c3fbb21c4', model: 'claude-opus-5', stt_model: 'scribe_v2', duration_s: 184.3, word_count: 412 }, ip: null },
+  { id: '8', at: '2026-08-27T09:12:06Z', actor_email: null, actor_role: 'system',
+    action: 'submission.processing', entity: 'submission',
+    entity_id: '9f1c0a3e-0000-4000-8000-000000000001', data: {}, ip: null },
+  { id: '7', at: '2026-08-27T09:12:03Z', actor_email: 'asha.r@example.com', actor_role: 'user',
+    action: 'submission.created', entity: 'submission',
+    entity_id: '9f1c0a3e-0000-4000-8000-000000000001',
+    data: { bytes: 2914304, content_type: 'audio/mpeg', duration_s: 184.3 }, ip: '103.21.244.7' },
+  { id: '6', at: '2026-08-27T09:08:12Z', actor_email: 'asha.r@example.com', actor_role: 'user',
+    action: 'submission.rejected', entity: null, entity_id: null,
+    data: { reason: 'too_large', status: 413, filename: 'pitch-raw.wav', content_type: 'audio/wav' }, ip: '103.21.244.7' },
+  { id: '5', at: '2026-08-27T09:04:55Z', actor_email: 'asha.r@example.com', actor_role: 'user',
+    action: 'auth.login', entity: 'candidate', entity_id: '11111111-0000-4000-8000-000000000001',
+    data: { new_candidate: false }, ip: '103.21.244.7' },
+  { id: '4', at: '2026-08-26T14:02:39Z', actor_email: null, actor_role: 'system',
+    action: 'submission.swept', entity: null, entity_id: null,
+    data: { count: 1, stale_after_minutes: 10 }, ip: null },
+  { id: '3', at: '2026-08-25T11:41:00Z', actor_email: 'you@openhouse.in', actor_role: 'admin',
+    action: 'submission.voided', entity: 'submission',
+    entity_id: '9f1c0a3e-0000-4000-8000-000000000003',
+    data: { candidate_email: 'priya.s@example.com', previous_status: 'failed' }, ip: '49.36.180.2' },
+  { id: '2', at: '2026-08-25T11:30:14Z', actor_email: null, actor_role: 'system',
+    action: 'submission.failed', entity: 'submission',
+    entity_id: '9f1c0a3e-0000-4000-8000-000000000003',
+    data: { error: 'ScoringError: transcription returned no speech' }, ip: null },
+  { id: '1', at: '2026-08-25T11:29:02Z', actor_email: 'priya.s@example.com', actor_role: 'user',
+    action: 'candidate.created', entity: 'candidate',
+    entity_id: '11111111-0000-4000-8000-000000000003',
+    data: { name: 'Priya Sharma' }, ip: '49.36.180.2' },
+];
+
 let me_ = {
   email: 'you@openhouse.in',
   name: 'You',
@@ -177,6 +216,14 @@ export function mockApi(method, path, body) {
   if (method === 'GET' && /^\/api\/submissions\/[^/]+\/status$/.test(path)) {
     pollCount += 1;
     return { id: path.split('/')[3], status: pollCount < 4 ? 'processing' : 'scored' };
+  }
+
+  if (method === 'GET' && path.startsWith('/api/logs')) {
+    const m = path.match(/[?&]action=([^&]+)/);
+    const want = m ? decodeURIComponent(m[1]) : null;
+    const items = want ? LOGS.filter((l) => l.action === want) : LOGS;
+    return { total: items.length, items,
+             actions: [...new Set(LOGS.map((l) => l.action))].sort() };
   }
 
   if (method === 'POST' && /^\/api\/submissions\/[^/]+\/void$/.test(path)) {

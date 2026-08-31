@@ -41,7 +41,10 @@ landing page** — there is no redirect and no `/login` route.
 }
 ```
 
-Side effect: upserts the `candidates` row (`last_seen_at` bumped, name refreshed).
+Side effects: upserts the `candidates` row (email saved, `last_seen_at` bumped,
+`login_count` incremented, name refreshed), and writes `auth.login` — plus
+`candidate.created` on a first-ever sign-in — to `activity_logs`.
+
 `role` is `admin` when the email is in `oh_users`, else `user`.
 
 | Code | When |
@@ -153,11 +156,14 @@ included so the board can warn when visible rows aren't comparable.
 
 The full record: `transcript`, `metrics`, `scores` with every reasoning string,
 `rubric_version`, `model`, `stt_model`, `error` if it failed, plus the
-candidate's `email` and `name` from the `candidates` join and `voided_by_email`
-when it was voided.
+candidate's `email` and `name` from the `candidates` join.
 
-`candidate_id` and the raw `voided_by` id are stripped — internal join keys are
-not admin-facing fields.
+The response is one logical submission assembled from the parent (`status`,
+`assessment_type`, `overall_stars`, timestamps) and the child (`audio`,
+`transcript`, `metrics`, `scores`). `candidate_id` is not returned — an internal
+join key is not an admin-facing field.
+**Who voided a submission is not on this response**; it is an event, and it
+lives in `GET /api/logs?entity_id=<id>`.
 
 Plus `audio_url` — a **presigned R2 GET URL with a 1-hour TTL**, generated at read
 time. The stored `audio_key` is never returned.
@@ -180,6 +186,38 @@ Grants the candidate a retry. The row is kept in full, audio included.
 | `403` | Not an admin |
 | `404` | No such submission |
 | `409` | Already voided |
+
+Writes `submission.voided` to `activity_logs` naming the admin. That row is the
+**only** record of who did it — `sales_insight_submissions` has no reference to
+`oh_users`.
+
+---
+
+## `GET /api/logs` — **admin only**
+
+The audit trail, newest first. Every mutation and every sign-in.
+
+```jsonc
+// ?limit=100&offset=0&action=submission.voided&actor=a@b.com&entity_id=9f1c...
+{
+  "total": 412,
+  "actions": ["auth.login", "candidate.created", "submission.created", "..."],
+  "items": [
+    { "id": "412", "at": "2026-08-27T09:12:48Z",
+      "actor_email": null, "actor_role": "system",
+      "action": "submission.scored",
+      "entity": "sales_insight_submission", "entity_id": "9f1c...",
+      "data": { "rubric_version": "a91c3fbb21c4", "model": "claude-opus-5" },
+      "ip": null }
+  ]
+}
+```
+
+All three filters are optional and ANDed. `actions` is `select distinct action`,
+so the UI's filter row can never drift from the verbs actually in use.
+
+**Admin only, and it matters:** the trail names every candidate who ever signed
+in. `data` never carries a score, a reasoning string, or a transcript.
 
 ---
 
@@ -206,4 +244,5 @@ the backend so the copy changes without a frontend deploy.
 | `GET` | `/api/submissions/{id}/status` | owner or admin | Polled every 2s |
 | `GET` | `/api/submissions` | **admin** | |
 | `GET` | `/api/submissions/{id}` | **admin** | Includes a presigned `audio_url` |
-| `POST` | `/api/submissions/{id}/void` | **admin** | |
+| `POST` | `/api/submissions/{id}/void` | **admin** | Audited; the only record of who |
+| `GET` | `/api/logs` | **admin** | The audit trail |

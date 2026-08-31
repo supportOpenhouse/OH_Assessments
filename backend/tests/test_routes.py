@@ -17,7 +17,7 @@ os.environ.setdefault("R2_BUCKET", "test")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import auth, db, main, storage  # noqa: E402
+from app import auth, db, logs, main, storage  # noqa: E402
 
 CANDIDATE = "cand@example.com"
 ADMIN = "admin@openhouse.in"
@@ -37,7 +37,8 @@ CAND_ID = "11111111-0000-4000-8000-000000000001"
 
 ROW = {
     "id": SUB_ID,
-    "candidate_id": CAND_ID,
+    "assessment_type": "sales_insight",
+    "overall_stars": 3,
     "email": CANDIDATE,
     "name": "Cand",
     "audio_key": f"audio/{SUB_ID}.mp3",
@@ -46,8 +47,6 @@ ROW = {
     "transcript": "hello",
     "metrics": {"wpm": 150},
     "scores": SCORES,
-    "voided_by": None,
-    "voided_by_email": None,
     "created_at": datetime(2026, 8, 27, tzinfo=timezone.utc),
 }
 
@@ -58,7 +57,7 @@ def client(monkeypatch):
         {"id": "22222222-0000-4000-8000-000000000001", "email": ADMIN,
          "name": "Admin", "role": "admin"} if e == ADMIN else None
     ))
-    monkeypatch.setattr(db, "upsert_candidate", lambda e, n: CAND_ID)
+    monkeypatch.setattr(db, "upsert_candidate", lambda e, n, is_login=False: (CAND_ID, False))
     monkeypatch.setattr(db, "live_submission", lambda e: (
         {"id": SUB_ID, "status": "scored", "created_at": ROW["created_at"]}
         if e == CANDIDATE else None
@@ -68,11 +67,16 @@ def client(monkeypatch):
     ))
     monkeypatch.setattr(db, "get_submission", lambda i: dict(ROW) if i == SUB_ID else None)
     monkeypatch.setattr(db, "list_submissions", lambda *a: (1, [dict(ROW)]))
-    monkeypatch.setattr(db, "void_submission", lambda i, by: True)
+    monkeypatch.setattr(db, "void_submission", lambda i: True)
     monkeypatch.setattr(db, "fail_stale", lambda *a: 0)
     monkeypatch.setattr(storage, "presign", lambda k, ttl_s=3600: "https://signed.example/x")
+    AUDIT.clear()
+    monkeypatch.setattr(db, "insert_log", lambda **kw: AUDIT.append(kw))
     with TestClient(main.app) as c:
         yield c
+
+
+AUDIT: list[dict] = []
 
 
 def hdr(email, role):
@@ -183,3 +187,58 @@ def test_upload_rejects_unreadable_audio(client, monkeypatch):
     )
     assert r.status_code == 422
     assert calls == [], "nothing may be written to storage before validation passes"
+
+
+# ── audit trail ───────────────────────────────────────────────────────────
+
+def test_voiding_writes_an_audit_row_naming_the_actor(client):
+    client.post(f"/api/submissions/{SUB_ID}/void", headers=ADM())
+    rows = [r for r in AUDIT if r["action"] == logs.SUBMISSION_VOIDED]
+    assert len(rows) == 1
+    # The submissions table has no oh_users reference, so this row is the ONLY
+    # record of who voided it.
+    assert rows[0]["actor_email"] == ADMIN
+    assert rows[0]["actor_role"] == "admin"
+    assert rows[0]["entity_id"] == SUB_ID
+
+
+def test_a_rejected_upload_is_audited(client):
+    client.post("/api/submissions", headers=CAND(),
+                files={"file": ("x.pdf", b"%PDF-1.4", "application/pdf")})
+    rows = [r for r in AUDIT if r["action"] == logs.SUBMISSION_REJECTED]
+    assert len(rows) == 1
+    assert rows[0]["data"]["reason"] == "unsupported_type"
+    assert rows[0]["data"]["status"] == 415
+
+
+def test_a_failed_audit_write_does_not_fail_the_action(client, monkeypatch):
+    def boom(**kw):
+        raise RuntimeError("audit table is on fire")
+
+    monkeypatch.setattr(db, "insert_log", boom)
+    # Losing an audit row is bad. Losing the user's action because of it is worse.
+    r = client.post(f"/api/submissions/{SUB_ID}/void", headers=ADM())
+    assert r.status_code == 200
+
+
+def test_audit_rows_never_carry_a_score_or_a_transcript(client):
+    client.post(f"/api/submissions/{SUB_ID}/void", headers=ADM())
+    client.post("/api/submissions", headers=CAND(),
+                files={"file": ("x.pdf", b"%PDF-1.4", "application/pdf")})
+    blob = repr(AUDIT).lower()
+    for leak in ("reasoning", "stars", "transcript"):
+        assert leak not in blob, f"audit data must not duplicate a result ({leak})"
+
+
+def test_read_only_requests_write_no_audit_rows(client):
+    client.get("/api/me", headers=CAND())
+    client.get("/api/submissions", headers=ADM())
+    client.get(f"/api/submissions/{SUB_ID}", headers=ADM())
+    assert AUDIT == [], "only mutations are audited"
+
+
+def test_logs_endpoint_is_admin_only(client, monkeypatch):
+    monkeypatch.setattr(db, "list_logs", lambda *a: (0, []))
+    monkeypatch.setattr(db, "distinct_log_actions", lambda: [])
+    assert client.get("/api/logs", headers=CAND()).status_code == 403
+    assert client.get("/api/logs", headers=ADM()).status_code == 200

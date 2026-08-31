@@ -104,8 +104,36 @@ record — with nothing else running. The mock user is an admin; change
 Create a Neon project, then apply the schema and seed yourself into `oh_users`:
 
 ```bash
+psql "$DATABASE_URL" -f inspect.sql          # read-only: what is already there?
 psql "$DATABASE_URL" -f schema.sql
 psql "$DATABASE_URL" -f seed_oh_users.sql    # edit the email first
+```
+
+**If the database already has tables from an earlier revision of this schema**,
+`schema.sql` refuses to run and tells you so. `create table if not exists` does
+nothing when a table of that name exists with a *different* shape — it skips
+silently and fails several statements later as an unreadable "column does not
+exist". The preflight block at the top of `schema.sql` catches that up front.
+
+To start clean (**destructive** — check `inspect.sql`'s row counts first):
+
+```bash
+psql "$DATABASE_URL" -f reset.sql
+psql "$DATABASE_URL" -f schema.sql
+psql "$DATABASE_URL" -f seed_oh_users.sql
+```
+
+Five tables. `oh_users` (staff) · `candidates` (everyone who signs in) ·
+**`submissions`** — the holder, one row for every submission to every assessment
+type · `sales_insight_submissions` — the audio-specific columns, sharing the
+parent's primary key · `activity_logs` (append-only audit trail).
+
+Parent and child share a PK and duplicate nothing, so "every submission across
+every assessment" is `select * from submissions` with no `UNION` and nothing that
+can drift. Two triggers enforce it. See
+[docs/03-data-model.md](docs/03-data-model.md).
+
+```bash
 ```
 
 ### 3. Backend
@@ -129,8 +157,14 @@ cd backend && .venv/bin/python -m pytest -q     # 32 tests
 ```
 
 Covers the pure metrics function, JWT signing and the `alg=none` bypass, the
-scoring schema and rubric hashing, the route authorisation matrix, and the
-invariant that no candidate-facing route can return a score.
+scoring schema and rubric hashing, the route authorisation matrix, the audit
+trail (including that a failed audit write does not fail the action it audits),
+the parent/child split (one transaction, no duplicated columns, no `UNION`), and
+the invariant that no candidate-facing route can return a score.
+
+**Not covered:** the two plpgsql trigger bodies. They are opaque to every parser
+available offline — the first `psql -f schema.sql` against Neon is their first
+real test.
 
 ## Deploy
 

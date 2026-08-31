@@ -12,11 +12,11 @@ import pathlib
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from mutagen import File as MutagenFile
 
-from . import auth, db, scoring, storage, tasks
+from . import auth, db, logs, scoring, storage, tasks
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -74,7 +74,7 @@ async def health():
 
 
 @app.post("/api/auth/google")
-async def google_login(body: dict):
+async def google_login(body: dict, request: Request):
     token = (body or {}).get("id_token")
     if not token:
         raise HTTPException(401, "missing id_token")
@@ -83,13 +83,23 @@ async def google_login(body: dict):
     except auth.AuthError as e:
         raise HTTPException(401, str(e))
 
-    # Everyone who signs in gets a candidate row — staff included. It costs
-    # nothing and it is what lets an admin walk the candidate flow. Role comes
-    # from oh_users membership, never from having a candidates row.
-    db.upsert_candidate(info["email"], info["name"])
+    # The email is saved to candidates on EVERY sign-in, before anything else.
+    # Staff get a row too — it costs nothing and it is what lets an admin walk
+    # the candidate flow. Role comes from oh_users membership, never from
+    # having a candidates row.
+    candidate_id, created = db.upsert_candidate(info["email"], info["name"], is_login=True)
 
     oh = db.get_oh_user(info["email"])
     role = oh["role"] if oh else "user"
+
+    if created:
+        logs.record(logs.CANDIDATE_CREATED, actor_email=info["email"], actor_role=role,
+                    entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
+                    data={"name": info["name"]}, request=request)
+    logs.record(logs.LOGIN, actor_email=info["email"], actor_role=role,
+                entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
+                data={"new_candidate": created}, request=request)
+
     return {
         "token": auth.mint(info["email"], info["name"], role),
         "user": {**info, "role": role},
@@ -123,26 +133,37 @@ async def instructions(_: dict = Depends(auth.current_user)):
 @app.post("/api/submissions", status_code=202)
 async def create_submission(
     background: BackgroundTasks,
+    request: Request,
     file: UploadFile = File(...),
     u: dict = Depends(auth.current_user),
 ):
     """Validate, store, claim the slot, schedule, return. Two to four seconds."""
+
+    def reject(code: int, why: str, detail: str):
+        # A rejected upload is signal — a candidate hitting 409 three times, or
+        # 415 on every attempt, is something an admin should be able to see.
+        logs.record(logs.SUBMISSION_REJECTED, **logs.for_user(u),
+                    data={"reason": why, "status": code, "filename": file.filename,
+                          "content_type": file.content_type},
+                    request=request)
+        return HTTPException(code, detail)
+
     ext = ALLOWED.get((file.content_type or "").lower())
     if not ext:
-        raise HTTPException(415, f"unsupported audio type: {file.content_type}")
+        raise reject(415, "unsupported_type", f"unsupported audio type: {file.content_type}")
 
     data = await file.read()
     if len(data) > MAX_BYTES:
-        raise HTTPException(413, "file is larger than 25 MB")
+        raise reject(413, "too_large", "file is larger than 25 MB")
 
     probe = MutagenFile(io.BytesIO(data))
     if probe is None or getattr(probe, "info", None) is None:
-        raise HTTPException(422, "could not read that audio file")
+        raise reject(422, "unreadable", "could not read that audio file")
     if probe.info.length > MAX_SECONDS:
-        raise HTTPException(422, "recording is longer than 10 minutes")
+        raise reject(422, "too_long", "recording is longer than 10 minutes")
 
     # Everything validated. Only now does anything get written.
-    candidate_id = db.upsert_candidate(u["email"], u["name"])
+    candidate_id, _ = db.upsert_candidate(u["email"], u["name"])
     sub_id = str(uuid.uuid4())
     key = f"audio/{sub_id}{ext}"
     storage.put(key, data, file.content_type)
@@ -151,7 +172,16 @@ async def create_submission(
         db.create_submission(sub_id, candidate_id, key, file.content_type, len(data))
     except db.AlreadySubmitted:
         storage.delete(key)  # a rejected double-submit leaves nothing behind
-        raise HTTPException(409, "you have already submitted")
+        raise reject(409, "already_submitted", "you have already submitted")
+
+    logs.record(logs.SUBMISSION_CREATED, **logs.for_user(u),
+                entity=logs.ENTITY_SUBMISSION, entity_id=sub_id,
+                data={"candidate_id": candidate_id,
+                      "assessment_type": db.ASSESSMENT_TYPE,
+                      "bytes": len(data),
+                      "content_type": file.content_type,
+                      "duration_s": round(probe.info.length, 2)},
+                request=request)
 
     background.add_task(tasks.score_submission, sub_id)
     return {"id": sub_id, "status": "queued"}
@@ -190,16 +220,35 @@ async def submission_detail(sub_id: str, _: dict = Depends(auth.require_admin)):
         raise HTTPException(404, "not found")
     key = row.pop("audio_key")  # the key never leaves the server
     row.pop("candidate_id", None)  # internal join key, not an admin-facing field
-    row.pop("voided_by", None)     # replaced by voided_by_email from the join
     row["id"] = str(row["id"])
     row["audio_url"] = storage.presign(key)
     return row
 
 
 @app.post("/api/submissions/{sub_id}/void")
-async def void_submission(sub_id: str, u: dict = Depends(auth.require_admin)):
-    if not db.get_submission(sub_id):
+async def void_submission(sub_id: str, request: Request,
+                          u: dict = Depends(auth.require_admin)):
+    row = db.get_submission(sub_id)
+    if not row:
         raise HTTPException(404, "not found")
-    if not db.void_submission(sub_id, u["email"]):
+    if not db.void_submission(sub_id):
         raise HTTPException(409, "already voided")
+    # This log entry is the ONLY record of who voided it — the submissions table
+    # deliberately has no reference to oh_users.
+    logs.record(logs.SUBMISSION_VOIDED, **logs.for_user(u),
+                entity=logs.ENTITY_SUBMISSION, entity_id=sub_id,
+                data={"candidate_email": row["email"], "previous_status": row["status"]},
+                request=request)
     return {"id": sub_id, "status": "voided"}
+
+
+@app.get("/api/logs")
+async def list_logs(limit: int = 100, offset: int = 0, action: str | None = None,
+                    actor: str | None = None, entity_id: str | None = None,
+                    _: dict = Depends(auth.require_admin)):
+    """The audit trail. Admin only — it names every candidate who ever signed in."""
+    total, items = db.list_logs(min(limit, 500), offset, action, actor, entity_id)
+    for it in items:
+        it["id"] = str(it["id"])
+        it["at"] = it["at"].isoformat()
+    return {"total": total, "items": items, "actions": db.distinct_log_actions()}

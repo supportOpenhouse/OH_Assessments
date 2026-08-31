@@ -7,6 +7,7 @@ import Assessment from './pages/Assessment.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import AdminList from './pages/AdminList.jsx';
 import AdminDetail from './pages/AdminDetail.jsx';
+import AdminLogs from './pages/AdminLogs.jsx';
 
 // Where a signed-in visitor belongs. One redirect on sign-in, none afterwards.
 function homeFor(user) {
@@ -58,6 +59,8 @@ export default function App() {
           />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<RequireAdmin><AdminList /></RequireAdmin>} />
+          {/* Must precede /admin/:id, or "activity" is read as a submission id. */}
+          <Route path="/admin/activity" element={<RequireAdmin><AdminLogs /></RequireAdmin>} />
           <Route path="/admin/:id" element={<RequireAdmin><AdminDetail /></RequireAdmin>} />
         </Route>
 

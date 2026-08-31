@@ -230,6 +230,14 @@ audio { width: 100%; }
 
 .brand-logo-lg { height: 24px; }
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+.nav-links { display: flex; align-items: center; gap: var(--space-md); margin-left: var(--space-md); }
+.nav-link { font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute);
+  padding-block: var(--space-2xs); border-bottom: 2px solid transparent;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out); }
+.nav-link:hover { color: var(--ink); text-decoration: none; }
+.nav-link[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
 .nav-who { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
 
 .main { padding-block: var(--space-xl) var(--space-3xl); }
@@ -466,8 +474,33 @@ audio { width: 100%; }
 .status-failed::before     { color: var(--band-stop); }
 .status-voided::before     { color: var(--ink-mute); }
 
-/* Segmented filter */
+/* The activity log reuses the status treatment, toned by what the action DID
+   rather than by which entity it touched. */
+.status[data-tone="go"]::before   { color: var(--band-go); }
+.status[data-tone="hold"]::before { color: var(--band-hold); }
+.status[data-tone="stop"]::before { color: var(--band-stop); }
+.status[data-tone="mid"]::before  { color: var(--ink-mute); }
+
+.board-logs td { vertical-align: top; }
+.log-actor { font-size: var(--text-sm); }
+.log-actor small { display: block; font-family: var(--font-mono); font-size: var(--text-xs);
+                   color: var(--ink-mute); text-transform: uppercase; letter-spacing: .06em; }
+.log-data { font-family: var(--font-mono); font-size: var(--text-xs);
+            color: var(--ink-mute); max-width: 46ch; word-break: break-word; }
+
+/* Segmented filter — for a small, fixed set of mutually exclusive options. */
 .seg { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--r-sm); overflow: hidden; }
+
+/* Many options (the activity log's action verbs grow as verbs are added) do not
+   fit a segmented control: they overflow it, and `overflow-x: clip` on the page
+   then makes them unreachable rather than merely ugly. Wrapping chips instead. */
+.seg-chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs);
+             border: 0; border-radius: 0; overflow: visible; }
+.seg-chips button { border: 1px solid var(--hairline); border-radius: var(--r-sm); }
+.seg-chips button[aria-pressed="true"] { border-color: var(--accent-mute); }
+/* The segmented control drops the last item's right border to avoid doubling it
+   against the container edge. Chips have no container, so restore it. */
+.seg-chips button:last-child { border-right: 1px solid var(--hairline); }
 .seg button {
   font-family: var(--font-mono); font-size: var(--text-xs);
   text-transform: uppercase; letter-spacing: .06em;

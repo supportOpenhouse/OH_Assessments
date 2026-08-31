@@ -19,7 +19,7 @@ frontend rewrites `/api/*` to a Render backend); none of its visual language is 
 | Styling | **Plain CSS, one `styles.css`, OKLCH custom properties** | Hallmark token system. No Tailwind, no CSS-in-JS, no component library |
 | Auth (client) | `@react-oauth/google` | Popup flow, no redirect |
 | Backend | **FastAPI + uvicorn** in a Render web service | Always-on container. No function limits |
-| DB | **Neon Postgres** via `psycopg[binary,pool]`, hand-written SQL | No ORM. Three tables |
+| DB | **Neon Postgres** via `psycopg[binary,pool]`, hand-written SQL | No ORM. Five tables, two triggers |
 | Object storage | **Cloudflare R2** via `boto3` | S3-compatible, zero egress, survives redeploys |
 | STT | **ElevenLabs Scribe v2** | Word timestamps + audio events at $0.22/hr |
 | AI scoring | **Claude Opus 5** (`claude-opus-5`), `effort: max` | |
@@ -67,6 +67,7 @@ OH_Assessments/
 │   │   ├── storage.py           # R2 put / presign
 │   │   ├── metrics.py           # PURE: word timestamps → delivery numbers
 │   │   ├── scoring.py           # Scribe → metrics → Claude
+│   │   ├── logs.py              # audit trail: action verbs + record()
 │   │   └── tasks.py             # background scoring + the stale sweep
 │   ├── tests/{test_metrics,test_auth,test_scoring}.py
 │   ├── rubric.md                # THE rubric. Hashed into rubric_version
@@ -74,7 +75,8 @@ OH_Assessments/
 │   ├── requirements.txt
 │   └── render.yaml
 │
-├── schema.sql                   # oh_users · candidates · sales_insight_submissions
+├── schema.sql                   # oh_users · candidates · submissions (+ per-type
+│                                #   children) · activity_logs · 2 triggers
 ├── seed_oh_users.sql
 └── docs/
 ```
@@ -239,6 +241,10 @@ services:
 - `GET /api/submissions` and `/api/submissions/{id}` hard-require `role == 'admin'`.
 - R2 objects are private. Presigned URLs are admin-only and expire in an hour.
 - Every DB call is parameterised. No interpolation into SQL, anywhere.
+- **Every mutation is audited** to `activity_logs`, server-side. Client-side
+  event tracking is deliberately not used: it is forgeable by the person being
+  audited and blind to anything not going through the UI. `GET /api/logs` is
+  admin-only — the trail names every candidate who ever signed in.
 - Upload validation runs **before** the object is written: content type, ≤25 MB,
   ≤10 minutes.
 - CORS restricted to the Vercel domains, even though the rewrite is same-origin.
