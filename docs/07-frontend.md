@@ -121,8 +121,9 @@ permits when white is a lifted surface rather than the ground.
   --focus:      oklch(53.0% 0.091 208);
 
   /* Type */
-  --font-display: "Bricolage Grotesque", "Archivo", system-ui, sans-serif;
-  --font-ui:      "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Public Sans", system-ui, -apple-system, sans-serif;
+  --font-ui:      "Public Sans", system-ui, -apple-system, sans-serif;
+  --font-brand:   "Poppins", "Public Sans", system-ui, sans-serif;
   --font-read:    "Newsreader", "Source Serif 4", Georgia, serif;
   --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
@@ -190,34 +191,42 @@ read as ink rather than glare.
 
 Neither theme uses pure `#000`. Warm-tinted near-black only (gate 7).
 
-## 3. Typography — four faces, one job each
+## 3. Typography — one face
 
-| Face | Job | Where |
-|---|---|---|
-| **Bricolage Grotesque** | Display | Login mark, page titles, star numerals |
-| **DM Sans** | Interface | openhouse.in's own face. Nav, labels, buttons, forms |
-| **Newsreader** | The verdict | Score reasoning and the summary. **Only there** |
-| **JetBrains Mono** | Data | Every figure, ID, timestamp, status, board column |
+| Face | Job |
+|---|---|
+| **Public Sans** | Everything |
+| **Poppins 600** | `CAREERS` in the logo lockup, and nothing else |
 
-A face that doesn't have a job here doesn't get loaded. Weight budget: Bricolage
-`700`, DM Sans `400/500/700`, Newsreader `400` + `400 italic`, JetBrains Mono
-`400/500`. One Google Fonts request, `display=swap`, real fallback stacks.
+openhouse.in uses Public Sans and nothing else, so this app does too. The
+JetBrains Mono "instrument voice" and the Newsreader verdict prose were **my
+additions and have been removed** — they were a design position the brand does
+not take.
+
+**Figures keep their alignment without a monospace.** `.mono` / `.num` still
+apply `font-variant-numeric: tabular-nums`, which is a *feature* of Public Sans
+rather than a reason to load a second family. A column of numbers stays a column
+when the numbers change; that was the only functional thing the mono was doing.
+
+Poppins survives for one word because the supplied wordmark is a geometric sans
+— perfect-circle `O`, circular `p` bowl — and a grotesque sub-word underneath it
+reads as a different typeface bolted on. See §4a.
+
+Weight budget: Public Sans `400/500/600/700`, Poppins `600`. One Google Fonts
+request, `display=swap`, real fallback stacks.
 
 ```css
-body { font-family: var(--font-ui); font-size: var(--text-base); line-height: 1.55;
-       background: var(--paper); color: var(--ink);
-       font-feature-settings: "kern", "liga"; -webkit-font-smoothing: antialiased; }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; }
-.mono, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.verdict { font-family: var(--font-read); font-size: var(--text-lg); line-height: 1.6;
-           max-width: 68ch; }   /* 45-75ch measure (gate 25) */
+body      { font-family: var(--font-ui); font-size: 1rem; line-height: 1.5; }
+h1, h2    { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; }
+.mono,
+.num      { font-variant-numeric: tabular-nums; }   /* no family switch */
 ```
 
 `tabular-nums` is not optional. A star count or a wpm figure that shifts column
 between rows is the difference between an instrument and a template.
 
-> **Stricter brand fidelity?** Drop Bricolage and set display in DM Sans 700 at
-> `-0.03em`. Three faces, less character. The knob is here if you want it.
+> These values were read as computed styles off the live openhouse.in, not from
+> its CSS bundle — see the note at the top of §2.
 
 ## 4. Macrostructure — "The Record"
 
@@ -253,37 +262,31 @@ record, not a list of things to start — and one who hasn't goes to
 ## 4a. The brand lockup
 
 ```
- ◉  Openhouse        ← "Open" 700, "house" 400, DM Sans
-    CAREERS          ← 0.5em, 700, uppercase, --accent
+ ◉  Openhouse        ← supplied artwork, one PNG (mark + wordmark)
+    CAREERS          ← Poppins 600, uppercase, --accent
 ```
 
-`<Brand size="sm|lg" />` — one component, used by the sidebar and the landing
-hero, so the lockup has a single definition.
+`<Brand size="sm|lg" />` — one component, used by the sidebar, the landing hero
+and the footer, so the lockup has a single definition.
 
-**Set as text, not shipped as an image.** The wordmark carries two weights, so a
-raster would need one file per size *and* per theme, and would not respond to the
-type scale. Everything sizes from **one `font-size` on `.brand`**: the mark is
-`2.35em`, the sub-word `0.5em`. A new size variant is one declaration.
+**Two image files, not one filtered file.** The artwork ships in a dark cut
+(`OH_logo_font.png`) and a white one (`OH_logo_font_white.png`), swapped on
+`data-theme`. A CSS `filter` would be second-guessing an inversion the designer
+already made.
 
-**DM Sans, not Bricolage.** DM Sans is openhouse.in's own face and both weights
-are already loaded — `Open` at 700 and `house` at 400, exactly as the brand sets
-it. Bricolage is loaded at 700 only and would need a second weight for nothing.
+**The sub-word is Poppins, and that is the point.** The wordmark is a geometric
+sans; setting `CAREERS` in the grotesque UI face made it read as a different
+typeface bolted underneath. See §3.
 
-**The mark is a dark-navy PNG.** On light paper it is pushed to true ink; on dark
-it is inverted, or it vanishes into the near-black.
-
-**On tracking:** `CAREERS` spans ~55% of `Openhouse`. Reaching 100% would take
-about `0.75em` of letter-spacing, which reads as scattered letters rather than a
-wordmark — seven characters cannot fill the width of nine wider ones. Optical
-tracking wins over matching a reference whose sub-word happened to be longer.
+**Indent is `margin-left: 23.9%`, measured off the artwork** — the mark occupies
+columns 0–128 of 640 and the wordmark begins at 153. It must be a *percentage*:
+`em` on that element resolves against its own `.4em` font-size, which lands the
+word under the circular mark instead of under "Openhouse". A percentage resolves
+against the lockup's width, so it tracks every size variant for free.
 
 **Accessibility:** the whole lockup is one `<span role="img">` with a single
-`aria-label`, and the mark is `aria-hidden`. A screen reader hears
-"Openhouse Careers", not four fragments.
-
-On the landing, `CAREERS` **is** the page's accent — the separate accent rule
-that used to sit beneath it was removed. An orange dash under an orange word is
-two elements doing one job.
+`aria-label`, and the artwork is `aria-hidden`. A screen reader hears
+"Openhouse Careers", not three fragments.
 
 ## 4b. Navigation
 
@@ -301,8 +304,16 @@ Below 860px a fixed rail would eat the viewport, so it becomes a horizontal stri
 at the top: same links, same order, the active marker turned on its side. The
 session email is dropped at that width — the sign-out icon still identifies it.
 
-**Zero icon libraries.** Every glyph is hand-written SVG or a mono character.
-Emoji as a UI icon is an auto-fail (gate 30).
+**One icon set, matched to the brand.** Lucide via `react-icons/lu` — the same
+family openhouse.in itself ships (`lucide lucide-search`, `lucide-menu`, all at
+stroke-width 2) — with the four social marks from `/fa6`, since Lucide dropped
+brand icons. Nav items carry an icon and the current one takes the accent.
+
+Everything is re-exported through `components/icons.jsx` under our own names, so
+swapping sets is one file. Adding ~20 icons cost **+1.5 kB gzipped** — import
+named icons from the subpath, never the barrel.
+
+Emoji as a UI icon remains an auto-fail (gate 30).
 
 ## 5. The board (admin list)
 
@@ -517,7 +528,7 @@ Every answer must be **no**:
 - [ ] Any prose measure outside 45–75ch?
 - [ ] Any interactive element missing `:focus-visible` / `:active` / `:disabled`?
 - [ ] Any keyframe without a `prefers-reduced-motion` fallback?
-- [ ] Two icon libraries, or an emoji used as a UI icon?
+- [ ] More than one icon set, or an emoji used as a UI icon?
 - [ ] Horizontal scroll at any width 320–1920px?
 - [ ] Hallmark macrostructure stamp missing from the top of `styles.css`?
 

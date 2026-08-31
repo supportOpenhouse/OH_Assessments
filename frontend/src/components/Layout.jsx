@@ -2,21 +2,25 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import Brand from './Brand.jsx';
-import { IconSun, IconMoon, IconSignOut } from './icons.jsx';
+import {
+  IconSun, IconMoon, IconSignOut,
+  IconSubmissions, IconCandidates, IconActivity, IconProfile,
+  IconAssessments, IconHistory,
+} from './icons.jsx';
 
 // Role-aware sidebar. The two link sets never mix: a candidate has no admin
 // route to reach, so none is rendered for them to discover.
 const NAV = {
   admin: [
-    { to: '/admin', label: 'Submissions', end: true },
-    { to: '/admin/candidates', label: 'Candidates' },
-    { to: '/admin/activity', label: 'Activity' },
-    { to: '/profile', label: 'Profile' },
+    { to: '/admin', label: 'Submissions', Icon: IconSubmissions, end: true },
+    { to: '/admin/candidates', label: 'Candidates', Icon: IconCandidates },
+    { to: '/admin/activity', label: 'Activity', Icon: IconActivity },
+    { to: '/profile', label: 'Profile', Icon: IconProfile },
   ],
   user: [
-    { to: '/assessments', label: 'Assessments', end: true },
-    { to: '/history', label: 'Previous' },
-    { to: '/profile', label: 'Profile' },
+    { to: '/assessments', label: 'Assessments', Icon: IconAssessments, end: true },
+    { to: '/history', label: 'Previous', Icon: IconHistory },
+    { to: '/profile', label: 'Profile', Icon: IconProfile },
   ],
 };
 
@@ -40,9 +44,10 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Main">
-          {links.map((l) => (
-            <NavLink key={l.to} className="side-link" to={l.to} end={l.end}>
-              {l.label}
+          {links.map(({ to, label, Icon, end }) => (
+            <NavLink key={to} className="side-link" to={to} end={end}>
+              <Icon />
+              {label}
             </NavLink>
           ))}
         </nav>

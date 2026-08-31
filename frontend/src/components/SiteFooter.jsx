@@ -39,6 +39,13 @@ export default function SiteFooter() {
         </div>
 
         <nav className="site-footer-links" aria-label="Openhouse">
+          {/* The main site sits above the section links — it is where the other
+              four live, not a peer of them. */}
+          <a className="site-footer-home" href="https://openhouse.in/"
+             target="_blank" rel="noopener noreferrer">
+            Our Website
+          </a>
+
           <ul className="site-footer-nav">
             {LINKS.map(([label, href]) => (
               <li key={href}>
