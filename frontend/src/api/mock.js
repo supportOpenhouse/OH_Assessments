@@ -202,7 +202,12 @@ const CANDIDATES = [
   { id: '11111111-0000-4000-8000-000000000004', email: 'no.attempt@example.com',
     name: 'Rahul Menon', first_seen_at: '2026-08-28T09:00:00Z',
     last_seen_at: '2026-08-28T09:00:00Z', last_submission_at: null,
-    login_count: 1, attempts: 0, scored: 0, voided: 0, assessments: [] },
+    login_count: 1, attempts: 0, scored: 0, voided: 0, assessments: [], is_staff: false },
+  // Staff get a candidates row on sign-in too — hidden from this page by default.
+  { id: '11111111-0000-4000-8000-000000000005', email: 'sahaj.dureja@openhouse.in',
+    name: 'Sahaj Dureja', first_seen_at: '2026-08-31T10:47:33Z',
+    last_seen_at: '2026-08-31T10:47:33Z', last_submission_at: null,
+    login_count: 9, attempts: 0, scored: 0, voided: 0, assessments: [], is_staff: true },
 ];
 
 // Flip role to 'user' to walk the candidate path; submission_count drives where
@@ -249,13 +254,19 @@ export function mockApi(method, path, body) {
   }
 
   if (method === 'GET' && path.startsWith('/api/candidates')) {
-    const m = path.match(/[?&]q=([^&]+)/);
-    const q = m ? decodeURIComponent(m[1]).toLowerCase() : null;
-    const items = q
-      ? CANDIDATES.filter((c) => c.email.toLowerCase().includes(q)
-                              || (c.name || '').toLowerCase().includes(q))
-      : CANDIDATES;
-    return { total: items.length, items };
+    const qs = new URLSearchParams(path.split('?')[1] || '');
+    const staff = qs.get('include_staff') === 'true';
+    const q = (qs.get('q') || '').toLowerCase();
+    let items = staff ? CANDIDATES : CANDIDATES.filter((c) => !c.is_staff);
+    if (q) {
+      items = items.filter((c) => c.email.toLowerCase().includes(q)
+                               || (c.name || '').toLowerCase().includes(q));
+    }
+    return {
+      total: items.length,
+      items,
+      staff_hidden: staff ? 0 : CANDIDATES.filter((c) => c.is_staff).length,
+    };
   }
 
   if (method === 'GET' && path === '/api/instructions') {
@@ -286,11 +297,27 @@ export function mockApi(method, path, body) {
   }
 
   if (method === 'GET' && path.startsWith('/api/logs')) {
-    const m = path.match(/[?&]action=([^&]+)/);
-    const want = m ? decodeURIComponent(m[1]) : null;
-    const items = want ? LOGS.filter((l) => l.action === want) : LOGS;
-    return { total: items.length, items,
-             actions: [...new Set(LOGS.map((l) => l.action))].sort() };
+    const p = new URLSearchParams(path.split('?')[1] || '');
+    let items = LOGS;
+    if (p.get('action')) items = items.filter((l) => l.action === p.get('action'));
+    if (p.get('category')) items = items.filter((l) => l.action.startsWith(`${p.get('category')}.`));
+    if (p.get('actor')) items = items.filter((l) => l.actor_email === p.get('actor'));
+    if (p.get('entity_id')) items = items.filter((l) => l.entity_id === p.get('entity_id'));
+    if (p.get('q')) {
+      const q = p.get('q').toLowerCase();
+      items = items.filter((l) => [l.actor_email, l.action, l.entity_id, JSON.stringify(l.data)]
+        .some((v) => (v || '').toLowerCase().includes(q)));
+    }
+    // date_to covers its whole day, matching the backend's `< to + 1 day`.
+    if (p.get('date_from')) items = items.filter((l) => l.at >= p.get('date_from'));
+    if (p.get('date_to')) items = items.filter((l) => l.at < `${p.get('date_to')}T23:59:59.999Z`);
+    return {
+      total: items.length,
+      items,
+      actions: [...new Set(LOGS.map((l) => l.action))].sort(),
+      categories: [...new Set(LOGS.map((l) => l.action.split('.')[0]))].sort(),
+      actors: [...new Set(LOGS.map((l) => l.actor_email).filter(Boolean))].sort(),
+    };
   }
 
   if (method === 'POST' && /^\/api\/submissions\/[^/]+\/void$/.test(path)) {

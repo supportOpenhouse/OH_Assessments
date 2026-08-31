@@ -6,7 +6,7 @@ when something *else* needs to read it, or when a non-engineer needs to edit it.
 
 Adding an assessment: add an entry here, widen the `submissions_type_valid`
 check constraint, create the child table and its two triggers, and add the
-routes. See the recipe at the bottom of schema.sql.
+routes. See the recipe at the bottom of migrations/001_schema.sql.
 """
 
 SALES_INSIGHT = "sales_insight"

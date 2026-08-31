@@ -213,8 +213,24 @@ The audit trail, newest first. Every mutation and every sign-in.
 }
 ```
 
-All three filters are optional and ANDed. `actions` is `select distinct action`,
-so the UI's filter row can never drift from the verbs actually in use.
+All filters are optional and ANDed:
+
+| Param | Matches |
+|---|---|
+| `q` | actor email, action, entity id, **or the `data` payload** — one free-text box over the whole row |
+| `action` | exact verb |
+| `category` | the verb's prefix — `submission` matches `submission.*` |
+| `actor` | exact actor email |
+| `entity_id` | exact |
+| `date_from` / `date_to` | `at >= from` and **`at < to + 1 day`** |
+
+**`date_to` covers its whole day.** A naive `at <= to::date` would silently drop
+everything after midnight on the last day selected — the bug every date-range
+filter ships with.
+
+`actions`, `categories` and `actors` come back with every response, read from the
+table in one round trip, so the filter bar can never offer a verb that has never
+been recorded or miss one that has.
 
 **Admin only, and it matters:** the trail names every candidate who ever signed
 in. `data` never carries a score, a reasoning string, or a transcript.

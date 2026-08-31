@@ -1,7 +1,8 @@
 # 03 — Data Model
 
 Five tables in Neon Postgres. Hand-written SQL, no ORM, no migration framework —
-`schema.sql` is applied once and edited in place while the project is pre-launch.
+`migrations/001_schema.sql` is applied once and edited in place while the
+project is pre-launch — see [migrations/README.md](../migrations/README.md).
 
 ---
 
@@ -89,19 +90,19 @@ still reaches the parent. `db.finish_submission` deliberately does not write
 `overall_stars`, and `test_finish_submission_splits_detail_from_state_in_one_transaction`
 asserts it never starts.
 
-> **Applying this to a database that already has tables.** `schema.sql` opens
+> **Applying this to a database that already has tables.** `001_schema.sql` opens
 > with a preflight block that refuses to run on a legacy shape. It exists because
 > `create table if not exists` does *nothing* when a table of that name exists
 > with different columns — it skips silently, and the failure surfaces several
 > statements later as an unreadable `column "candidate_id" does not exist`
-> (42703). `inspect.sql` shows what is there (read-only, with row counts);
-> `reset.sql` drops it all (destructive).
+> (42703). `migrations/inspect.sql` shows what is there (read-only, with row
+> counts); `migrations/reset.sql` drops it all (destructive).
 
-> **Verification limit, stated plainly.** `schema.sql` parses under libpg_query
+> **Verification limit, stated plainly.** `001_schema.sql` parses under libpg_query
 > (the real Postgres parser). The **plpgsql function bodies do not**: `parse_sql`
 > treats them as opaque strings, and pglast's `parse_plpgsql` is broken in this
 > build — it fails on a trivial known-good function, so it proves nothing. The
-> two trigger bodies are unverified until the first `psql -f schema.sql`
+> two trigger bodies are unverified until the first `psql -f migrations/001_schema.sql`
 > against Neon. Run that before trusting them.
 
 ## 2. `oh_users`
@@ -152,6 +153,17 @@ One row per person for their **whole relationship** with OpenHouse, not per
 assessment. **Every submission hangs off this table** — a candidate who later
 takes a second assessment reuses this row, which is the entire reason it is
 separate rather than columns on the submission.
+
+> **The name undersells it: this is the identity table, not the applicant list.**
+> Everyone who signs in gets a row, staff included, because it is the FK target
+> for every submission and an admin who tests the flow needs one. "Who are my
+> applicants" is a *different question*, and the admin Candidates page answers it
+> by excluding anyone in `oh_users` — with the hidden count shown and a toggle to
+> include them. The filter belongs in the query; deleting staff rows to make the
+> page look right would break the FK the moment an admin submitted anything.
+>
+> Membership in `oh_users` is the test, never the email domain — an
+> `@openhouse.in` address that is not staff is a genuine candidate.
 
 **The email is saved here on every sign-in**, before the person does anything
 else:
@@ -491,5 +503,5 @@ moves**.
 | Log retention / rotation | Nothing to rotate yet. When there is, it is a scheduled `delete from activity_logs where at < now() - interval '2 years'` — the only DELETE this table will ever see |
 | A jobs/queue table | One always-on Render instance running FastAPI `BackgroundTasks`. The startup sweep in [02-architecture.md §6](02-architecture.md) covers the one real failure mode |
 | `roles` / permissions tables | Two roles, one of which is a membership test |
-| Migration framework | Pre-launch. `schema.sql` is edited in place. Add `alembic` the day real candidate data must survive a schema change |
+| A migration *framework* | The `migrations/` folder is numbered files run by `psql`, nothing more. `001_schema.sql` is edited in place while pre-launch; a real change becomes `003_*.sql`. Add `alembic` the day candidate data must survive a schema change |
 | Soft-delete columns | Nothing is deleted. `voided` and `is_active` cover the two cases that exist |

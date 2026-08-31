@@ -209,14 +209,14 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 
 | Route | Surface | Structure |
 |---|---|---|
-| `/` | **Landing** | **Off-axis.** `Openhouse Careers` anchored bottom-left of a full-height panel, one accent rule beneath it, a short block flush right. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
+| `/` | **Landing** | **Off-axis.** The brand lockup at display size, anchored bottom-left of a full-height panel; a short block flush right. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
 | `/assessments` | **Choose** | Numbered ruled rows, one per assessment. An available one is a whole-row link; a used one is inert with its state on the right. **Not** a card grid — with one assessment that would be a single lonely tile, and with four it would be the icon-tile pattern this design exists to avoid |
 | `/assessments/:slug` | **Take it** | Numbered `01–04` instruction steps, numerals in the **left margin** in mono — then the dropzone below, full measure |
 | `/history` | **Previous** | One ruled row per attempt. In-flight ones carry the staged progress inline; finished ones a **stamp** — rotated 1.5°, mono `RECEIVED`. Diegetic, not a toast |
 | `/profile` | **Account** | A ruled metrics strip of facts, the assessment list, then preferences. Same page both roles |
 | `/admin` | **The board** | **The departure board.** Ruled rows, mono columns, status treatment. Search + status + score filters above it. No cards, no zebra, no shadows |
 | `/admin/candidates` | **Candidates** | Same board language: attempts, which assessments (as chips), sign-ins, first/last seen |
-| `/admin/activity` | **Activity** | The audit trail, chip-filtered by action verb |
+| `/admin/activity` | **Activity** | The audit trail, behind a submitted filter bar — search · action · category · actor · date range · Apply |
 | `/admin/:id` | **The record** | Verdict → ruled metrics strip → axes `01–05` as ruled blocks → transcript |
 
 **Where the candidate lands.** `/` is public. On sign-in: an admin goes to
@@ -224,9 +224,56 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 record, not a list of things to start — and one who hasn't goes to
 `/assessments`. One redirect on sign-in, none afterwards.
 
-**Nav is role-aware.** Three links for a candidate, four for an admin, in an
-edge-aligned row with an accent underline on the current page. No sidebar: a
-sidebar for four links is furniture.
+## 4a. The brand lockup
+
+```
+ ◉  Openhouse        ← "Open" 700, "house" 400, DM Sans
+    CAREERS          ← 0.5em, 700, uppercase, --accent
+```
+
+`<Brand size="sm|lg" />` — one component, used by the sidebar and the landing
+hero, so the lockup has a single definition.
+
+**Set as text, not shipped as an image.** The wordmark carries two weights, so a
+raster would need one file per size *and* per theme, and would not respond to the
+type scale. Everything sizes from **one `font-size` on `.brand`**: the mark is
+`2.35em`, the sub-word `0.5em`. A new size variant is one declaration.
+
+**DM Sans, not Bricolage.** DM Sans is openhouse.in's own face and both weights
+are already loaded — `Open` at 700 and `house` at 400, exactly as the brand sets
+it. Bricolage is loaded at 700 only and would need a second weight for nothing.
+
+**The mark is a dark-navy PNG.** On light paper it is pushed to true ink; on dark
+it is inverted, or it vanishes into the near-black.
+
+**On tracking:** `CAREERS` spans ~55% of `Openhouse`. Reaching 100% would take
+about `0.75em` of letter-spacing, which reads as scattered letters rather than a
+wordmark — seven characters cannot fill the width of nine wider ones. Optical
+tracking wins over matching a reference whose sub-word happened to be longer.
+
+**Accessibility:** the whole lockup is one `<span role="img">` with a single
+`aria-label`, and the mark is `aria-hidden`. A screen reader hears
+"Openhouse Careers", not four fragments.
+
+On the landing, `CAREERS` **is** the page's accent — the separate accent rule
+that used to sit beneath it was removed. An orange dash under an orange word is
+two elements doing one job.
+
+## 4b. Navigation
+
+**Navigation is a left sidebar**, role-aware — three links for a candidate, four
+for an admin. The rail sits on `--paper-3` with a hairline right border, never a
+shadow: nothing else in this design floats, and a shadow here would be the only
+thing that does.
+
+The active item is marked by a **2px accent rule on its left edge**, and it takes
+the *content's* paper colour while its right hairline is covered — so it reads as
+continuous with the page it opened, rather than as a highlighted list item. An
+underline is the horizontal-nav idiom; a vertical nav marks the leading edge.
+
+Below 860px a fixed rail would eat the viewport, so it becomes a horizontal strip
+at the top: same links, same order, the active marker turned on its side. The
+session email is dropped at that width — the sign-out icon still identifies it.
 
 **Zero icon libraries.** Every glyph is hand-written SVG or a mono character.
 Emoji as a UI icon is an auto-fail (gate 30).

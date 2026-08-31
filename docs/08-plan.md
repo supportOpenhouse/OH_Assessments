@@ -46,7 +46,7 @@
 
 | File | Responsibility |
 |---|---|
-| `schema.sql` | The two tables + the partial unique index. Applied by hand to Neon |
+| `migrations/001_schema.sql` | The five tables, two triggers, and the preflight guard. Applied by hand to Neon |
 | `backend/rubric.md` | Scoring rubric. Cached system prefix; hashed to `rubric_version` |
 | `backend/instructions.md` | Candidate-facing brief, served by `GET /api/instructions` |
 | `backend/render.yaml` | Render service definition |
@@ -74,7 +74,7 @@
 The one piece of real logic testable with no network, no database and no API key. It goes first so the test cycle exists before anything depends on it.
 
 **Files:**
-- Create: `schema.sql`, `backend/requirements.txt`, `backend/pytest.ini`, `backend/app/__init__.py`, `backend/app/metrics.py`, `backend/tests/test_metrics.py`, `.gitignore`
+- Create: `migrations/001_schema.sql`, `backend/requirements.txt`, `backend/pytest.ini`, `backend/app/__init__.py`, `backend/app/metrics.py`, `backend/tests/test_metrics.py`, `.gitignore`
 
 **Interfaces:**
 - Consumes: nothing
@@ -114,7 +114,7 @@ pythonpath = .
 testpaths = tests
 ```
 
-- [ ] **Step 2: Write `schema.sql`**
+- [ ] **Step 2: Write `migrations/001_schema.sql`**
 
 Copy verbatim from [`docs/03-data-model.md` §2–§4](03-data-model.md) — `oh_users`, `candidates`, `sales_insight_submissions`, and the `sales_insight_one_live` partial unique index. Do not paraphrase: the predicate `where status <> 'voided'` is load-bearing, `audio_key` is a key rather than a URL, and the one-live index is scoped to the per-assessment table so a future assessment type is unaffected.
 
@@ -255,7 +255,7 @@ dist/
 ```
 
 ```bash
-git add schema.sql backend/ .gitignore
+git add migrations/001_schema.sql backend/ .gitignore
 git commit -m "feat: schema and pure delivery-metrics function with tests"
 ```
 
@@ -1267,7 +1267,7 @@ Create a stub `app/tasks.py` with `async def sweep_stale(): return 0` so this im
 
 - [ ] **Step 7: Verify against Neon**
 
-Apply `schema.sql` and the admin seed to Neon, export the env vars, then:
+Apply `migrations/001_schema.sql` and the admin seed to Neon, export the env vars, then:
 
 ```bash
 cd backend && uvicorn app.main:app --reload --port 5060

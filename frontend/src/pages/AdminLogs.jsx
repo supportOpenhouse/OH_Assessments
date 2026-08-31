@@ -6,8 +6,10 @@ import { stamp } from '../utils/format.js';
 
 // The audit trail. Every mutation, newest first.
 //
-// Actions are read from the server rather than hard-coded, so the filter row can
-// never drift from the verbs actually in use.
+// Filter options are read from the server, never hard-coded, so the bar cannot
+// offer a verb that has never been recorded or miss one that has.
+
+const EMPTY = { q: '', action: '', category: '', actor: '', date_from: '', date_to: '' };
 
 function detail(data) {
   if (!data || Object.keys(data).length === 0) return '—';
@@ -27,19 +29,43 @@ function toneOf(action) {
 
 export default function AdminLogs() {
   const [rows, setRows] = useState(null);
-  const [actions, setActions] = useState([]);
   const [total, setTotal] = useState(0);
-  const [filter, setFilter] = useState('all');
+  const [opts, setOpts] = useState({ actions: [], categories: [], actors: [] });
+
+  // `draft` is what the bar shows; `applied` is what was actually queried. They
+  // are separate so editing a field does not fire a request per keystroke.
+  const [draft, setDraft] = useState(EMPTY);
+  const [applied, setApplied] = useState(EMPTY);
   const navigate = useNavigate();
 
-  const load = useCallback((action) => {
-    const q = action && action !== 'all' ? `&action=${encodeURIComponent(action)}` : '';
-    api.get(`/api/logs?limit=200${q}`)
-      .then((r) => { setRows(r.items); setActions(r.actions || []); setTotal(r.total); })
+  const load = useCallback((f) => {
+    const p = new URLSearchParams({ limit: '200' });
+    Object.entries(f).forEach(([k, v]) => v && p.set(k, v));
+    api.get(`/api/logs?${p}`)
+      .then((r) => {
+        setRows(r.items);
+        setTotal(r.total);
+        setOpts({ actions: r.actions || [], categories: r.categories || [], actors: r.actors || [] });
+      })
       .catch((e) => { setRows([]); toast(e.message || 'Could not load the activity log.', 'error'); });
   }, []);
 
-  useEffect(() => { load(filter); }, [load, filter]);
+  useEffect(() => { load(applied); }, [load, applied]);
+
+  const set = (k) => (e) => setDraft((d) => ({ ...d, [k]: e.target.value }));
+
+  function apply(e) {
+    e.preventDefault();
+    setApplied(draft);
+  }
+
+  const dirty = Object.values(applied).some(Boolean);
+
+  // Picking a category narrows the action list to that category's verbs —
+  // choosing "submission" should not still offer "auth.login".
+  const actions = draft.category
+    ? opts.actions.filter((a) => a.startsWith(`${draft.category}.`))
+    : opts.actions;
 
   return (
     <>
@@ -51,18 +77,75 @@ export default function AdminLogs() {
         </p>
       </div>
 
-      <div className="seg seg-chips" role="group" aria-label="Filter by action">
-        <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
-          all
-        </button>
-        {actions.map((a) => (
-          <button key={a} type="button" aria-pressed={filter === a} onClick={() => setFilter(a)}>
-            {a}
-          </button>
-        ))}
-      </div>
+      <form className="filterbar" onSubmit={apply}>
+        <input
+          className="field"
+          type="search"
+          placeholder="Search actor, action, UID, details…"
+          value={draft.q}
+          onChange={set('q')}
+          aria-label="Search the activity log"
+        />
 
-      <div className="board-wrap" style={{ marginTop: 'var(--space-lg)' }}>
+        <span className="select">
+          <select className="field" value={draft.action} onChange={set('action')} aria-label="Action">
+            <option value="">Action</option>
+            {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </span>
+
+        <span className="select">
+          <select
+            className="field"
+            value={draft.category}
+            /* Clear the action too: a category change can orphan it. */
+            onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value, action: '' }))}
+            aria-label="Category"
+          >
+            <option value="">Category</option>
+            {opts.categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </span>
+
+        <span className="select">
+          <select className="field" value={draft.actor} onChange={set('actor')} aria-label="Actor">
+            <option value="">Actor</option>
+            {opts.actors.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </span>
+
+        {/* The label, both inputs and "to" wrap as ONE unit — otherwise a
+            narrow viewport strands "DATE" at the end of the row above. */}
+        <div className="filterbar-dates">
+          <span className="filterbar-label">Date</span>
+          <input
+            className="field field-date" type="date" value={draft.date_from}
+            onChange={set('date_from')} max={draft.date_to || undefined}
+            aria-label="From date"
+          />
+          <span className="filterbar-to">to</span>
+          <input
+            className="field field-date" type="date" value={draft.date_to}
+            onChange={set('date_to')} min={draft.date_from || undefined}
+            aria-label="To date"
+          />
+        </div>
+
+        <div className="filterbar-end">
+          {dirty && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setDraft(EMPTY); setApplied(EMPTY); }}
+            >
+              Clear
+            </button>
+          )}
+          <button type="submit" className="btn btn-primary">Apply</button>
+        </div>
+      </form>
+
+      <div className="board-wrap">
         <table className="board board-logs">
           <thead>
             <tr>
@@ -102,7 +185,7 @@ export default function AdminLogs() {
 
       {rows === null && <div className="empty">Loading…</div>}
       {rows !== null && rows.length === 0 && (
-        <div className="empty">No activity{filter === 'all' ? ' yet' : ` for “${filter}”`}.</div>
+        <div className="empty">{dirty ? 'No activity matches those filters.' : 'No activity yet.'}</div>
       )}
     </>
   );

@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-os.environ.setdefault("JWT_SECRET", "test-secret")
+os.environ.setdefault("JWT_SECRET", "t" * 32)  # >= MIN_SECRET_LEN
 os.environ.setdefault("GOOGLE_OAUTH_CLIENT_ID", "test-client")
 
 from app import db  # noqa: E402

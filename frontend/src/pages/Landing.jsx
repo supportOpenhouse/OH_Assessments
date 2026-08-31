@@ -2,6 +2,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { toast } from '../utils/toast.js';
+import Brand from '../components/Brand.jsx';
 import { IconSun, IconMoon } from '../components/icons.jsx';
 
 // Off-axis split. The mark is anchored bottom-left; the sign-in panel starts at
@@ -25,16 +26,9 @@ export default function Landing() {
   return (
     <div className="landing">
       <section className="landing-mark">
-        <img
-          className="brand-logo brand-logo-lg landing-brand"
-          src="/openhouse-logo.png"
-          alt="Openhouse"
-          width="640"
-          height="128"
-        />
-        <span className="eyebrow">Assessments</span>
-        <h1>Openhouse<br />Careers</h1>
-        <div className="landing-rule" />
+        {/* The lockup IS the hero — a separate <h1> would repeat the words
+            sitting directly above it. */}
+        <h1 className="landing-brand"><Brand size="lg" /></h1>
       </section>
 
       <section className="landing-panel">

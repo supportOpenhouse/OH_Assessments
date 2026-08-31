@@ -2,7 +2,7 @@
 
 No ORM, hand-written parameterised SQL. Nothing is ever interpolated into query
 text — including the table names, which are written literally on purpose. See
-the recipe at the bottom of schema.sql for adding an assessment type.
+the recipe at the bottom of migrations/001_schema.sql for adding an assessment type.
 
     oh_users                    staff                   (assessment-agnostic)
     candidates                  people being assessed   (assessment-agnostic)
@@ -305,19 +305,50 @@ def candidate_profile(email: str) -> dict | None:
     )
 
 
-def list_candidates(limit: int, offset: int, q: str | None) -> tuple[int, list]:
-    """Everyone who has ever signed in, with what they have attempted.
+def count_staff_candidates() -> int:
+    """How many candidates rows belong to Openhouse staff.
+
+    Surfaced on the Candidates page so their absence is visible rather than
+    silent — a hidden row that nobody knows is hidden is worse than a visible
+    one that does not belong.
+    """
+    return _one(
+        "select count(*) as n from candidates c "
+        "join oh_users o on o.email = c.email and o.is_active"
+    )["n"]
+
+
+def list_candidates(limit: int, offset: int, q: str | None = None,
+                    include_staff: bool = False) -> tuple[int, list]:
+    """Applicants, with how many attempts and at what.
+
+    Staff are excluded by default. `candidates` holds a row for EVERYONE who
+    signs in — it is the identity table and the foreign-key target for every
+    submission, so an admin who tests the flow needs one. But this page is
+    asking "who are my applicants", which is a different question, and answering
+    it with "who has a row" puts the hiring team in their own candidate list.
+
+    Membership in oh_users is the test, not the email domain: an @openhouse.in
+    address that is not staff is a genuine candidate and must still appear.
 
     One grouped query rather than N+1: the assessment list per candidate is an
     array_agg, not a second round trip per row.
     """
-    where = "where (%s::text is null or c.email ilike %s or c.name ilike %s) "
+    # Joins first, then the predicate — a LEFT JOIN cannot follow a WHERE.
+    staff_join = "left join oh_users o on o.email = c.email and o.is_active "
+    where = (
+        "where (%s or o.id is null) "
+        "  and (%s::text is null or c.email ilike %s or c.name ilike %s) "
+    )
     like = f"%{q}%" if q else None
-    args = (q, like, like)
+    args = (include_staff, q, like, like)
 
-    total = _one(f"select count(*) as n from candidates c {where}", args)["n"]
+    total = _one(
+        f"select count(*) as n from candidates c {staff_join}{where}", args
+    )["n"]
     rows = _all(
         "select c.id, c.email, c.name, c.first_seen_at, c.last_seen_at, c.login_count, "
+        "       o.id is not null as is_staff, "
         "       count(s.id) as attempts, "
         "       count(s.id) filter (where s.status = 'scored') as scored, "
         "       count(s.id) filter (where s.status = 'voided') as voided, "
@@ -325,9 +356,10 @@ def list_candidates(limit: int, offset: int, q: str | None) -> tuple[int, list]:
         "                filter (where s.id is not null), '{}') as assessments, "
         "       max(s.created_at) as last_submission_at "
         "from candidates c "
+        f"{staff_join}"
         "left join submissions s on s.candidate_id = c.id "
         f"{where}"
-        "group by c.id "
+        "group by c.id, o.id "
         "order by c.last_seen_at desc limit %s offset %s",
         args + (limit, offset),
     )
@@ -378,18 +410,42 @@ def insert_log(*, actor_email, actor_role, action, entity, entity_id, data, ip, 
 
 
 def list_logs(limit: int, offset: int, action: str | None = None,
-              actor: str | None = None, entity_id: str | None = None) -> tuple[int, list]:
-    """Newest first. Filters are ANDed; any combination may be omitted.
+              actor: str | None = None, entity_id: str | None = None,
+              category: str | None = None, q: str | None = None,
+              date_from: str | None = None, date_to: str | None = None) -> tuple[int, list]:
+    """Newest first. Every filter optional, all ANDed.
 
-    Written as one statement with null-guards rather than assembled from
-    fragments — string-built SQL is how a filter becomes an injection.
+    One statement with null-guards rather than fragments assembled by hand —
+    string-built SQL is how a filter becomes an injection.
+
+    `category` is the verb's prefix ('submission' matches 'submission.*'), which
+    is why it is a LIKE against a literal-free pattern built by the database
+    rather than by Python.
+
+    `date_to` is INCLUSIVE of its whole day: `at < to + 1 day`. A naive
+    `at <= to::date` would silently drop everything after midnight on the last
+    day someone selected, which is the bug every date-range filter ships with.
     """
     where = (
         "where (%s::text is null or action = %s) "
         "  and (%s::text is null or actor_email = %s) "
         "  and (%s::text is null or entity_id = %s) "
+        "  and (%s::text is null or action like %s || '.%%') "
+        "  and (%s::text is null or actor_email ilike %s or action ilike %s "
+        "                        or entity_id ilike %s or data::text ilike %s) "
+        "  and (%s::date is null or at >= %s::date) "
+        "  and (%s::date is null or at < %s::date + interval '1 day') "
     )
-    args = (action, action, actor, actor, entity_id, entity_id)
+    like = f"%{q}%" if q else None
+    args = (
+        action, action,
+        actor, actor,
+        entity_id, entity_id,
+        category, category,
+        q, like, like, like, like,
+        date_from, date_from,
+        date_to, date_to,
+    )
     total = _one(f"select count(*) as n from activity_logs {where}", args)["n"]
     rows = _all(
         "select id, at, actor_email, actor_role, action, entity, entity_id, data, ip "
@@ -399,9 +455,25 @@ def list_logs(limit: int, offset: int, action: str | None = None,
     return total, rows
 
 
-def distinct_log_actions() -> list[str]:
-    """Drives the filter row on the activity page, so it can never drift from
-    the verbs actually in use."""
-    return [r["action"] for r in _all(
-        "select distinct action from activity_logs order by action"
-    )]
+def log_filter_options() -> dict:
+    """What the filter bar offers, read from the data rather than hard-coded, so
+    the options can never drift from the verbs and actors actually in use.
+
+    One round trip, not three.
+    """
+    row = _one(
+        "select "
+        "  (select coalesce(array_agg(a), '{}') from "
+        "     (select distinct action a from activity_logs order by a) t1) as actions, "
+        "  (select coalesce(array_agg(c), '{}') from "
+        "     (select distinct split_part(action, '.', 1) c from activity_logs "
+        "      order by c) t2) as categories, "
+        "  (select coalesce(array_agg(e), '{}') from "
+        "     (select distinct actor_email e from activity_logs "
+        "      where actor_email is not null order by e) t3) as actors"
+    )
+    return {
+        "actions": list(row["actions"] or []),
+        "categories": list(row["categories"] or []),
+        "actors": list(row["actors"] or []),
+    }

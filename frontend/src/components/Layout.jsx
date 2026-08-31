@@ -1,10 +1,11 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import Brand from './Brand.jsx';
 import { IconSun, IconMoon, IconSignOut } from './icons.jsx';
 
-// Edge-aligned minimal nav, role-aware. No sidebar — there are four
-// destinations per role, and a sidebar for four links is furniture.
+// Role-aware sidebar. The two link sets never mix: a candidate has no admin
+// route to reach, so none is rendered for them to discover.
 const NAV = {
   admin: [
     { to: '/admin', label: 'Submissions', end: true },
@@ -32,22 +33,23 @@ export default function Layout() {
   const links = NAV[user?.role === 'admin' ? 'admin' : 'user'];
 
   return (
-    <>
-      <header className="shell">
-        <nav className="nav">
-          <img className="brand-logo" src="/openhouse-logo.png" alt="Openhouse"
-               width="640" height="128" />
-          <span className="eyebrow">Careers</span>
+    <div className="app">
+      <aside className="sidebar">
+        <div className="sidebar-head">
+          <Brand />
+        </div>
 
-          <div className="nav-links">
-            {links.map((l) => (
-              <NavLink key={l.to} className="nav-link" to={l.to} end={l.end}>
-                {l.label}
-              </NavLink>
-            ))}
-          </div>
+        <nav className="sidebar-nav" aria-label="Main">
+          {links.map((l) => (
+            <NavLink key={l.to} className="side-link" to={l.to} end={l.end}>
+              {l.label}
+            </NavLink>
+          ))}
+        </nav>
 
-          <div className="nav-right">
+        <div className="sidebar-foot">
+          {user && <span className="nav-who" title={user.email}>{user.email}</span>}
+          <div className="sidebar-actions">
             <button
               type="button"
               className="icon-btn"
@@ -60,11 +62,14 @@ export default function Layout() {
               <IconSignOut />
             </button>
           </div>
-        </nav>
-      </header>
-      <main className="shell main">
-        <Outlet />
+        </div>
+      </aside>
+
+      <main className="main">
+        <div className="shell">
+          <Outlet />
+        </div>
       </main>
-    </>
+    </div>
   );
 }

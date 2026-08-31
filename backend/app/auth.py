@@ -1,21 +1,43 @@
 """Google identity in, our own session token out.
 
 Google ID tokens expire in an hour, which would sign a candidate out mid-upload.
-We verify Google's token once at sign-in and mint our own 7-day JWT.
+We verify Google's token once at sign-in and mint our own session token.
+
+**One secret, not one per user.** JWT_SECRET is a single server-side signing key.
+Its job is to prove *this server* issued a token; a per-user secret would mean
+storing N keys to answer the same question. What IS per-user is the token itself:
+one minted per person per sign-in, carrying their claims and its own `jti`.
 """
 
 import os
 import time
+import uuid
 
 import jwt
 from fastapi import Header, HTTPException
 from google.auth.transport import requests as g_requests
 from google.oauth2 import id_token as g_id_token
 
-SECRET = os.environ.get("JWT_SECRET", "")
+from . import db
+
 CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 ALG = "HS256"
+
+# Candidates submit once and are done; a week means they are not signed out
+# mid-flow. Admin privilege does NOT ride on this window — see current_user.
 TTL_S = 7 * 24 * 3600
+
+MIN_SECRET_LEN = 32
+
+# Fail at import, not at first request. PyJWT will happily sign with an empty
+# key, so a missing JWT_SECRET does not error — it silently produces tokens
+# anyone can forge. A service that cannot authenticate must not start.
+SECRET = os.environ.get("JWT_SECRET", "")
+if len(SECRET) < MIN_SECRET_LEN:
+    raise RuntimeError(
+        f"JWT_SECRET must be at least {MIN_SECRET_LEN} characters "
+        f"(got {len(SECRET)}). Generate one with: openssl rand -hex 32"
+    )
 
 
 class AuthError(Exception):
@@ -40,9 +62,22 @@ def verify_google(token: str) -> dict:
 
 
 def mint(email: str, name: str, role: str, ttl_s: int = TTL_S) -> str:
+    """One token per person per sign-in.
+
+    `jti` identifies this specific session so a sign-in can be traced through
+    activity_logs. `role` is a convenience for the client's own routing — the
+    server re-checks it, see current_user.
+    """
     now = int(time.time())
     return jwt.encode(
-        {"email": email, "name": name, "role": role, "iat": now, "exp": now + ttl_s},
+        {
+            "email": email,
+            "name": name,
+            "role": role,
+            "jti": uuid.uuid4().hex,
+            "iat": now,
+            "exp": now + ttl_s,
+        },
         SECRET,
         algorithm=ALG,
     )
@@ -56,22 +91,40 @@ def verify(token: str) -> dict:
         raise AuthError(str(e))
 
 
-def _user_from_header(authorization: str) -> dict:
+def _claims(authorization: str) -> dict:
     if not authorization.startswith("Bearer "):
         raise HTTPException(401, "missing bearer token")
     try:
-        c = verify(authorization[7:])
+        return verify(authorization[7:])
     except AuthError as e:
         raise HTTPException(401, str(e))
-    return {"email": c["email"], "name": c.get("name", ""), "role": c["role"]}
 
 
 async def current_user(authorization: str = Header(default="")) -> dict:
-    return _user_from_header(authorization)
+    """Identity from the token; **privilege from the database**.
+
+    The role claim inside a 7-day token is a snapshot of who someone was when
+    they signed in. Trusting it means that removing an admin from oh_users, or
+    setting is_active = false, does not take effect for up to a week — they keep
+    full access to every candidate's results with a token already in their
+    browser.
+
+    So the claim is used only for the client's own routing, and the server
+    re-derives the role on every request. One indexed lookup on a tiny table,
+    against a revocation that is otherwise a week late.
+    """
+    c = _claims(authorization)
+    oh = db.get_oh_user(c["email"])
+    return {
+        "email": c["email"],
+        "name": c.get("name", ""),
+        "role": oh["role"] if oh else "user",
+        "jti": c.get("jti"),
+    }
 
 
 async def require_admin(authorization: str = Header(default="")) -> dict:
-    u = _user_from_header(authorization)
+    u = await current_user(authorization)
     if u["role"] != "admin":
         raise HTTPException(403, "admin only")
     return u

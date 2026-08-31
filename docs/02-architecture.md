@@ -75,9 +75,13 @@ OH_Assessments/
 │   ├── requirements.txt
 │   └── render.yaml
 │
-├── schema.sql                   # oh_users · candidates · submissions (+ per-type
-│                                #   children) · activity_logs · 2 triggers
-├── seed_oh_users.sql
+├── migrations/
+│   ├── 001_schema.sql           # oh_users · candidates · submissions (+ per-type
+│   │                            #   children) · activity_logs · 2 triggers
+│   ├── 002_seed_oh_users.sql
+│   ├── inspect.sql              # read-only diagnostic
+│   ├── reset.sql                # destructive teardown
+│   └── README.md                # run order
 └── docs/
 ```
 
@@ -184,6 +188,37 @@ faster than they score. Then the background task becomes a real queue. Not befor
 > Google ID tokens expire in an hour, which would sign a candidate out mid-upload.
 > Our own token avoids that, and `Direct_Inventory` already does exactly this, so
 > the `AuthContext` logic ports cleanly — only its visual layer is discarded.
+
+### One secret, one token per sign-in
+
+`JWT_SECRET` is a **single server-side signing key**, not one per user. Its job is
+to prove *this server* issued a token; per-user secrets would mean storing N keys
+to answer the same question. What is per-user is the **token**: one minted per
+person per sign-in, carrying `email`, `name`, `role`, `iat`, `exp`, and its own
+`jti` — a session id, recorded on the `auth.login` audit row so a sign-in can be
+tied to the token it issued.
+
+The app **refuses to start** if `JWT_SECRET` is under 32 characters. PyJWT signs
+happily with an empty key, so a missing secret would not error — it would quietly
+mint tokens anyone could forge.
+
+### Identity from the token, privilege from the database
+
+The `role` claim inside a 7-day token is a snapshot of who someone was when they
+signed in. `auth.current_user` therefore **re-derives the role from `oh_users` on
+every request** and uses the claim only for the client's own routing.
+
+Without that, removing an admin from `oh_users` — or setting `is_active = false`
+— would not take effect for up to a week: they would keep full access to every
+candidate's results using a token already in their browser. One indexed lookup on
+a tiny table, against a revocation that is otherwise seven days late. It also
+works in reverse: promoting someone takes effect on their next request rather
+than their next sign-in.
+
+**What this does not cover:** an individually stolen token stays valid until it
+expires. Revoking one specific session needs a `jti` denylist, which is not built
+— rotating `JWT_SECRET` invalidates every session at once and is the current
+answer if a leak is ever suspected.
 
 ## 8. Object storage
 

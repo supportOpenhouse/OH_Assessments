@@ -64,7 +64,8 @@ reference, on [openhouse.in](https://openhouse.in)'s exact palette. See
 |---|---|
 | [01-spec.md](docs/01-spec.md) | What it does, roles, scale, attempts, what's out of scope |
 | [02-architecture.md](docs/02-architecture.md) | Stack, repo layout, `vercel.json`, request flow, auth, env |
-| [03-data-model.md](docs/03-data-model.md) | `schema.sql`, the two tables, the complete query set |
+| [03-data-model.md](docs/03-data-model.md) | The five tables, the two triggers, the complete query set |
+| [migrations/README.md](migrations/README.md) | Run order, and which files are tools rather than migrations |
 | [04-api.md](docs/04-api.md) | Every endpoint, every status code |
 | [05-scoring.md](docs/05-scoring.md) | Scribe → metrics → Claude, cost, Phase 2 vocal pitch |
 | [06-rubric.md](docs/06-rubric.md) | **Template — awaiting real content** |
@@ -104,24 +105,26 @@ record — with nothing else running. The mock user is an admin; change
 Create a Neon project, then apply the schema and seed yourself into `oh_users`:
 
 ```bash
-psql "$DATABASE_URL" -f inspect.sql          # read-only: what is already there?
-psql "$DATABASE_URL" -f schema.sql
-psql "$DATABASE_URL" -f seed_oh_users.sql    # edit the email first
+psql "$DATABASE_URL" -f migrations/inspect.sql            # read-only: what's there?
+psql "$DATABASE_URL" -f migrations/001_schema.sql
+psql "$DATABASE_URL" -f migrations/002_seed_oh_users.sql  # edit the email first
 ```
 
 **If the database already has tables from an earlier revision of this schema**,
-`schema.sql` refuses to run and tells you so. `create table if not exists` does
+`001_schema.sql` refuses to run and tells you so. `create table if not exists` does
 nothing when a table of that name exists with a *different* shape — it skips
 silently and fails several statements later as an unreadable "column does not
-exist". The preflight block at the top of `schema.sql` catches that up front.
+exist". The preflight block at the top of `001_schema.sql` catches that up front.
 
 To start clean (**destructive** — check `inspect.sql`'s row counts first):
 
 ```bash
-psql "$DATABASE_URL" -f reset.sql
-psql "$DATABASE_URL" -f schema.sql
-psql "$DATABASE_URL" -f seed_oh_users.sql
+psql "$DATABASE_URL" -f migrations/reset.sql
+psql "$DATABASE_URL" -f migrations/001_schema.sql
+psql "$DATABASE_URL" -f migrations/002_seed_oh_users.sql
 ```
+
+See [migrations/README.md](migrations/README.md) for what each file is.
 
 Five tables. `oh_users` (staff) · `candidates` (everyone who signs in) ·
 **`submissions`** — the holder, one row for every submission to every assessment
@@ -163,7 +166,7 @@ the parent/child split (one transaction, no duplicated columns, no `UNION`), and
 the invariant that no candidate-facing route can return a score.
 
 **Not covered:** the two plpgsql trigger bodies. They are opaque to every parser
-available offline — the first `psql -f schema.sql` against Neon is their first
+available offline — the first `psql -f migrations/001_schema.sql` against Neon is their first
 real test.
 
 ## Deploy

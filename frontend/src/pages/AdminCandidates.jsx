@@ -8,20 +8,24 @@ import { stamp } from '../utils/format.js';
 export default function AdminCandidates() {
   const [rows, setRows] = useState(null);
   const [total, setTotal] = useState(0);
+  const [staffHidden, setStaffHidden] = useState(0);
+  const [showStaff, setShowStaff] = useState(false);
   const [q, setQ] = useState('');
 
-  const load = useCallback((term) => {
-    const query = term ? `&q=${encodeURIComponent(term)}` : '';
-    api.get(`/api/candidates?limit=200${query}`)
-      .then((r) => { setRows(r.items); setTotal(r.total); })
+  const load = useCallback((term, staff) => {
+    const p = new URLSearchParams({ limit: '200' });
+    if (term) p.set('q', term);
+    if (staff) p.set('include_staff', 'true');
+    api.get(`/api/candidates?${p}`)
+      .then((r) => { setRows(r.items); setTotal(r.total); setStaffHidden(r.staff_hidden || 0); })
       .catch((e) => { setRows([]); toast(e.message || 'Could not load candidates.', 'error'); });
   }, []);
 
   // Debounced so typing does not fire a request per keystroke.
   useEffect(() => {
-    const t = setTimeout(() => load(q), 250);
+    const t = setTimeout(() => load(q, showStaff), 250);
     return () => clearTimeout(t);
-  }, [q, load]);
+  }, [q, showStaff, load]);
 
   return (
     <>
@@ -29,18 +33,31 @@ export default function AdminCandidates() {
         <span className="eyebrow">Admin</span>
         <h2>Candidates</h2>
         <p className="mono muted" style={{ marginTop: 'var(--space-2xs)' }}>
-          {total} {total === 1 ? 'person' : 'people'} have signed in
+          {total} {total === 1 ? 'applicant' : 'applicants'}
+          {/* Say what is hidden. A filtered row nobody knows about is worse
+              than a visible one that does not belong. */}
+          {staffHidden > 0 && ` · ${staffHidden} Openhouse team member${staffHidden === 1 ? '' : 's'} hidden`}
         </p>
       </div>
 
-      <input
-        className="field"
-        type="search"
-        placeholder="Search name or email"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        aria-label="Search candidates by name or email"
-      />
+      <div className="filters">
+        <input
+          className="field"
+          type="search"
+          placeholder="Search name or email"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Search candidates by name or email"
+        />
+        <div className="seg" role="group" aria-label="Include Openhouse team">
+          <button type="button" aria-pressed={!showStaff} onClick={() => setShowStaff(false)}>
+            applicants
+          </button>
+          <button type="button" aria-pressed={showStaff} onClick={() => setShowStaff(true)}>
+            + team
+          </button>
+        </div>
+      </div>
 
       <div className="board-wrap" style={{ marginTop: 'var(--space-lg)' }}>
         <table className="board">
@@ -59,6 +76,7 @@ export default function AdminCandidates() {
               <tr key={c.id} style={{ cursor: 'default' }}>
                 <td className="cand">
                   {c.name || '—'}
+                  {c.is_staff && <span className="chip chip-mute">team</span>}
                   <small>{c.email}</small>
                 </td>
                 <td className="num">
@@ -84,7 +102,7 @@ export default function AdminCandidates() {
       {rows === null && <div className="empty">Loading…</div>}
       {rows !== null && rows.length === 0 && (
         <div className="empty">
-          {q ? `No candidate matches “${q}”.` : 'Nobody has signed in yet.'}
+          {q ? `No applicant matches “${q}”.` : 'No applicants yet.'}
         </div>
       )}
     </>

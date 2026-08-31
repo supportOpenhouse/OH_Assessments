@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-os.environ.setdefault("JWT_SECRET", "test-secret")
+os.environ.setdefault("JWT_SECRET", "t" * 32)  # >= MIN_SECRET_LEN
 os.environ.setdefault("GOOGLE_OAUTH_CLIENT_ID", "test-client")
 os.environ.setdefault("ELEVENLABS_API_KEY", "test")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
@@ -73,11 +73,13 @@ def client(monkeypatch):
         {"id": "other", "assessment_type": "sales_insight", "status": "failed",
          "created_at": ROW["created_at"]},
     ] if e == CANDIDATE else []))
+    monkeypatch.setattr(db, "count_staff_candidates", lambda: 2)
     monkeypatch.setattr(db, "list_candidates", lambda *a: (1, [{
         "id": CAND_ID, "email": CANDIDATE, "name": "Cand",
         "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
         "last_submission_at": ROW["created_at"], "login_count": 3,
         "attempts": 2, "scored": 1, "voided": 0, "assessments": ["sales_insight"],
+        "is_staff": False,
     }]))
     monkeypatch.setattr(db, "get_status", lambda i: (
         {"id": SUB_ID, "email": CANDIDATE, "status": "scored"} if i == SUB_ID else None
@@ -252,9 +254,40 @@ def test_read_only_requests_write_no_audit_rows(client):
 
 def test_logs_endpoint_is_admin_only(client, monkeypatch):
     monkeypatch.setattr(db, "list_logs", lambda *a: (0, []))
-    monkeypatch.setattr(db, "distinct_log_actions", lambda: [])
+    monkeypatch.setattr(db, "log_filter_options",
+                        lambda: {"actions": [], "categories": [], "actors": []})
     assert client.get("/api/logs", headers=CAND()).status_code == 403
     assert client.get("/api/logs", headers=ADM()).status_code == 200
+
+
+def test_log_filters_reach_the_query_in_order(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(db, "list_logs", lambda *a: (seen.update(args=a) or (0, [])))
+    monkeypatch.setattr(db, "log_filter_options",
+                        lambda: {"actions": [], "categories": [], "actors": []})
+    client.get("/api/logs?action=auth.login&actor=a@b.com&category=auth"
+               "&q=powai&date_from=2026-08-01&date_to=2026-08-31", headers=ADM())
+    a = seen["args"]
+    assert a[2] == "auth.login"      # action
+    assert a[3] == "a@b.com"         # actor
+    assert a[5] == "auth"            # category
+    assert a[6] == "powai"           # q
+    assert a[7] == "2026-08-01"      # date_from
+    assert a[8] == "2026-08-31"      # date_to
+
+
+def test_filter_options_come_from_the_data(client, monkeypatch):
+    monkeypatch.setattr(db, "list_logs", lambda *a: (0, []))
+    monkeypatch.setattr(db, "log_filter_options", lambda: {
+        "actions": ["auth.login", "submission.created"],
+        "categories": ["auth", "submission"],
+        "actors": ["a@b.com"],
+    })
+    r = client.get("/api/logs", headers=ADM()).json()
+    # Read from the table, never hard-coded, so the bar cannot offer a verb that
+    # has never been recorded or miss one that has.
+    assert r["categories"] == ["auth", "submission"]
+    assert r["actors"] == ["a@b.com"]
 
 
 # ── assessments and history ───────────────────────────────────────────────
@@ -310,3 +343,53 @@ def test_submission_filters_are_all_optional(client, monkeypatch):
     assert seen["args"][2] == "scored"
     assert seen["args"][4] == "asha"
     assert seen["args"][5] == 3
+
+
+# ── privilege comes from the database, not the token ──────────────────────
+
+def test_a_stale_admin_token_does_not_grant_admin(client):
+    """Removing someone from oh_users (or is_active = false) must take effect
+    immediately, not whenever their 7-day token happens to expire."""
+    stale = hdr("ex-admin@openhouse.in", "admin")   # claim says admin
+    assert client.get("/api/submissions", headers=stale).status_code == 403
+    assert client.get("/api/candidates", headers=stale).status_code == 403
+    assert client.get("/api/logs", headers=stale).status_code == 403
+
+
+def test_a_promoted_user_gets_admin_without_signing_in_again(client):
+    """The mirror case: adding someone to oh_users takes effect on their next
+    request, not on their next sign-in."""
+    downgraded = hdr(ADMIN, "user")                 # claim says user
+    assert client.get("/api/submissions", headers=downgraded).status_code == 200
+
+
+def test_me_reports_the_live_role_not_the_claim(client):
+    assert client.get("/api/me", headers=hdr(ADMIN, "user")).json()["role"] == "admin"
+    assert client.get("/api/me", headers=hdr(CANDIDATE, "admin")).json()["role"] == "user"
+
+
+# ── staff are not candidates ──────────────────────────────────────────────
+
+def test_staff_are_excluded_from_the_candidate_list_by_default(client, monkeypatch):
+    """An admin who signs in gets a candidates row — it is the identity table and
+    the FK target for submissions. They must not show up in the hiring team's own
+    list of applicants."""
+    seen = {}
+    monkeypatch.setattr(db, "list_candidates",
+                        lambda *a: (seen.update(args=a) or (0, [])))
+    client.get("/api/candidates", headers=ADM())
+    assert seen["args"][3] is False, "include_staff must default to False"
+
+
+def test_hidden_staff_are_counted_not_silently_dropped(client):
+    r = client.get("/api/candidates", headers=ADM()).json()
+    assert r["staff_hidden"] == 2
+
+
+def test_staff_can_be_shown_on_request(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(db, "list_candidates",
+                        lambda *a: (seen.update(args=a) or (0, [])))
+    r = client.get("/api/candidates?include_staff=true", headers=ADM()).json()
+    assert seen["args"][3] is True
+    assert r["staff_hidden"] == 0, "nothing is hidden when staff are shown"

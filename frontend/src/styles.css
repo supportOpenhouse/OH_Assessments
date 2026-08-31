@@ -81,6 +81,8 @@
   --r-lg: 12px;
   --r-pill: 999px;
 
+  --sidebar-w: 208px;
+
   /* Motion */
   --dur-fast: 140ms;
   --dur-base: 240ms;
@@ -191,59 +193,175 @@ audio { width: 100%; }
 .muted { color: var(--ink-mute); }
 .measure { max-width: 68ch; }
 
-/* ───────── Shell ───────── */
-.shell {
-  width: 100%;
-  max-width: 1180px;
-  margin-inline: auto;
-  padding-inline: clamp(var(--space-md), 4vw, var(--space-2xl));
+/* ───────── Shell · sidebar ─────────
+   Fixed rail on the left, content to the right. The rail is one step darker
+   than the paper with a hairline between — a shadow would float it, and nothing
+   else in this design floats.                                                 */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
 }
 
-.nav {
+.sidebar {
   display: flex;
-  align-items: center;          /* explicit — flex default is stretch */
-  gap: var(--space-md);
-  padding-block: var(--space-md);
-  border-bottom: var(--rule-hair);
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: var(--space-lg) 0 var(--space-lg);
+  background: var(--paper-3);
+  border-right: var(--rule-hair);
+  position: sticky;
+  top: 0;
+  height: 100vh;
 }
-.nav-mark { font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: -0.02em; }
 
-/* ───────── Brand mark ─────────
-   openhouse-logo.png is a flat cream wordmark, drawn for a dark ground — on our
-   light paper it would be invisible. It is single-colour, so a filter can
-   restate it as ink: brightness(0) collapses it to black, and the opacity backs
-   it off to roughly --ink rather than a harder black than any text on the page.
-   Dark mode leaves the artwork alone: cream is what it was drawn for.          */
-.brand-logo {
-  height: 22px;
+.sidebar-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  padding-inline: var(--space-lg);
+}
+
+/* ───────── Brand lockup ─────────
+   Mark + "Openhouse" (Open bold, house regular) + the product name beneath in
+   the accent. Everything scales from ONE font-size on .brand, so a size variant
+   is one declaration rather than four.
+
+   The mark is a dark navy PNG. On light paper it reads as ink already, but it is
+   pushed to true ink for consistency; on dark paper it must be inverted or it
+   disappears into the near-black.                                              */
+.brand { display: inline-flex; align-items: center; gap: .55em; line-height: 1; }
+
+.brand-mark {
+  height: 2.35em;
   width: auto;
-  /* align-self is load-bearing: in a flex column the default `stretch` blows the
-     width out to the whole column and the fixed height then squashes the
-     artwork. flex-start lets width:auto resolve from the natural 5:1 ratio. */
-  align-self: flex-start;
   flex: none;
   object-fit: contain;
   filter: brightness(0);
-  opacity: .82;
+  opacity: .88;
 }
-[data-theme='dark'] .brand-logo { filter: none; opacity: 1; }
+[data-theme='dark'] .brand-mark { filter: brightness(0) invert(1); opacity: .92; }
 
-.brand-logo-lg { height: 24px; }
-.nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
-.nav-links { display: flex; align-items: center; gap: var(--space-md); margin-left: var(--space-md); }
-.nav-link { font-family: var(--font-mono); font-size: var(--text-xs);
-  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute);
-  padding-block: var(--space-2xs); border-bottom: 2px solid transparent;
+.brand-words { display: flex; flex-direction: column; gap: .12em; }
+
+/* DM Sans is openhouse.in's own face, and both weights are already loaded —
+   Open at 700, house at 400, exactly as the brand sets it. */
+.brand-name {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 1em;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.brand-name b { font-weight: 700; }
+
+.brand-sub {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: .5em;
+  text-transform: uppercase;
+  letter-spacing: .19em;
+  color: var(--accent);
+}
+
+.brand-sm { font-size: 17px; }
+.brand-lg { font-size: clamp(2rem, 5.5vw, 3.5rem); }
+
+.sidebar-nav { display: flex; flex-direction: column; }
+
+/* Vertical nav, so the active marker is a left rule rather than an underline.
+   The active item takes the CONTENT's paper colour and loses its right border,
+   so it reads as continuous with the page it opened. */
+.side-link {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-mute);
+  padding: var(--space-sm) var(--space-lg);
+  border-left: 2px solid transparent;
   transition: color var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out); }
-.nav-link:hover { color: var(--ink); text-decoration: none; }
-.nav-link[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
-.nav-who { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.side-link:hover { color: var(--ink); background: var(--paper-4); text-decoration: none; }
+.side-link:active { background: var(--paper-4); }
+.side-link[aria-current="page"] {
+  color: var(--ink);
+  background: var(--paper);
+  border-left-color: var(--accent);
+  margin-right: -1px;                 /* sits over the rail's hairline */
+}
 
-.main { padding-block: var(--space-xl) var(--space-3xl); }
+.sidebar-foot {
+  margin-top: auto;
+  padding: var(--space-md) var(--space-lg) 0;
+  border-top: var(--rule-hair);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.sidebar-actions { display: flex; align-items: center; gap: var(--space-2xs); }
 
-.page-head { margin-bottom: var(--space-xl); }
-.page-head h2 { font-size: var(--text-3xl); margin-top: var(--space-2xs); }
+.nav-who {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main { padding-block: var(--space-xl) var(--space-3xl); min-width: 0; }
+
+.shell {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(var(--space-md), 3vw, var(--space-2xl));
+}
+
+/* Below the breakpoint a fixed rail would eat the viewport, so it becomes a
+   horizontal strip at the top. Same links, same order, same active marker
+   turned on its side. */
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-right: 0;
+    border-bottom: var(--rule-hair);
+    overflow-x: auto;
+  }
+  .sidebar-head { padding-inline: 0; flex: none; }
+  .sidebar-nav { flex-direction: row; }
+
+  .side-link {
+    padding: var(--space-xs) var(--space-sm);
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .side-link[aria-current="page"] {
+    background: transparent;
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+    margin-right: 0;
+  }
+
+  .sidebar-foot {
+    margin-top: 0; margin-left: auto;
+    padding: 0; border-top: 0;
+    flex-direction: row; align-items: center; flex: none;
+  }
+  .nav-who { display: none; }        /* the icons still identify the session */
+}
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -252,9 +370,12 @@ audio { width: 100%; }
   transition: background var(--dur-fast) var(--ease-out),
               color var(--dur-fast) var(--ease-out);
 }
-.icon-btn:hover { background: var(--paper-3); color: var(--ink); }
+.icon-btn:hover { background: var(--paper-4); color: var(--ink); }
 .icon-btn:active { background: var(--paper-4); }
 .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.page-head { margin-bottom: var(--space-xl); }
+.page-head h2 { font-size: var(--text-3xl); margin-top: var(--space-2xs); }
 
 /* ───────── Buttons ─────────
    Four states minimum on every one. Each transition names its properties.     */
@@ -338,9 +459,9 @@ audio { width: 100%; }
   padding: var(--space-3xl);
   gap: var(--space-md);
 }
-.landing-mark h1 { font-size: var(--text-mark); line-height: .95; }
+/* The lockup is the hero; the h1 is only there to carry it semantically. */
+.landing-mark h1 { font-size: inherit; line-height: 1; }
 .landing-brand { margin-bottom: var(--space-md); }
-.landing-rule { width: 64px; height: 2px; background: var(--accent); }
 
 .landing-panel {
   display: flex; flex-direction: column; justify-content: flex-start;
@@ -360,6 +481,92 @@ audio { width: 100%; }
   .landing-panel { padding: var(--space-2xl); }
 }
 
+/* ───────── Filter bar ─────────
+   One bordered container holding the whole query: search, three selects, a date
+   range, and Apply. With six controls, filtering on every keystroke would fire a
+   request per character and make the range unusable — so this bar is explicitly
+   submitted. Enter in the search field submits it too.                          */
+.filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--paper-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--space-lg);
+}
+
+/* Search takes the slack; everything else is sized to its label, not its
+   contents. min-width:0 is required — a flex item will not shrink below its
+   intrinsic content width without it, and that is what a <select> full of
+   'submission.processing' insists on. */
+.filterbar > .field { flex: 1 1 160px; min-width: 110px; }
+
+.filterbar-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-mute);
+  padding-inline: var(--space-2xs);
+}
+
+.filterbar-to { color: var(--ink-mute); font-size: var(--text-sm); }
+
+.filterbar-dates {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: none;
+}
+.filterbar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+
+/* Native <select>, with the platform arrow suppressed and one drawn to match the
+   rest of the type. Native keeps the OS picker, keyboard behaviour and mobile
+   wheel for free — an accessible custom listbox is a hundred lines that would
+   behave worse. */
+.select { position: relative; display: inline-flex; }
+.select::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-mute);
+  border-bottom: 1.5px solid var(--ink-mute);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.select { flex: 0 1 auto; min-width: 0; }
+.select select {
+  appearance: none;
+  padding-right: 28px;
+  cursor: pointer;
+  /* Sized to the label, not to the longest option — a select otherwise claims
+     the width of its widest <option>, and one long verb blows out the bar. The
+     dropdown still shows every option in full. */
+  width: 112px;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+.select select:disabled { cursor: not-allowed; }
+
+/* Date inputs keep their native picker button — a platform feature beats a
+   hand-rolled calendar. */
+.field-date { width: 142px; flex: none; }
+
+@media (max-width: 760px) {
+  .filterbar { align-items: stretch; }
+  .filterbar > .field, .select, .select select { flex: 1 1 100%; width: 100%; }
+  .filterbar-dates { flex: 1 1 100%; }
+  .filterbar-dates .field { flex: 1; min-width: 0; }
+  .filterbar-end { margin-left: 0; flex: 1 1 100%; }
+  .filterbar-end .btn { flex: 1; }
+}
+
 /* ───────── Form controls ───────── */
 .field {
   font-family: var(--font-ui); font-size: var(--text-base);
@@ -373,10 +580,24 @@ audio { width: 100%; }
 .field:hover { border-color: var(--rule); }
 .field:disabled { color: var(--ink-mute); cursor: not-allowed; }
 
+/* Selects and date inputs share the field's skin so the bar reads as one row of
+   controls rather than three unrelated widgets. */
+.filterbar select.field { min-width: 0; }
+.filterbar input[type="date"].field { min-width: 0; width: 142px; }
+/* The native picker glyph is near-black; tint it to the ink in dark mode or it
+   disappears against the surface. */
+[data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(.65);
+}
+input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .55; }
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
 .filters {
   display: flex; flex-wrap: wrap; align-items: center;
   gap: var(--space-sm);
 }
+
+.chip-mute { color: var(--ink-mute); border-style: dashed; margin-left: var(--space-xs); }
 
 .chip {
   display: inline-block;

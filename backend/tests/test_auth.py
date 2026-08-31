@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-os.environ.setdefault("JWT_SECRET", "test-secret")
+os.environ.setdefault("JWT_SECRET", "t" * 32)  # >= MIN_SECRET_LEN
 os.environ.setdefault("GOOGLE_OAUTH_CLIENT_ID", "test-client")
 
 from app import auth  # noqa: E402
@@ -31,7 +31,7 @@ def test_token_signed_with_another_secret_is_rejected():
 
     forged = jwt.encode(
         {"email": "x@y.com", "role": "admin", "exp": int(time.time()) + 60},
-        "wrong-secret",
+        "w" * 32,
         algorithm="HS256",
     )
     with pytest.raises(auth.AuthError):
@@ -49,3 +49,29 @@ def test_none_algorithm_is_rejected():
     forged = f'{b64({"alg": "none", "typ": "JWT"})}.{b64({"email": "x@y.com", "role": "admin"})}.'
     with pytest.raises(auth.AuthError):
         auth.verify(forged)
+
+
+def test_every_token_carries_its_own_jti():
+    a = auth.verify(auth.mint("a@b.com", "A", "user"))
+    b = auth.verify(auth.mint("a@b.com", "A", "user"))
+    assert a["jti"] and b["jti"]
+    # Same person, two sign-ins, two distinct sessions.
+    assert a["jti"] != b["jti"]
+
+
+def test_an_empty_or_short_secret_is_refused_at_import():
+    """PyJWT signs happily with an empty key, so a missing JWT_SECRET would
+    silently produce forgeable tokens rather than erroring. Importing must fail
+    instead — a service that cannot authenticate must not start."""
+    import importlib
+    import os as _os
+
+    for bad in ("", "short"):
+        old = _os.environ["JWT_SECRET"]
+        _os.environ["JWT_SECRET"] = bad
+        try:
+            with pytest.raises(RuntimeError, match="JWT_SECRET"):
+                importlib.reload(auth)
+        finally:
+            _os.environ["JWT_SECRET"] = old
+            importlib.reload(auth)

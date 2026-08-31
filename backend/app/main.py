@@ -92,18 +92,19 @@ async def google_login(body: dict, request: Request):
     oh = db.get_oh_user(info["email"])
     role = oh["role"] if oh else "user"
 
+    token = auth.mint(info["email"], info["name"], role)
+
     if created:
         logs.record(logs.CANDIDATE_CREATED, actor_email=info["email"], actor_role=role,
                     entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
                     data={"name": info["name"]}, request=request)
     logs.record(logs.LOGIN, actor_email=info["email"], actor_role=role,
                 entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
-                data={"new_candidate": created}, request=request)
+                # The session id, so a sign-in can be tied to the token it issued.
+                data={"new_candidate": created, "session": auth.verify(token)["jti"]},
+                request=request)
 
-    return {
-        "token": auth.mint(info["email"], info["name"], role),
-        "user": {**info, "role": role},
-    }
+    return {"token": token, "user": {**info, "role": role}}
 
 
 # ── candidate ─────────────────────────────────────────────────────────────
@@ -270,13 +271,19 @@ async def list_submissions(
 
 @app.get("/api/candidates")
 async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = None,
+                          include_staff: bool = False,
                           _: dict = Depends(auth.require_admin)):
-    """Everyone who has ever signed in, with how many attempts and at what.
+    """Applicants, with how many attempts and at what.
 
-    Attempt counts and the assessment list come from one grouped query — an
-    N+1 here would be one round trip per candidate.
+    Openhouse staff are excluded by default. `candidates` holds a row for
+    everyone who signs in — it is the identity table and the FK target for every
+    submission — but this page asks "who are my applicants", and answering that
+    with "who has a row" puts the hiring team in their own candidate list.
+
+    `staff_hidden` reports how many were filtered, so their absence is visible
+    rather than silent.
     """
-    total, items = db.list_candidates(min(limit, 500), offset, q)
+    total, items = db.list_candidates(min(limit, 500), offset, q, include_staff)
     for it in items:
         it["id"] = str(it["id"])
         it["first_seen_at"] = it["first_seen_at"].isoformat()
@@ -285,7 +292,11 @@ async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = Non
                                     if it["last_submission_at"] else None)
         it["assessments"] = [{"key": k, "name": assessments.name_of(k)}
                              for k in (it["assessments"] or [])]
-    return {"total": total, "items": items}
+    return {
+        "total": total,
+        "items": items,
+        "staff_hidden": 0 if include_staff else db.count_staff_candidates(),
+    }
 
 
 @app.get("/api/submissions/{sub_id}")
@@ -318,12 +329,20 @@ async def void_submission(sub_id: str, request: Request,
 
 
 @app.get("/api/logs")
-async def list_logs(limit: int = 100, offset: int = 0, action: str | None = None,
-                    actor: str | None = None, entity_id: str | None = None,
+async def list_logs(limit: int = 100, offset: int = 0,
+                    action: str | None = None, actor: str | None = None,
+                    entity_id: str | None = None, category: str | None = None,
+                    q: str | None = None,
+                    date_from: str | None = None, date_to: str | None = None,
                     _: dict = Depends(auth.require_admin)):
-    """The audit trail. Admin only — it names every candidate who ever signed in."""
-    total, items = db.list_logs(min(limit, 500), offset, action, actor, entity_id)
+    """The audit trail. Admin only — it names every candidate who ever signed in.
+
+    `q` searches actor, action, entity id and the data payload. `category` is the
+    verb prefix. `date_to` covers its whole day.
+    """
+    total, items = db.list_logs(min(limit, 500), offset, action, actor, entity_id,
+                                category, q, date_from, date_to)
     for it in items:
         it["id"] = str(it["id"])
         it["at"] = it["at"].isoformat()
-    return {"total": total, "items": items, "actions": db.distinct_log_actions()}
+    return {"total": total, "items": items, **db.log_filter_options()}

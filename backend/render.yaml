@@ -14,6 +14,9 @@ services:
         value: 3.12.8
       - key: DATABASE_URL
         sync: false
+      # Render generates a long random value and keeps it stable across deploys.
+      # Rotating it invalidates every live session, which is the intended
+      # behaviour if a secret is ever suspected of leaking.
       - key: JWT_SECRET
         generateValue: true
       - key: GOOGLE_OAUTH_CLIENT_ID
