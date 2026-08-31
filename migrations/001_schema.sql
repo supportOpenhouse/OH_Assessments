@@ -110,12 +110,19 @@ create table if not exists oh_users (
 -- anyone in oh_users. Do not delete staff rows to make that page look right —
 -- filter the query instead, or the FK breaks the moment an admin submits.
 create table if not exists candidates (
-  id             uuid primary key default gen_random_uuid(),
-  email          text        not null unique,
-  name           text,
-  first_seen_at  timestamptz not null default now(),
-  last_seen_at   timestamptz not null default now(),
-  login_count    integer     not null default 0
+  id               uuid primary key default gen_random_uuid(),
+  email            text        not null unique,
+  name             text,
+
+  -- Set true once the person edits their own name. The sign-in upsert checks it
+  -- and stops refreshing `name` from the Google profile — otherwise a rename is
+  -- silently reverted on their next login.
+  name_set_by_user boolean     not null default false,
+  name_updated_at  timestamptz,
+
+  first_seen_at    timestamptz not null default now(),
+  last_seen_at     timestamptz not null default now(),
+  login_count      integer     not null default 0
 );
 
 -- ── submissions ───────────────────────────────────────────────────────────

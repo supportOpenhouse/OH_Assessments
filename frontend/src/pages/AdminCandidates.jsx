@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
+import Loader from '../components/Loader.jsx';
 
 // Everyone who has ever signed in. Attempts and which assessments come from one
 // grouped query, not a round trip per row.
@@ -99,7 +100,7 @@ export default function AdminCandidates() {
         </table>
       </div>
 
-      {rows === null && <div className="empty">Loading…</div>}
+      {rows === null && <div className="loading-block"><Loader /></div>}
       {rows !== null && rows.length === 0 && (
         <div className="empty">
           {q ? `No applicant matches “${q}”.` : 'No applicants yet.'}

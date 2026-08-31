@@ -57,6 +57,14 @@ export function AuthProvider({ children }) {
     return me;
   }, []);
 
+  // The stored name is authoritative, so the server's response replaces the
+  // whole user rather than being merged into it.
+  const rename = useCallback(async (name) => {
+    const me = await api.patch('/api/me', { name });
+    setUser(me);
+    return me;
+  }, []);
+
   const logout = useCallback(() => {
     writeToken(null);
     setAuthToken(null);
@@ -64,7 +72,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, refresh, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, refresh, rename, logout }}>
       {children}
     </AuthContext.Provider>
   );

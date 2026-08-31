@@ -4,6 +4,7 @@ import { api } from '../api/client.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { toast } from '../utils/toast.js';
 import { kb, mmss } from '../utils/format.js';
+import Loader from '../components/Loader.jsx';
 import Markdown, { parseSections } from '../components/Markdown.jsx';
 import UploadDrop from '../components/UploadDrop.jsx';
 import Dialog from '../components/Dialog.jsx';
@@ -71,7 +72,7 @@ export default function Assessment() {
       </div>
 
       {sections === null ? (
-        <p className="muted">Loading instructions…</p>
+        <div className="loading-block"><Loader label="Loading instructions" /></div>
       ) : (
         <div className="steps">
           {sections.map((s, i) => (

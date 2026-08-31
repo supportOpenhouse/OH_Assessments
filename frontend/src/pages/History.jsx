@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
+import Loader from '../components/Loader.jsx';
 import ScoringProgress from '../components/ScoringProgress.jsx';
 
 // A candidate's own record. State only — the API sends no score, and this tree
@@ -26,7 +27,7 @@ export default function History() {
         <h2>Previous assessments</h2>
       </div>
 
-      {items === null && <p className="muted">Loading…</p>}
+      {items === null && <div className="loading-block"><Loader /></div>}
 
       <div className="steps">
         {(items || []).map((s, i) => (

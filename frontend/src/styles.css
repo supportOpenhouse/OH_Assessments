@@ -17,51 +17,55 @@
    --oh-dark #2a2a2a · --oh-light #f7f7f7 · --oh-gray #767676
    --oh-green #00a699 · --oh-blue #007a87 · --radius .75rem                    */
 :root {
-  /* Paper — openhouse lightness, warm-tinted. Base is never pure white. */
-  --paper:      oklch(97.6% 0.006 37);   /* = --oh-light #f7f7f7, tinted */
-  --paper-2:    oklch(100%  0     0 );   /* card surface — openhouse --card */
-  --paper-3:    oklch(95.5% 0.008 37);   /* = --muted #f0f0f0, tinted */
-  --paper-4:    oklch(91.6% 0.010 37);   /* inset fills */
+  /* Surfaces — openhouse.in's own values, read off the live site.
+     Their body is pure #fff and their section grounds are --oh-light #f7f7f7.
+     This reverses the warm-tint decision documented in docs/07-frontend.md §2.1:
+     that was a Hallmark gate-22 call about flat greys, and the instruction here
+     is to match the brand, whose neutrals are cool. */
+  --paper:      #ffffff;   /* content ground — their body */
+  --paper-2:    #ffffff;   /* cards. Separated by hairlines, not by fill */
+  --paper-3:    #f7f7f7;   /* = --oh-light. Sidebar, hover */
+  --paper-4:    #f0f0f0;   /* = --muted. Inset fills */
 
-  /* Ink */
-  --ink:        oklch(26.9% 0.010 37);   /* = --foreground #262626 */
-  --ink-2:      oklch(38.0% 0.010 37);
-  --ink-mute:   oklch(55.6% 0.012 37);   /* = --oh-gray #767676 */
-  --rule:       oklch(85.0% 0.012 37);
-  --hairline:   oklch(91.6% 0.008 37);   /* = --border #e3e3e3 */
+  /* Ink — their text ramp verbatim */
+  --ink:        #1c252e;   /* body colour on openhouse.in */
+  --ink-2:      #454f5b;
+  --ink-mute:   #637381;
+  --rule:       #dfe3e8;
+  --hairline:   #e3e3e3;   /* = --border */
 
-  /* Accent — openhouse orange, exact. Kept under ~5% of any viewport. */
-  --accent:       oklch(66.8% 0.211 37); /* #fa541c */
-  --accent-press: oklch(58.0% 0.200 34); /* :active only */
-  --accent-mute:  oklch(85.0% 0.070 37);
-  --accent-wash:  oklch(96.5% 0.028 37);
+  /* Accent — openhouse orange, exact */
+  --accent:       #fa541c;
+  --accent-press: #d9430f;
+  --accent-mute:  #ffac82;
+  --accent-wash:  #fff1ec;
 
-  /* Verdict bands — openhouse's own semantics where they exist */
-  --band-go:    oklch(65.2% 0.115 185);  /* = --oh-green #00a699  → 4-5 */
-  --band-hold:  oklch(70.0% 0.150  70);  /* amber                 → 2   */
-  --band-stop:  oklch(63.7% 0.208  25);  /* = --destructive       → 0-1 */
-  --band-mid:   oklch(55.6% 0.012  37);  /*                       → 3   */
-  --info:       oklch(53.0% 0.091 208);  /* = --oh-blue #007a87 */
+  /* Verdict bands — their semantic colours */
+  --band-go:    #00a699;   /* = --oh-green */
+  --band-hold:  #b76e00;
+  --band-stop:  #b71d18;
+  --band-mid:   #637381;
+  --info:       #007a87;   /* = --oh-blue */
 
-  /* Focus — instant, never animated, ≥3:1 against paper */
-  --focus:      oklch(53.0% 0.091 208);
+  --focus:      #007a87;
 
-  /* Type — four faces, one job each */
-  --font-display: "Bricolage Grotesque", "Archivo", system-ui, sans-serif;
-  --font-ui:      "DM Sans", system-ui, -apple-system, sans-serif;
+  /* Type — Public Sans is the brand face and carries both UI and display, as it
+     does on openhouse.in. Mono is ours (their site has no tabular data). */
+  --font-display: "Public Sans", system-ui, -apple-system, sans-serif;
+  --font-ui:      "Public Sans", system-ui, -apple-system, sans-serif;
   --font-read:    "Newsreader", "Source Serif 4", Georgia, serif;
   --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Their scale: body 16/24, h3 20/27.5, h2 36/40, h1 60 */
   --text-xs:   .75rem;
-  --text-sm:   .8125rem;
-  --text-base: .9375rem;
-  --text-lg:   1.0625rem;
-  --text-xl:   1.375rem;
-  --text-2xl:  1.75rem;
-  --text-3xl:  clamp(2rem, 4vw, 2.75rem);
-  --text-mark: clamp(2.75rem, 7vw, 5rem);
+  --text-sm:   .875rem;
+  --text-base: 1rem;
+  --text-lg:   1.125rem;
+  --text-xl:   1.25rem;
+  --text-2xl:  1.5rem;
+  --text-3xl:  2.25rem;
+  --text-mark: clamp(2.5rem, 6vw, 3.75rem);
 
-  /* 4pt spacing scale — nothing off it */
   --space-2xs: .25rem;
   --space-xs:  .5rem;
   --space-sm:  .75rem;
@@ -74,21 +78,31 @@
   --rule-hair:  1px solid var(--hairline);
   --rule-thick: 2px solid var(--ink);
 
-  /* Radius — openhouse's --radius: .75rem on cards. The board has none. */
+  /* Their --radius is .75rem; buttons measure 8–10px, CTAs are pills. */
   --r-xs: 2px;
-  --r-sm: 4px;
-  --r-md: 8px;
+  --r-sm: 6px;
+  --r-md: 10px;
   --r-lg: 12px;
   --r-pill: 999px;
 
-  --sidebar-w: 208px;
-
-  /* Motion */
   --dur-fast: 140ms;
   --dur-base: 240ms;
   --dur-slow: 480ms;
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --sidebar-w: 208px;
+
+  /* The wave field's second colour. True black here, true white in dark — not
+     --ink (#1c252e is a dark navy and reads as slate against the orange). */
+  --wave-ink: #000000;
+
+  /* Legal text. openhouse's own yellow is --secondary-light #ffc338, which
+     measures 1.60:1 on a white card — unreadable at 12px, and terms nobody can
+     read are worse than no terms. This is the deepest yellow that still clears
+     AA for small text (4.73:1). Dark mode gets the brand value, which is fine
+     against near-black. */
+  --legal: #9a6a00;
 
   accent-color: var(--accent);
   color-scheme: light;
@@ -98,16 +112,22 @@
    openhouse.in ships no dark mode; light is the committed design. This exists
    because admin sessions are long. Warm near-black only, never #000.          */
 [data-theme='dark'] {
-  --paper:   oklch(15.0% 0.010 37);
-  --paper-2: oklch(19.5% 0.012 37);
-  --paper-3: oklch(24.0% 0.013 37);
-  --paper-4: oklch(29.0% 0.014 37);
+  /* The three blacks, neutral. Light mode's neutrals are warm-tinted at hue 37
+     (see §2.1 — openhouse's own greys are flat and Hallmark gate 22 fails that);
+     dark mode is deliberately NOT, because these are the specified surfaces.
+     At this lightness the tint was imperceptible anyway. */
+  --paper:   oklch(15.0% 0 0);   /* #0b0b0b — page ground */
+  --paper-2: oklch(19.1% 0 0);   /* #141414 — cards, surfaces */
+  --paper-3: oklch(23.9% 0 0);   /* #1f1f1f — sidebar, hover */
+  --paper-4: oklch(28.5% 0 0);   /* derived — inset fills */
 
+  /* Ink stays warm. It is not one of the three blacks, and a warm off-white on a
+     neutral ground is the whole reason this reads as ink rather than as glare. */
   --ink:      oklch(95.0% 0.010 60);
   --ink-2:    oklch(80.0% 0.012 60);
   --ink-mute: oklch(62.0% 0.014 50);
-  --rule:     oklch(38.0% 0.014 37);
-  --hairline: oklch(27.0% 0.012 37);
+  --rule:     oklch(38.0% 0 0);
+  --hairline: oklch(27.0% 0 0);
 
   --accent:       oklch(72.0% 0.190 40);  /* lifted — #fa541c is dense on dark */
   --accent-press: oklch(64.0% 0.195 37);
@@ -119,6 +139,10 @@
   --band-stop: oklch(70.0% 0.180  25);
   --band-mid:  oklch(62.0% 0.014  50);
   --focus:     oklch(78.0% 0.120 208);
+
+  /* Orange and WHITE on the dark ground. */
+  --wave-ink:  #ffffff;
+  --legal:     #ffc338;   /* openhouse --secondary-light. 11.5:1 here */
 
   color-scheme: dark;
 }
@@ -135,18 +159,15 @@ body {
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--text-base);
-  line-height: 1.55;
+  line-height: 1.5;                 /* their 16/24 */
   font-feature-settings: "kern", "liga";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
+/* Their h1 is 700 at -1.5px tracking; h2 700; h3 600. */
+h1, h2 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; margin: 0; }
+h3     { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
 
 p { margin: 0 0 var(--space-md); }
 p:last-child { margin-bottom: 0; }
@@ -224,49 +245,51 @@ audio { width: 100%; }
 }
 
 /* ───────── Brand lockup ─────────
-   Mark + "Openhouse" (Open bold, house regular) + the product name beneath in
-   the accent. Everything scales from ONE font-size on .brand, so a size variant
-   is one declaration rather than four.
+   Supplied artwork (mark + wordmark) with the product name beneath it in the
+   accent. Everything scales from ONE font-size on .brand.
 
-   The mark is a dark navy PNG. On light paper it reads as ink already, but it is
-   pushed to true ink for consistency; on dark paper it must be inverted or it
-   disappears into the near-black.                                              */
-.brand { display: inline-flex; align-items: center; gap: .55em; line-height: 1; }
+   Two image files, swapped on data-theme — the artwork ships in a dark and a
+   white cut, so a CSS filter would be second-guessing an inversion the designer
+   already made.                                                                */
+.brand {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .18em;
+  line-height: 1;
+}
 
-.brand-mark {
-  height: 2.35em;
+.brand-lockup {
+  display: block;
+  height: 1.55em;
   width: auto;
   flex: none;
   object-fit: contain;
-  filter: brightness(0);
-  opacity: .88;
 }
-[data-theme='dark'] .brand-mark { filter: brightness(0) invert(1); opacity: .92; }
+.brand-lockup-dark { display: none; }
+[data-theme='dark'] .brand-lockup-light { display: none; }
+[data-theme='dark'] .brand-lockup-dark  { display: block; }
 
-.brand-words { display: flex; flex-direction: column; gap: .12em; }
+/* Indented so the sub-word starts exactly where "Openhouse" does rather than
+   under the circular mark. Measured off the artwork: the mark occupies columns
+   0-128 of 640 and the wordmark begins at column 153 = 23.9%.
 
-/* DM Sans is openhouse.in's own face, and both weights are already loaded —
-   Open at 700, house at 400, exactly as the brand sets it. */
-.brand-name {
-  font-family: var(--font-ui);
-  font-weight: 400;
-  font-size: 1em;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-}
-.brand-name b { font-weight: 700; }
-
+   A PERCENTAGE, not em — `em` on this element resolves against its own .42em
+   font-size, not the parent's, which is how the first attempt landed the word
+   under the mark. A percentage resolves against the flex container's width,
+   which is the lockup's width, so it tracks every size variant for free. */
 .brand-sub {
+  margin-left: 23.9%;
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: .5em;
+  font-size: .42em;
   text-transform: uppercase;
   letter-spacing: .19em;
   color: var(--accent);
 }
 
-.brand-sm { font-size: 17px; }
-.brand-lg { font-size: clamp(2rem, 5.5vw, 3.5rem); }
+.brand-sm { font-size: 19px; }
+.brand-lg { font-size: clamp(2.25rem, 5.5vw, 3.75rem); }
 
 .sidebar-nav { display: flex; flex-direction: column; }
 
@@ -378,24 +401,33 @@ audio { width: 100%; }
 .page-head h2 { font-size: var(--text-3xl); margin-top: var(--space-2xs); }
 
 /* ───────── Buttons ─────────
-   Four states minimum on every one. Each transition names its properties.     */
+   Measured off openhouse.in: 8px/16px padding, 10px radius, 14px at weight 500,
+   40px tall, no shadow. Their large CTA is a pill — 12px/32px, 16px at 600, 48px
+   — which is `.btn-lg` here.
+
+   Four states minimum on every one; each transition names its properties.      */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-lg);
+  padding: 8px 16px;
+  min-height: 40px;
   border-radius: var(--r-md);
+  font-family: var(--font-ui);
   font-weight: 500;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
+  line-height: 1.5;
   border: 1px solid transparent;
   transition: background var(--dur-fast) var(--ease-out),
               border-color var(--dur-fast) var(--ease-out),
               color var(--dur-fast) var(--ease-out);
 }
 
-.btn-primary { background: var(--accent); color: oklch(100% 0 0); }
-.btn-primary:hover    { background: var(--accent-press); }
+/* Their primary carries a border in its own colour, so an outline variant sits
+   at exactly the same size. */
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover    { background: var(--accent-press); border-color: var(--accent-press); }
 .btn-primary:active   { background: var(--accent-press); transform: translateY(1px); }
-.btn-primary:disabled { background: var(--accent-mute); cursor: not-allowed; }
+.btn-primary:disabled { background: var(--accent-mute); border-color: var(--accent-mute); cursor: not-allowed; }
 
 .btn-ghost { background: transparent; color: var(--ink-2); border-color: var(--hairline); }
 .btn-ghost:hover    { background: var(--paper-3); border-color: var(--rule); }
@@ -403,11 +435,20 @@ audio { width: 100%; }
 .btn-ghost:disabled { color: var(--ink-mute); cursor: not-allowed; }
 
 .btn-danger { background: transparent; color: var(--band-stop); border-color: var(--band-stop); }
-.btn-danger:hover    { background: var(--band-stop); color: var(--paper-2); }
+.btn-danger:hover    { background: var(--band-stop); color: #fff; }
 .btn-danger:active   { transform: translateY(1px); }
 .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
 
-.btn-sm { padding: var(--space-2xs) var(--space-sm); font-size: var(--text-sm); }
+/* Their headline CTA. */
+.btn-lg {
+  padding: 12px 32px;
+  min-height: 48px;
+  border-radius: var(--r-pill);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.btn-sm { padding: 6px 12px; min-height: 32px; font-size: var(--text-sm); }
 
 /* ───────── Callout ───────── */
 .callout {
@@ -447,124 +488,96 @@ audio { width: 100%; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 
-/* ───────── Landing · off-axis split ─────────
-   Nothing sits on a shared centre line. The mark is anchored bottom-left, the
-   sign-in panel starts at 38% down its own column.                            */
-.landing { display: grid; grid-template-columns: 1.15fr 1fr; min-height: 100vh; }
+/* ───────── Waves background ─────────
+   A dense field of vertical lines, noise-displaced, that diverge into flowing
+   bands. The 8px grid is the effect — widen it and you get sparse squiggles.
+
+   Lines alternate accent / ink. The colour lives here rather than being set in
+   JS, so the component never has to know a token name.                        */
+.waves {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.waves svg { display: block; }
+
+/* All orange. Every line the same, so the field reads as one material and the
+   bands come from the geometry alone rather than from two colours interleaving. */
+.waves svg path { stroke: var(--accent); opacity: .5; }
+
+/* ───────── Landing ─────────
+   The wave field is full-bleed. The mark sits on it bottom-left; the sign-in is
+   a card sized to its own content, floated on the right rather than a
+   full-height column. Nothing shares a centre axis.                           */
+.landing {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 35%;
+  min-height: 100vh;
+  background: var(--paper-3);
+  overflow: hidden;
+}
+/* :not(.waves) is load-bearing — a blanket `position: relative` here overrides
+   the field's `absolute` and drops it back into the grid as a cell. */
+.landing > *:not(.waves) { position: relative; z-index: 1; }
 
 .landing-mark {
-  background: var(--paper-3);
-  border-right: var(--rule-hair);
   display: flex; flex-direction: column; justify-content: flex-end;
   padding: var(--space-3xl);
   gap: var(--space-md);
 }
-/* The lockup is the hero; the h1 is only there to carry it semantically. */
 .landing-mark h1 { font-size: inherit; line-height: 1; }
-.landing-brand { margin-bottom: var(--space-md); }
 
-.landing-panel {
-  display: flex; flex-direction: column; justify-content: flex-start;
-  padding: 38vh var(--space-2xl) var(--space-2xl);
-  gap: var(--space-lg);
+.landing-panel { display: flex; position: relative; }
+
+/* Full height, flush to the right edge. It no longer floats, so it takes a
+   border rather than a radius and a shadow — nothing that meets the viewport
+   edge should look like it is hovering above it. */
+.landing-card {
+  flex: 1;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: var(--space-md);
+  background: var(--paper-2);
+  border-left: 1px solid var(--hairline);
+  padding: var(--space-2xl) clamp(var(--space-lg), 3vw, var(--space-2xl));
 }
-.landing-copy { max-width: 34ch; color: var(--ink-2); }
+
+.landing-copy { max-width: 34ch; margin: 0; }
 .landing-signin { min-height: 44px; }
-.landing-foot { margin-top: auto; padding-top: var(--space-xl); }
+
+.landing-theme { position: absolute; right: var(--space-lg); bottom: var(--space-lg); }
+
+.legal-links {
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--legal);
+}
+/* .muted is on the element in markup; the token has to win. */
+.legal-links.muted { color: var(--legal); }
+.legal-links a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+}
+.legal-links a:hover { color: var(--accent); }
 
 @media (max-width: 860px) {
   .landing { grid-template-columns: 1fr; min-height: auto; }
-  .landing-mark {
-    border-right: 0; border-bottom: var(--rule-hair);
-    padding: var(--space-2xl); min-height: 52vh;
-  }
+  .landing-mark { padding: var(--space-2xl); min-height: 46vh; }
   .landing-panel { padding: var(--space-2xl); }
+  .landing-card { max-width: none; }
 }
 
-/* ───────── Filter bar ─────────
-   One bordered container holding the whole query: search, three selects, a date
-   range, and Apply. With six controls, filtering on every keystroke would fire a
-   request per character and make the range unusable — so this bar is explicitly
-   submitted. Enter in the search field submits it too.                          */
-.filterbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm);
-  background: var(--paper-2);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-lg);
-  margin-bottom: var(--space-lg);
-}
-
-/* Search takes the slack; everything else is sized to its label, not its
-   contents. min-width:0 is required — a flex item will not shrink below its
-   intrinsic content width without it, and that is what a <select> full of
-   'submission.processing' insists on. */
-.filterbar > .field { flex: 1 1 160px; min-width: 110px; }
-
-.filterbar-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--ink-mute);
-  padding-inline: var(--space-2xs);
-}
-
-.filterbar-to { color: var(--ink-mute); font-size: var(--text-sm); }
-
-.filterbar-dates {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  flex: none;
-}
-.filterbar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
-
-/* Native <select>, with the platform arrow suppressed and one drawn to match the
-   rest of the type. Native keeps the OS picker, keyboard behaviour and mobile
-   wheel for free — an accessible custom listbox is a hundred lines that would
-   behave worse. */
-.select { position: relative; display: inline-flex; }
-.select::after {
-  content: '';
-  position: absolute;
-  right: 11px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--ink-mute);
-  border-bottom: 1.5px solid var(--ink-mute);
-  transform: translateY(-70%) rotate(45deg);
-  pointer-events: none;
-}
-.select { flex: 0 1 auto; min-width: 0; }
-.select select {
-  appearance: none;
-  padding-right: 28px;
-  cursor: pointer;
-  /* Sized to the label, not to the longest option — a select otherwise claims
-     the width of its widest <option>, and one long verb blows out the bar. The
-     dropdown still shows every option in full. */
-  width: 112px;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-.select select:disabled { cursor: not-allowed; }
-
-/* Date inputs keep their native picker button — a platform feature beats a
-   hand-rolled calendar. */
-.field-date { width: 142px; flex: none; }
-
-@media (max-width: 760px) {
-  .filterbar { align-items: stretch; }
-  .filterbar > .field, .select, .select select { flex: 1 1 100%; width: 100%; }
-  .filterbar-dates { flex: 1 1 100%; }
-  .filterbar-dates .field { flex: 1; min-width: 0; }
-  .filterbar-end { margin-left: 0; flex: 1 1 100%; }
-  .filterbar-end .btn { flex: 1; }
+/* 4rem of panel padding on each side leaves a 320px phone 192px of card. */
+@media (max-width: 560px) {
+  .landing-mark  { padding: var(--space-lg); min-height: 38vh; }
+  .landing-panel { padding: var(--space-lg) var(--space-md) var(--space-2xl); }
+  .landing-card  { padding: var(--space-lg); }
+  .landing-theme { right: var(--space-md); bottom: var(--space-md); }
 }
 
 /* ───────── Form controls ───────── */
@@ -573,7 +586,7 @@ audio { width: 100%; }
   padding: var(--space-xs) var(--space-sm);
   background: var(--paper-2); color: var(--ink);
   border: 1px solid var(--hairline); border-radius: var(--r-md);
-  min-width: 240px;
+  min-height: 40px; min-width: 240px;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 .field::placeholder { color: var(--ink-mute); }
@@ -896,6 +909,96 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .scrim, .dialog { animation: none; }
+}
+
+/* ───────── Loader ─────────
+   Six bars tracing a hexagon. Orange, on the accent token.
+
+   THIS IS THE ONE PLACE THAT ANIMATES height/top/bottom. The house rule is
+   transform and opacity only, because animating layout properties thrashes
+   reflow — but every bar here is absolutely positioned inside a fixed 90x103
+   box, so nothing outside that box can reflow. The rule exists to protect page
+   content; there is no page content inside a loader. Do not take this as licence
+   elsewhere.
+
+   Dropped from the source: `z-index: 999999` (it would sit above modals), and
+   the `.h5` / `.rot` / `.rot2` rules, which no element used.                   */
+.ldr {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  width: 90px;
+  height: 103px;
+}
+
+.ldr-arm { position: absolute; width: 50px; height: 31px; }
+.ldr-arm:nth-of-type(2) { transform: rotate(60deg); }
+.ldr-arm:nth-of-type(3) { transform: rotate(-60deg); }
+
+.ldr-inner { display: block; width: 100%; height: 100%; position: relative; }
+
+.ldr-bar {
+  position: absolute;
+  width: 4px;
+  height: 0;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.ldr-h1 { left: 0;  animation: ldr1 3.2s ease infinite; }
+.ldr-h2 { right: 0; animation: ldr2 3.2s ease .4s infinite; }
+.ldr-h3 { right: 0; animation: ldr3 3.2s ease .8s infinite; }
+.ldr-h4 { top: 10px; left: 23px; transform: rotate(90deg); animation: ldr4 3.2s ease 1s infinite; }
+.ldr-h6 { left: 0;  animation: ldr6 3.2s ease 1.3s infinite; }
+
+@keyframes ldr1 {
+  0%          { bottom: 0; height: 0; }
+  6.9444444%  { bottom: 0; height: 100%; }
+  50%         { top: 0;    height: 100%; }
+  59.9444444% { top: 0;    height: 0; }
+}
+@keyframes ldr2 {
+  0%          { top: 0;    height: 0; }
+  6.9444444%  { top: 0;    height: 100%; }
+  50%         { bottom: 0; height: 100%; }
+  59.9444444% { bottom: 0; height: 0; }
+}
+@keyframes ldr3 {
+  0%          { top: 0;    height: 0; }
+  6.9444444%  { top: 0;    height: 100%; }
+  50%         { bottom: 0; height: 100%; }
+  59.9444444% { bottom: 0; height: 0; }
+}
+@keyframes ldr4 {
+  0%          { top: 37px; left: 23px; height: 134%; }
+  6.9444444%  { top: 10px; height: 134%; }
+  50%         { bottom: 10px; height: 134%; }
+  59.9444444% { bottom: 0; height: 0; }
+}
+@keyframes ldr6 {
+  0%          { bottom: 0; height: 0; }
+  6.9444444%  { bottom: 0; height: 100%; }
+  50%         { top: 0;    height: 100%; }
+  59.9444444% { top: 0;    height: 0; }
+}
+
+/* Every keyframe gets an alternative. Six bars pulsing for three seconds is
+   exactly the kind of motion this setting exists to switch off — so the shape
+   is held static and legible instead. */
+@media (prefers-reduced-motion: reduce) {
+  .ldr-bar { animation: none; height: 100%; opacity: .5; }
+  .ldr-h1 { bottom: 0; }
+  .ldr-h2, .ldr-h3 { top: 0; }
+  .ldr-h4 { top: 10px; height: 134%; }
+  .ldr-h6 { bottom: 0; }
+}
+
+/* Centres the loader in a block that would otherwise hold "Loading…" text. */
+.loading-block {
+  display: grid;
+  place-items: center;
+  padding-block: var(--space-3xl);
 }
 
 /* ───────── Loading ───────── */

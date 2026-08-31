@@ -125,3 +125,32 @@ def test_the_holder_query_needs_no_union(pool):
     sql = " ".join(s for txn in pool.txns for s, _ in txn).lower()
     assert "union" not in sql
     assert "sales_insight_submissions" not in sql, "cross-assessment reads never touch a child"
+
+
+# ── a name the person chose must outlive every future sign-in ─────────────
+
+def test_login_upsert_will_not_overwrite_a_user_set_name(pool):
+    """The whole point of name_set_by_user.
+
+    Without this branch a candidate renames themselves, signs in the next day,
+    and Google's profile name silently comes back through the upsert.
+    """
+    db.upsert_candidate("a@b.com", "Google Name", is_login=True)
+    sql = pool.txns[0][0][0]
+    assert "on conflict (email) do update" in sql
+    assert "case when candidates.name_set_by_user then candidates.name" in sql
+
+
+def test_setting_a_name_flips_the_flag_and_returns_the_previous_value(pool):
+    db.update_candidate_name("a@b.com", "Chosen Name")
+    sql = pool.txns[0][0][0]
+    assert "name_set_by_user = true" in sql
+    # The caller needs the old value to write a meaningful audit row.
+    assert "as previous" in sql
+
+
+def test_a_rename_touches_only_the_candidate_row(pool):
+    db.update_candidate_name("a@b.com", "Chosen Name")
+    stmts = [s for txn in pool.txns for s, _ in txn]
+    assert len(stmts) == 1
+    assert stmts[0].startswith("update candidates set")

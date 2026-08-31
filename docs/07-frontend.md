@@ -33,6 +33,24 @@ Three consequences that decide most arguments downstream:
   reads as one. This is the single sharpest line in the design: interface is
   sans, machine output is serif.
 
+> **Revised: the palette and type now track openhouse.in directly.** Values below
+> were read as *computed styles off the live site*, not from its CSS bundle — the
+> site is client-rendered, so its served HTML contains no buttons at all. Two
+> corrections came out of that: the brand face is **Public Sans**, not DM Sans
+> (which survives only on one legacy button), and their neutral ramp is **cool**,
+> which reverses the warm-tint decision in §2.1 below. Dark mode is unaffected.
+>
+> | | openhouse.in | here |
+> |---|---|---|
+> | Body | `Public Sans` 16/24, `#1c252e` on `#fff` | same |
+> | h1 / h2 / h3 | 700 @ −1.5px / 700 36-40 / 600 20-27.5 | same |
+> | Button | `#fa541c`, r10, 8×16, 14/500, 40px, no shadow | `.btn` |
+> | Large CTA | pill, 12×32, 16/600, 48px | `.btn-lg` |
+> | Radius | `--radius: .75rem`, buttons 8–10 | `--r-md: 10px`, `--r-lg: 12px` |
+>
+> `Newsreader` is kept for the verdict prose alone — openhouse.in has no
+> equivalent surface, because it never renders a machine judgement.
+
 ## 2. Palette
 
 Every brand value below is lifted verbatim from openhouse.in's own `:root`.
@@ -144,7 +162,15 @@ oversight.
 
 openhouse.in ships **no dark mode**; wayfare is dark. Light is the committed
 design — it's the brand. Dark is fully specified because admins read long
-transcripts, and it's one block:
+transcripts, and it's one block.
+
+**Dark surfaces are three specified neutral blacks** — `#0b0b0b` ground,
+`#141414` surfaces, `#1f1f1f` sidebar, plus a derived fourth for inset fills.
+Unlike the light ramp they carry **no warm tint**: §2.1's argument is about
+openhouse.in's flat greys sitting next to a saturated accent in *light*, and at
+15–24% lightness the tint was imperceptible anyway. Ink stays warm — it is not
+one of the three blacks, and warm off-white on a neutral ground is what makes it
+read as ink rather than glare.
 
 ```css
 [data-theme='dark'] {
@@ -209,7 +235,7 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 
 | Route | Surface | Structure |
 |---|---|---|
-| `/` | **Landing** | **Off-axis.** The brand lockup at display size, anchored bottom-left of a full-height panel; a short block flush right. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
+| `/` | **Landing** | **Off-axis.** The wave field fills the left 65%; the lockup sits on it bottom-left. The sign-in is a **full-height card occupying the right 35%**, flush to the viewport edge — so it takes a border rather than a radius and a shadow. Terms & Privacy sit under the button in `--legal`. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
 | `/assessments` | **Choose** | Numbered ruled rows, one per assessment. An available one is a whole-row link; a used one is inert with its state on the right. **Not** a card grid — with one assessment that would be a single lonely tile, and with four it would be the icon-tile pattern this design exists to avoid |
 | `/assessments/:slug` | **Take it** | Numbered `01–04` instruction steps, numerals in the **left margin** in mono — then the dropzone below, full measure |
 | `/history` | **Previous** | One ruled row per attempt. In-flight ones carry the staged progress inline; finished ones a **stamp** — rotated 1.5°, mono `RECEIVED`. Diegetic, not a toast |
@@ -362,6 +388,62 @@ blocks. Overall is separated by a `--rule-thick`, not by extra padding.
 - **Eight-state rule:** every interactive element ships `:hover`, `:focus-visible`,
   `:active`, `:disabled`. Four in code, minimum.
 - **Every `@keyframes` has a `prefers-reduced-motion` alternative.** No exceptions.
+
+## 7a. The landing field
+
+A dense grid of vertical lines, noise-displaced, that diverge into flowing bands.
+`<Waves />` behind the landing's mark panel.
+
+**The 8px grid is the effect.** Widen it and the lines move in near-lockstep,
+which reads as a flat ripple rather than a field. Two numbers, both measured
+against the live reference rather than judged by eye:
+
+| | reference | here |
+|---|---|---|
+| Grid | 159 × 80 = 12,720 pts | 122 × 117 = 14,274 pts |
+| Frame (median) | 16.6 ms | 16.7 ms |
+| Line-to-line divergence (p95) | 5.92 px | 6.2 px |
+
+That last row is what makes the bands: how far neighbouring lines drift from even
+spacing. Getting it right required a **noise x-scale of 0.0072, not the source's
+0.003** — the source uses simplex, which carries more high-frequency content per
+lattice unit than the gradient noise we ship, so the source's constant produced a
+divergence of 1.7px instead of 5.9.
+
+**Every line is `--accent`** at .5 alpha. The field reads as one material, and
+the bands come from the geometry alone rather than from two colours interleaving.
+The colour lives in CSS, so the component never has to know a token name.
+
+**The cursor dot is removed.** The pointer still deforms the field — that is the
+interaction; the dot was only a marker for it.
+
+`simplex-noise` is not installed: the noise is ~30 lines inline, used once. The
+field stops on `visibilitychange`, draws one static frame under
+`prefers-reduced-motion`, and its `touchmove` is passive — the source called
+`preventDefault`, which would kill scrolling on a phone.
+
+## 7b. The loader
+
+Six bars tracing a **house** — roof, walls, floor — in the accent, then erasing
+it. `<Loader />`, used for the auth splash and every page-level loading state.
+
+**Ported off styled-components on purpose.** That would have been a fifth runtime
+dependency for one component, and every other style in this app lives in
+`styles.css`. Classes are namespaced `ldr-*`; the source used bare `.h1`–`.h6`,
+which is a collision waiting to happen in a stylesheet full of headings. Also
+dropped: `z-index: 999999` (it would sit above modals) and the `.h5` / `.rot` /
+`.rot2` rules, which no element referenced.
+
+> **This is the one place that animates `height` / `top` / `bottom`**, against the
+> rule in §7. Every bar is absolutely positioned inside a fixed 90×103 box, so
+> nothing outside it can reflow — the rule exists to protect page content, and
+> there is none inside a loader. Not licence to do it elsewhere.
+
+Under `prefers-reduced-motion` the house is held **complete and static** rather
+than blanked: six bars pulsing for three seconds is exactly what that setting is
+for, but an empty box is not a loading indicator.
+
+## 7c. Motion
 
 The one piece of real motion: the scoring wait on `/dashboard`. The upload
 returns `202` in a couple of seconds; the page then polls

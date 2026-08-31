@@ -140,14 +140,29 @@ submissions that person voided.
 
 ```sql
 create table if not exists candidates (
-  id             uuid primary key default gen_random_uuid(),
-  email          text        not null unique,
-  name           text,
-  first_seen_at  timestamptz not null default now(),
-  last_seen_at   timestamptz not null default now(),
-  login_count    integer     not null default 0
+  id               uuid primary key default gen_random_uuid(),
+  email            text        not null unique,
+  name             text,
+  name_set_by_user boolean     not null default false,
+  name_updated_at  timestamptz,
+  first_seen_at    timestamptz not null default now(),
+  last_seen_at     timestamptz not null default now(),
+  login_count      integer     not null default 0
 );
 ```
+
+**`name_set_by_user` exists because the sign-in upsert refreshes `name` from the
+Google profile.** Once a person can edit their own name, that refresh becomes a
+bug: they rename themselves, sign in the next day, and are silently reverted. The
+upsert branches on the flag:
+
+```sql
+name = case when candidates.name_set_by_user then candidates.name
+            else coalesce(excluded.name, candidates.name) end
+```
+
+A column rather than a comparison against the Google name, because "they changed
+it back to exactly what Google says" is a legitimate choice that must also stick.
 
 One row per person for their **whole relationship** with OpenHouse, not per
 assessment. **Every submission hangs off this table** — a candidate who later

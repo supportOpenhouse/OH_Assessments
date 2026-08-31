@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { toast } from '../utils/toast.js';
 import Brand from '../components/Brand.jsx';
+import Waves from '../components/Waves.jsx';
+import LegalLinks from '../components/LegalLinks.jsx';
 import { IconSun, IconMoon } from '../components/icons.jsx';
 
 // Off-axis split. The mark is anchored bottom-left; the sign-in panel starts at
@@ -25,14 +27,15 @@ export default function Landing() {
 
   return (
     <div className="landing">
+      {/* Full-bleed now, not confined to the left panel — the card floats on it. */}
+      <Waves />
+
       <section className="landing-mark">
-        {/* The lockup IS the hero — a separate <h1> would repeat the words
-            sitting directly above it. */}
         <h1 className="landing-brand"><Brand size="lg" /></h1>
       </section>
 
       <section className="landing-panel">
-        <div>
+        <div className="landing-card">
           <p className="landing-copy">
             Take your assessment, see where your application stands, all in
             one place.
@@ -40,35 +43,35 @@ export default function Landing() {
           <p className="landing-copy muted">
             Sign in with the Google account you applied with.
           </p>
+
+          <div className="landing-signin">
+            {hasClientId ? (
+              <GoogleLogin
+                onSuccess={onSuccess}
+                onError={() => toast('Sign-in failed. Please try again.', 'error')}
+                shape="rectangular"
+                text="signin_with"
+                width="300"
+              />
+            ) : (
+              // No client id configured yet (mock mode). Keeps the flow walkable.
+              <button type="button" className="btn btn-primary" onClick={() => onSuccess({ credential: 'dev' })}>
+                Continue with Google
+              </button>
+            )}
+          </div>
+
+          <LegalLinks />
         </div>
 
-        <div className="landing-signin">
-          {hasClientId ? (
-            <GoogleLogin
-              onSuccess={onSuccess}
-              onError={() => toast('Sign-in failed. Please try again.', 'error')}
-              shape="rectangular"
-              text="signin_with"
-              width="300"
-            />
-          ) : (
-            // No client id configured yet (mock mode). Keeps the flow walkable.
-            <button type="button" className="btn btn-primary" onClick={() => onSuccess({ credential: 'dev' })}>
-              Continue with Google
-            </button>
-          )}
-        </div>
-
-        <div className="landing-foot">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={toggle}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          >
-            {theme === 'dark' ? <IconSun /> : <IconMoon />}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="icon-btn landing-theme"
+          onClick={toggle}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          {theme === 'dark' ? <IconSun /> : <IconMoon />}
+        </button>
       </section>
     </div>
   );

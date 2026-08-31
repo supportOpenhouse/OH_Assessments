@@ -241,6 +241,16 @@ export function mockApi(method, path, body) {
 
   if (method === 'GET' && path === '/api/me') return me_;
 
+  if (method === 'PATCH' && path === '/api/me') {
+    const name = typeof body?.name === 'string'
+      ? body.name.split(/\s+/).filter(Boolean).join(' ')
+      : '';
+    if (!name) { const e = new Error('name cannot be empty'); e.status = 422; throw e; }
+    if (name.length > 80) { const e = new Error('name cannot be longer than 80 characters'); e.status = 422; throw e; }
+    me_ = { ...me_, name, name_set_by_user: true };
+    return me_;
+  }
+
   if (method === 'GET' && path === '/api/assessments') {
     const live = myHistory_[0];
     return { items: [{ ...ASSESSMENT,

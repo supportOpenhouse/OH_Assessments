@@ -98,7 +98,11 @@ def upsert_candidate(email: str, name: str | None, *, is_login: bool = False) ->
     row = _one(
         "insert into candidates (email, name, login_count) values (%s, %s, %s) "
         "on conflict (email) do update set "
-        "  name = coalesce(excluded.name, candidates.name), "
+        # A name the person set themselves survives every future sign-in. Without
+        # this branch, renaming yourself is silently undone the next time you log
+        # in and Google's profile name comes back through.
+        "  name = case when candidates.name_set_by_user then candidates.name "
+        "              else coalesce(excluded.name, candidates.name) end, "
         "  last_seen_at = now(), "
         "  login_count = candidates.login_count + %s "
         "returning id, (xmax = 0) as created",
@@ -297,8 +301,8 @@ def my_submissions(email: str) -> list:
 
 def candidate_profile(email: str) -> dict | None:
     return _one(
-        "select c.id, c.email, c.name, c.first_seen_at, c.last_seen_at, "
-        "       c.login_count, "
+        "select c.id, c.email, c.name, c.name_set_by_user, c.first_seen_at, "
+        "       c.last_seen_at, c.login_count, "
         "       (select count(*) from submissions s where s.candidate_id = c.id) as submission_count "
         "from candidates c where c.email = %s",
         (email,),

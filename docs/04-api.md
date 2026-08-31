@@ -74,6 +74,41 @@ theirs. **This route never returns a number.**
 
 `submission_id` is included so the dashboard can poll status without a second lookup.
 
+`name` is the **stored** name, not the token's claim — the claim is a snapshot of
+the Google profile taken at sign-in, and a rename has to show immediately rather
+than after the next login. `name_set_by_user` says whether the person chose it.
+
+---
+
+## `PATCH /api/me`
+
+Change your own display name.
+
+```jsonc
+// request
+{ "name": "Asha Ramesh" }
+
+// 200 — the same shape as GET /api/me
+{ "email": "a@b.com", "name": "Asha Ramesh", "name_set_by_user": true, ... }
+```
+
+| Code | When |
+|---|---|
+| `401` | No token |
+| `422` | Missing, non-string, empty after trimming, or over 80 characters |
+
+The name is **normalised before storage**: whitespace runs collapse to single
+spaces and non-printable characters are dropped. It is rendered into an admin
+table cell, and a newline or a bidi override is invisible in the form while
+wrecking the row it lands in.
+
+Writes `candidate.renamed` to `activity_logs` with the old and new values —
+unless nothing actually changed, in which case there is no event to record.
+
+**The rename sticks.** `candidates.name_set_by_user` is flipped, and the sign-in
+upsert checks it before refreshing `name` from the Google profile. Without that,
+a rename is silently reverted on the person's next login.
+
 ---
 
 ## `POST /api/submissions`
@@ -255,6 +290,7 @@ the backend so the copy changes without a frontend deploy.
 | `GET` | `/api/health` | none | Render health check |
 | `POST` | `/api/auth/google` | none | ID token → session token |
 | `GET` | `/api/me` | user | Never returns a number |
+| `PATCH` | `/api/me` | user | Change your own display name. Audited |
 | `GET` | `/api/instructions` | user | |
 | `POST` | `/api/submissions` | user | multipart. `202`, scores in background |
 | `GET` | `/api/submissions/{id}/status` | owner or admin | Polled every 2s |

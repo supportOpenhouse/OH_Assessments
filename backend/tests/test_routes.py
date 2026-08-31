@@ -63,10 +63,12 @@ def client(monkeypatch):
         if e == CANDIDATE else None
     ))
     monkeypatch.setattr(db, "candidate_profile", lambda e: (
-        {"id": CAND_ID, "email": e, "name": "Cand",
+        {"id": CAND_ID, "email": e, "name": "Stored Name", "name_set_by_user": True,
          "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
          "login_count": 3, "submission_count": 1 if e == CANDIDATE else 0}
     ))
+    monkeypatch.setattr(db, "update_candidate_name",
+                        lambda e, n: {"id": CAND_ID, "previous": "Stored Name"})
     monkeypatch.setattr(db, "my_submissions", lambda e: ([
         {"id": SUB_ID, "assessment_type": "sales_insight", "status": "scored",
          "created_at": ROW["created_at"]},
@@ -393,3 +395,60 @@ def test_staff_can_be_shown_on_request(client, monkeypatch):
     r = client.get("/api/candidates?include_staff=true", headers=ADM()).json()
     assert seen["args"][3] is True
     assert r["staff_hidden"] == 0, "nothing is hidden when staff are shown"
+
+
+# ── changing your own name ────────────────────────────────────────────────
+
+def test_me_prefers_the_stored_name_over_the_token_claim(client):
+    """The claim is a snapshot of the Google profile at sign-in. A rename has to
+    show immediately, not after the next login."""
+    r = client.get("/api/me", headers=hdr(CANDIDATE, "user")).json()
+    assert r["name"] == "Stored Name"
+    assert r["name_set_by_user"] is True
+
+
+def test_a_name_can_be_changed(client):
+    r = client.patch("/api/me", headers=CAND(), json={"name": "Asha R"})
+    assert r.status_code == 200
+
+
+def test_a_rename_is_audited_with_both_values(client):
+    client.patch("/api/me", headers=CAND(), json={"name": "Asha R"})
+    rows = [x for x in AUDIT if x["action"] == logs.CANDIDATE_RENAMED]
+    assert len(rows) == 1
+    assert rows[0]["data"] == {"from": "Stored Name", "to": "Asha R"}
+
+
+def test_renaming_to_the_same_value_is_not_audited(client):
+    client.patch("/api/me", headers=CAND(), json={"name": "Stored Name"})
+    assert [x for x in AUDIT if x["action"] == logs.CANDIDATE_RENAMED] == []
+
+
+def test_blank_and_whitespace_only_names_are_refused(client):
+    for bad in ("", "   ", "\t\n  "):
+        assert client.patch("/api/me", headers=CAND(), json={"name": bad}).status_code == 422
+
+
+def test_a_missing_or_non_string_name_is_refused(client):
+    assert client.patch("/api/me", headers=CAND(), json={}).status_code == 422
+    assert client.patch("/api/me", headers=CAND(), json={"name": 42}).status_code == 422
+
+
+def test_an_overlong_name_is_refused(client):
+    assert client.patch("/api/me", headers=CAND(),
+                        json={"name": "x" * 81}).status_code == 422
+
+
+def test_control_characters_and_whitespace_runs_are_stripped(client, monkeypatch):
+    """A name is rendered into an admin table cell. Newlines and bidi overrides
+    are invisible in the form and wreck the row they land in."""
+    seen = {}
+    monkeypatch.setattr(db, "update_candidate_name",
+                        lambda e, n: (seen.update(name=n) or {"id": CAND_ID, "previous": "x"}))
+    client.patch("/api/me", headers=CAND(),
+                 json={"name": "  Asha\n\tRamesh\u202e  "})
+    assert seen["name"] == "Asha Ramesh"
+
+
+def test_renaming_needs_authentication(client):
+    assert client.patch("/api/me", json={"name": "Nobody"}).status_code == 401

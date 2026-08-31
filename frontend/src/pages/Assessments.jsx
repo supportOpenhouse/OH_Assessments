@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
+import Loader from '../components/Loader.jsx';
 import { IconArrow } from '../components/icons.jsx';
 
 // Ruled rows, not a card grid — one assessment today, and a three-column grid of
@@ -29,7 +30,7 @@ export default function Assessments() {
         <h2>Choose an assessment</h2>
       </div>
 
-      {items === null && <p className="muted">Loading…</p>}
+      {items === null && <div className="loading-block"><Loader /></div>}
 
       <div className="steps">
         {(items || []).map((a, i) => {

@@ -106,5 +106,6 @@ async function upload(path, file) {
 export const api = {
   get: (p) => request('GET', p),
   post: (p, b) => request('POST', p, b),
+  patch: (p, b) => request('PATCH', p, b),
   upload,
 };

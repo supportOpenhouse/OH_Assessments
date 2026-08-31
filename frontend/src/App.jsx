@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import Toaster from './components/Toaster.jsx';
+import Loader from './components/Loader.jsx';
 import Landing from './pages/Landing.jsx';
 import Assessments from './pages/Assessments.jsx';
 import Assessment from './pages/Assessment.jsx';
@@ -21,7 +22,7 @@ function homeFor(user) {
 }
 
 function Splash() {
-  return <div className="splash"><span className="eyebrow">Loading</span></div>;
+  return <div className="splash"><Loader /></div>;
 }
 
 function RequireAuth({ children }) {

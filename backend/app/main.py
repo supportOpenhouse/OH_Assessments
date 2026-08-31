@@ -92,7 +92,9 @@ async def google_login(body: dict, request: Request):
     oh = db.get_oh_user(info["email"])
     role = oh["role"] if oh else "user"
 
-    token = auth.mint(info["email"], info["name"], role)
+    stored = db.candidate_profile(info["email"])
+    display = stored["name"] if stored and stored["name"] else info["name"]
+    token = auth.mint(info["email"], display, role)
 
     if created:
         logs.record(logs.CANDIDATE_CREATED, actor_email=info["email"], actor_role=role,
@@ -104,7 +106,7 @@ async def google_login(body: dict, request: Request):
                 data={"new_candidate": created, "session": auth.verify(token)["jti"]},
                 request=request)
 
-    return {"token": token, "user": {**info, "role": role}}
+    return {"token": token, "user": {**info, "name": display, "role": role}}
 
 
 # ── candidate ─────────────────────────────────────────────────────────────
@@ -119,11 +121,52 @@ async def me(u: dict = Depends(auth.current_user)):
     p = db.candidate_profile(u["email"])
     return {
         **u,
+        # The stored name wins over the token's claim: the claim is a snapshot of
+        # the Google profile at sign-in, and a rename must show up immediately
+        # rather than after the next login.
+        "name": (p["name"] if p and p["name"] else u["name"]),
+        "name_set_by_user": bool(p["name_set_by_user"]) if p else False,
         "first_seen_at": p["first_seen_at"].isoformat() if p else None,
         "last_seen_at": p["last_seen_at"].isoformat() if p else None,
         "login_count": p["login_count"] if p else 0,
         "submission_count": p["submission_count"] if p else 0,
     }
+
+
+NAME_MAX = 80
+
+
+@app.patch("/api/me")
+async def update_me(body: dict, request: Request, u: dict = Depends(auth.current_user)):
+    """Change your own display name.
+
+    The name a person picks is what admins see on the board and the record, so it
+    is validated rather than trusted: trimmed, length-bounded, and stripped of
+    control characters, which are invisible in a form and are how someone smuggles
+    a newline or a bidi override into a table cell.
+    """
+    raw = (body or {}).get("name")
+    if not isinstance(raw, str):
+        raise HTTPException(422, "name is required")
+
+    name = " ".join(raw.split())          # collapses newlines, tabs, runs of spaces
+    name = "".join(c for c in name if c.isprintable())
+
+    if not name:
+        raise HTTPException(422, "name cannot be empty")
+    if len(name) > NAME_MAX:
+        raise HTTPException(422, f"name cannot be longer than {NAME_MAX} characters")
+
+    row = db.update_candidate_name(u["email"], name)
+    if not row:
+        raise HTTPException(404, "no profile to update")
+
+    if row["previous"] != name:
+        logs.record(logs.CANDIDATE_RENAMED, **logs.for_user(u),
+                    entity=logs.ENTITY_CANDIDATE, entity_id=str(row["id"]),
+                    data={"from": row["previous"], "to": name}, request=request)
+
+    return await me(u)
 
 
 # ── assessments ───────────────────────────────────────────────────────────

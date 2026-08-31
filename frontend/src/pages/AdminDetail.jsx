@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { kb, stamp } from '../utils/format.js';
+import Loader from '../components/Loader.jsx';
 import Stars from '../components/Stars.jsx';
 import AxisBlock from '../components/AxisBlock.jsx';
 import MetricsStrip from '../components/MetricsStrip.jsx';
@@ -44,7 +45,7 @@ export default function AdminDetail() {
     }
   }
 
-  if (!row) return <p className="muted">Loading…</p>;
+  if (!row) return <div className="loading-block"><Loader /></div>;
 
   const s = row.scores;
   const failed = row.status === 'failed';

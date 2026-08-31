@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 # literal is an audit hole that nothing catches.
 LOGIN = "auth.login"
 CANDIDATE_CREATED = "candidate.created"
+CANDIDATE_RENAMED = "candidate.renamed"
 SUBMISSION_CREATED = "submission.created"
 SUBMISSION_REJECTED = "submission.rejected"
 SUBMISSION_PROCESSING = "submission.processing"

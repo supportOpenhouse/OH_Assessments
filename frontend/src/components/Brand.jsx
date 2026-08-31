@@ -1,27 +1,20 @@
-// The brand lockup: the circular mark, "Openhouse" with Open in bold, and the
-// product name beneath it in the accent.
-//
-// Set as TEXT rather than shipped as an image, because the wordmark carries two
-// weights — a raster would need one file per size and per theme, and would not
-// respond to the type scale.
-//
-// One <span role="img"> with a single accessible name: a screen reader should
-// hear "Openhouse Careers", not four fragments.
+/**
+ * The brand lockup: the supplied Openhouse artwork with the product name
+ * beneath it in the accent.
+ *
+ * Two images rather than one filtered image — the artwork is supplied in both
+ * a dark and a white cut, and CSS swaps them on `data-theme`. A `filter` on a
+ * single file would be guessing at the inversion the designer already made.
+ * Both are ~16KB; the cost of loading the pair is not worth a JS theme read.
+ */
 export default function Brand({ size = 'sm', sub = 'Careers' }) {
   return (
     <span className={`brand brand-${size}`} role="img" aria-label={`Openhouse ${sub}`}>
-      <img
-        className="brand-mark"
-        src="/openhouse-mark.png"
-        alt=""
-        aria-hidden="true"
-        width="180"
-        height="180"
-      />
-      <span className="brand-words">
-        <span className="brand-name"><b>Open</b>house</span>
-        <span className="brand-sub">{sub}</span>
-      </span>
+      <img className="brand-lockup brand-lockup-light" src="/OH_logo_font.png"
+           alt="" aria-hidden="true" width="640" height="128" />
+      <img className="brand-lockup brand-lockup-dark" src="/OH_logo_font_white.png"
+           alt="" aria-hidden="true" width="640" height="128" />
+      <span className="brand-sub">{sub}</span>
     </span>
   );
 }
