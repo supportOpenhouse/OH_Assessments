@@ -91,14 +91,13 @@ reference, on [openhouse.in](https://openhouse.in)'s exact palette. See
 ```bash
 cd frontend
 npm install
-cp .env.example .env      # VITE_USE_MOCKS=true is the default
+cp .env.example .env      # fill in VITE_GOOGLE_OAUTH_CLIENT_ID
 npm run dev               # http://localhost:5175
 ```
 
-Every API call resolves from `src/api/mock.js`, so the whole product is walkable
-— landing, sign-in, instructions, upload, polling dashboard, admin board, score
-record — with nothing else running. The mock user is an admin; change
-`me_.role` in `mock.js` to `'user'` to walk the candidate path.
+**The frontend talks to the real API only.** There is no mock layer — it was
+removed so nothing fixture-shaped can reach production. Start the backend below
+before the UI is usable.
 
 ### 2. Database
 
@@ -149,9 +148,13 @@ cp .env.example .env                        # fill in every value
 ./run.sh                                    # http://localhost:5060
 ```
 
-Then set `VITE_USE_MOCKS=false` in `frontend/.env` and restart Vite. Its dev
-proxy forwards `/api/*` to `:5060`, which is exactly what Vercel's rewrite does
-in production.
+Vite's dev proxy forwards `/api/*` to `:5060`, which is exactly what Vercel's
+rewrite does in production, so the browser sees one origin either way.
+
+**Scoring refuses to run while `backend/rubric.md` is the placeholder.** That is
+deliberate: a score produced against placeholder criteria looks real and gets
+acted on. Replace it, or set `ALLOW_PLACEHOLDER_RUBRIC=true` to exercise the
+pipeline first.
 
 ### 4. Tests
 
@@ -176,8 +179,8 @@ suspends idle instances and kills background scoring tasks with them).
 `render.yaml` declares the service; set the secrets in the dashboard.
 
 **Frontend → Vercel.** Root directory `frontend`. Edit the Render hostname in
-`frontend/vercel.json`, then set `VITE_GOOGLE_OAUTH_CLIENT_ID`,
-`VITE_API_BASE=` (blank) and `VITE_USE_MOCKS=false`.
+`frontend/vercel.json`, then set `VITE_GOOGLE_OAUTH_CLIENT_ID` and
+`VITE_API_BASE=` (blank).
 
 **Then close the loop:** set `ALLOWED_ORIGINS` on Render to the Vercel domains,
 add the Vercel domain and `http://localhost:5175` to the Google OAuth client's

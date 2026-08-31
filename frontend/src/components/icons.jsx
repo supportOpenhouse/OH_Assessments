@@ -14,6 +14,9 @@ import {
   LuSun, LuMoon, LuLogOut, LuUpload, LuCheck, LuTriangleAlert,
   LuArrowRight, LuArrowLeft, LuPencil, LuX,
   LuInbox, LuUsers, LuActivity, LuUser, LuClipboardList, LuHistory,
+  LuPlay, LuPause, LuRotateCcw, LuRotateCw,
+  // Kept for the audio player's commented-out controls — see AudioPlayer.jsx.
+  LuVolume2, LuHeart, LuSkipBack, LuSkipForward,
 } from 'react-icons/lu';
 import {
   FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube,
@@ -48,6 +51,19 @@ export const IconActivity = wrap(LuActivity);
 export const IconProfile = wrap(LuUser);
 export const IconAssessments = wrap(LuClipboardList);
 export const IconHistory = wrap(LuHistory);
+
+// Audio transport. Play/pause are filled — a stroked triangle reads as an
+// outline, not a button you press.
+export const IconPlay = wrap(LuPlay, { fill: 'currentColor', strokeWidth: 1 });
+export const IconPause = wrap(LuPause, { fill: 'currentColor', strokeWidth: 1 });
+export const IconBack10 = wrap(LuRotateCcw);
+export const IconForward10 = wrap(LuRotateCw);
+
+// Parked for the player's commented-out controls.
+export const IconVolume = wrap(LuVolume2);
+export const IconHeart = wrap(LuHeart);
+export const IconPrev = wrap(LuSkipBack);
+export const IconNext = wrap(LuSkipForward);
 
 // Brand marks are filled, not stroked — an outlined logo stops reading as that
 // logo — so they take no strokeWidth.

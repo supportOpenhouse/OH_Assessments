@@ -7,6 +7,7 @@ import { kb, mmss } from '../utils/format.js';
 import Loader from '../components/Loader.jsx';
 import Markdown, { parseSections } from '../components/Markdown.jsx';
 import UploadDrop from '../components/UploadDrop.jsx';
+import AudioPlayer from '../components/AudioPlayer.jsx';
 import Dialog from '../components/Dialog.jsx';
 import { IconAlert } from '../components/icons.jsx';
 
@@ -96,7 +97,9 @@ export default function Assessment() {
                 {mmss(picked.duration)} · {kb(picked.file.size)}
               </span>
             </div>
-            <audio controls src={picked.url} style={{ marginTop: 'var(--space-md)' }} />
+            <div style={{ marginTop: 'var(--space-md)' }}>
+              <AudioPlayer src={picked.url} label="your recording" />
+            </div>
             <div className="picked-actions">
               <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)}>
                 Submit this recording

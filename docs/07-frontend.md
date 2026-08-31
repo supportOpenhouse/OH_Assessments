@@ -400,7 +400,29 @@ blocks. Overall is separated by a `--rule-thick`, not by extra padding.
   `:active`, `:disabled`. Four in code, minimum.
 - **Every `@keyframes` has a `prefers-reduced-motion` alternative.** No exceptions.
 
-## 7a. The landing field
+## 7a. The audio player
+
+`<AudioPlayer />` — the only way audio is played, on both the admin record and
+the upload preview. Ported from a supplied card, off styled-components.
+
+**Live:** play/pause, a seekable progress bar, elapsed and total. The card's
+skip-track buttons are **-10s / +10s**, which is what you want when re-listening
+to one recording rather than moving through a playlist.
+
+**Parked:** the volume slider, the "now playing" equaliser, the title block and
+the like button are commented out in the JSX — **their CSS is still live**, so
+uncommenting the markup is all it takes to bring them back.
+
+Two details that matter:
+
+- The bar is a **`role="slider"` with `aria-valuetext`**, not a div with a click
+  handler. That is what gives it keyboard seeking (arrows ±5s, Space toggles) and
+  a screen-reader readout of "0:22 of 0:30".
+- Duration listens to **`durationchange` as well as `loadedmetadata`** — a
+  streamed file reports `Infinity` first and only settles once enough of it has
+  arrived, so reading duration once gives you a blank total.
+
+## 7b. The landing field
 
 A dense grid of vertical lines, noise-displaced, that diverge into flowing bands.
 `<Waves />` behind the landing's mark panel.
@@ -433,7 +455,7 @@ field stops on `visibilitychange`, draws one static frame under
 `prefers-reduced-motion`, and its `touchmove` is passive — the source called
 `preventDefault`, which would kill scrolling on a phone.
 
-## 7b. The loader
+## 7c. The loader
 
 Six bars tracing a **house** — roof, walls, floor — in the accent, then erasing
 it. `<Loader />`, used for the auth splash and every page-level loading state.
@@ -454,7 +476,7 @@ Under `prefers-reduced-motion` the house is held **complete and static** rather
 than blanked: six bars pulsing for three seconds is exactly what that setting is
 for, but an empty box is not a loading indicator.
 
-## 7c. Motion
+## 7d. Motion
 
 The one piece of real motion: the scoring wait on `/dashboard`. The upload
 returns `202` in a couple of seconds; the page then polls
@@ -472,7 +494,7 @@ same `RECEIVED` stamp. Only an admin learns a run errored.
 The `Direct_Inventory` welcome curtain is **cut**. A 1.7s full-screen animation on
 every sign-in fails the Restraint axis for a tool most people use exactly once.
 
-## 7d. Guarding the stylesheet
+## 7e. Guarding the stylesheet
 
 ```bash
 cd frontend && npm run check:css

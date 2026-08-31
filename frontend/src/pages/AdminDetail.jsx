@@ -8,6 +8,7 @@ import Stars from '../components/Stars.jsx';
 import AxisBlock from '../components/AxisBlock.jsx';
 import MetricsStrip from '../components/MetricsStrip.jsx';
 import Dialog from '../components/Dialog.jsx';
+import AudioPlayer from '../components/AudioPlayer.jsx';
 import { IconBack, IconAlert } from '../components/icons.jsx';
 
 const AXES = [
@@ -88,7 +89,7 @@ export default function AdminDetail() {
         </div>
       )}
 
-      {row.audio_url && <audio controls src={row.audio_url} preload="none" />}
+      {row.audio_url && <AudioPlayer src={row.audio_url} preload="none" label="submission" />}
 
       <MetricsStrip metrics={row.metrics} />
 

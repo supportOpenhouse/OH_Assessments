@@ -10,6 +10,12 @@
 
 **Spec:** [`docs/01-spec.md`](01-spec.md) through [`docs/07-frontend.md`](07-frontend.md). Read `01`, `02`, `04` and `07` before Task 1.
 
+> **Superseded in one place.** Task 3 builds a mock API layer
+> (`frontend/src/api/mock.js`, `VITE_USE_MOCKS`) so the UI could be built before
+> the backend existed. **That layer has been deleted** — nothing fixture-shaped
+> should be able to reach production, and the frontend now requires a running
+> backend. The rest of the plan still describes the shipped code.
+
 ## Global Constraints
 
 **Product**

@@ -1,6 +1,8 @@
 import hashlib
 import os
 
+import pytest
+
 os.environ.setdefault("ELEVENLABS_API_KEY", "test")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 
@@ -40,3 +42,29 @@ def test_glossary_has_no_per_candidate_content():
     # One varying byte in the cached prefix invalidates it for every request.
     g = scoring.METRICS_GLOSSARY
     assert "{" not in g and "}" not in g
+
+
+# ── the placeholder guard ─────────────────────────────────────────────────
+
+def test_the_shipped_rubric_is_still_the_placeholder():
+    """A canary. When someone replaces rubric.md this test fails, which is the
+    prompt to delete it and the guard along with it."""
+    assert scoring.RUBRIC_IS_PLACEHOLDER
+
+
+def test_scoring_refuses_a_placeholder_rubric_by_default(monkeypatch):
+    """A number produced against a placeholder gets acted on. Refusing is the
+    safer failure."""
+    monkeypatch.setattr(scoring, "ALLOW_PLACEHOLDER", False)
+    with pytest.raises(scoring.ScoringError, match="placeholder"):
+        scoring.score(b"anything")
+
+
+def test_the_placeholder_can_be_allowed_for_pipeline_testing(monkeypatch):
+    monkeypatch.setattr(scoring, "ALLOW_PLACEHOLDER", True)
+    called = {}
+    monkeypatch.setattr(scoring, "transcribe",
+                        lambda a: called.setdefault("hit", True) or {"text": "", "words": []})
+    with pytest.raises(Exception):
+        scoring.score(b"anything")      # fails later, at transcription
+    assert called.get("hit"), "the guard must not fire when explicitly allowed"

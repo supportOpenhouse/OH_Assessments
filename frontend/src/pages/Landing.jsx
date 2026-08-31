@@ -54,10 +54,12 @@ export default function Landing() {
                 width="300"
               />
             ) : (
-              // No client id configured yet (mock mode). Keeps the flow walkable.
-              <button type="button" className="btn btn-primary" onClick={() => onSuccess({ credential: 'dev' })}>
-                Continue with Google
-              </button>
+              // No dev bypass. A missing client id is a deployment fault, and a
+              // button that fakes a credential is a door left open in prod.
+              <p className="landing-copy muted">
+                Sign-in is unavailable — this deployment is missing its Google
+                client id.
+              </p>
             )}
           </div>
 

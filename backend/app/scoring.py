@@ -37,6 +37,23 @@ def rubric_version_of(text: str) -> str:
 RUBRIC_MD = (_ROOT / "rubric.md").read_text()
 RUBRIC_VERSION = rubric_version_of(RUBRIC_MD)
 
+# The shipped rubric is a placeholder until someone replaces it. Scoring a real
+# candidate against it produces a plausible-looking number that means nothing —
+# which is worse than not scoring at all, because a number gets acted on.
+#
+# So scoring REFUSES by default. Set ALLOW_PLACEHOLDER_RUBRIC=true to exercise
+# the pipeline end to end before the real rubric lands.
+PLACEHOLDER_MARKER = "PLACEHOLDER RUBRIC"
+RUBRIC_IS_PLACEHOLDER = PLACEHOLDER_MARKER in RUBRIC_MD
+ALLOW_PLACEHOLDER = os.environ.get("ALLOW_PLACEHOLDER_RUBRIC", "").lower() == "true"
+
+if RUBRIC_IS_PLACEHOLDER:
+    log.warning(
+        "rubric.md is still the PLACEHOLDER. Scoring %s. "
+        "Replace backend/rubric.md before assessing real candidates.",
+        "is ALLOWED (ALLOW_PLACEHOLDER_RUBRIC=true)" if ALLOW_PLACEHOLDER else "will REFUSE",
+    )
+
 # Numbers mean nothing to a model without bands. Part of the cached prefix, so
 # it must never contain anything that varies per candidate.
 METRICS_GLOSSARY = """\
@@ -150,6 +167,12 @@ def judge(transcript: str, m: dict) -> dict:
 
 
 def score(audio: bytes) -> dict:
+    if RUBRIC_IS_PLACEHOLDER and not ALLOW_PLACEHOLDER:
+        raise ScoringError(
+            "rubric.md is still the placeholder — refusing to score. Replace "
+            "backend/rubric.md, or set ALLOW_PLACEHOLDER_RUBRIC=true to test "
+            "the pipeline."
+        )
     t = transcribe(audio)
     m = metrics.derive(t["words"])
     scores = judge(t["text"], m)
