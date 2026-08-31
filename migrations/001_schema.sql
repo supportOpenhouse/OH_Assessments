@@ -103,12 +103,10 @@ create table if not exists oh_users (
 -- assessment. Upserted on EVERY sign-in, staff included: the email is recorded
 -- the moment someone logs in, before they do anything else.
 --
--- NOTE ON THE NAME: this is the IDENTITY table — everyone who signs in, which
--- includes Openhouse staff, because it is the foreign-key target for every
--- submission and an admin testing the flow needs a row. It is NOT "the list of
--- applicants": that question is answered by the Candidates page, which excludes
--- anyone in oh_users. Do not delete staff rows to make that page look right —
--- filter the query instead, or the FK breaks the moment an admin submits.
+-- APPLICANTS ONLY. Staff never get a row here: an @openhouse.in address that is
+-- not in oh_users is REFUSED at sign-in, and one that IS in oh_users signs in as
+-- staff without a candidates row. So every row in this table is an applicant by
+-- construction, not by a WHERE clause on the read side.
 create table if not exists candidates (
   id               uuid primary key default gen_random_uuid(),
   email            text        not null unique,

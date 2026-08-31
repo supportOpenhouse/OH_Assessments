@@ -23,6 +23,9 @@ logging.basicConfig(level=logging.INFO)
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# Anyone on this domain must be in oh_users to sign in at all.
+STAFF_DOMAIN = "@openhouse.in"
+
 MAX_BYTES = 25 * 1024 * 1024
 MAX_SECONDS = 600
 
@@ -83,30 +86,48 @@ async def google_login(body: dict, request: Request):
     except auth.AuthError as e:
         raise HTTPException(401, str(e))
 
-    # The email is saved to candidates on EVERY sign-in, before anything else.
-    # Staff get a row too — it costs nothing and it is what lets an admin walk
-    # the candidate flow. Role comes from oh_users membership, never from
-    # having a candidates row.
-    candidate_id, created = db.upsert_candidate(info["email"], info["name"], is_login=True)
-
     oh = db.get_oh_user(info["email"])
-    role = oh["role"] if oh else "user"
 
+    # An @openhouse.in address that is not in oh_users has no account here.
+    # It is NOT silently made a candidate — staff and applicants are separate
+    # populations, and a colleague signing in by accident should be told so
+    # rather than quietly appearing in the hiring team's own candidate list.
+    if not oh and info["email"].endswith(STAFF_DOMAIN):
+        logs.record(logs.LOGIN_REFUSED, actor_email=info["email"], actor_role="none",
+                    data={"reason": "openhouse_domain_without_oh_users_row"},
+                    request=request)
+        raise HTTPException(
+            403,
+            "credentials not created, use non openhouse email and log in as candidate",
+        )
+
+    if oh:
+        # Staff. No candidates row — they are not applicants.
+        role = oh["role"]
+        token = auth.mint(info["email"], oh["name"] or info["name"], role)
+        logs.record(logs.LOGIN, actor_email=info["email"], actor_role=role,
+                    data={"staff": True, "session": auth.verify(token)["jti"]},
+                    request=request)
+        return {"token": token,
+                "user": {**info, "name": oh["name"] or info["name"], "role": role}}
+
+    # Candidate. The email is saved on EVERY sign-in, before anything else.
+    candidate_id, created = db.upsert_candidate(info["email"], info["name"], is_login=True)
     stored = db.candidate_profile(info["email"])
     display = stored["name"] if stored and stored["name"] else info["name"]
-    token = auth.mint(info["email"], display, role)
+    token = auth.mint(info["email"], display, "user")
 
     if created:
-        logs.record(logs.CANDIDATE_CREATED, actor_email=info["email"], actor_role=role,
+        logs.record(logs.CANDIDATE_CREATED, actor_email=info["email"], actor_role="user",
                     entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
                     data={"name": info["name"]}, request=request)
-    logs.record(logs.LOGIN, actor_email=info["email"], actor_role=role,
+    logs.record(logs.LOGIN, actor_email=info["email"], actor_role="user",
                 entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
                 # The session id, so a sign-in can be tied to the token it issued.
                 data={"new_candidate": created, "session": auth.verify(token)["jti"]},
                 request=request)
 
-    return {"token": token, "user": {**info, "name": display, "role": role}}
+    return {"token": token, "user": {**info, "name": display, "role": "user"}}
 
 
 # ── candidate ─────────────────────────────────────────────────────────────
@@ -237,6 +258,11 @@ async def create_submission(
                     request=request)
         return HTTPException(code, detail)
 
+    # Staff are not applicants and have no candidates row to hang this off.
+    if u["role"] != "user":
+        raise reject(403, "staff_account",
+                     "Openhouse team accounts cannot take assessments")
+
     ext = ALLOWED.get((file.content_type or "").lower())
     if not ext:
         raise reject(415, "unsupported_type", f"unsupported audio type: {file.content_type}")
@@ -314,19 +340,13 @@ async def list_submissions(
 
 @app.get("/api/candidates")
 async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = None,
-                          include_staff: bool = False,
                           _: dict = Depends(auth.require_admin)):
     """Applicants, with how many attempts and at what.
 
-    Openhouse staff are excluded by default. `candidates` holds a row for
-    everyone who signs in — it is the identity table and the FK target for every
-    submission — but this page asks "who are my applicants", and answering that
-    with "who has a row" puts the hiring team in their own candidate list.
-
-    `staff_hidden` reports how many were filtered, so their absence is visible
-    rather than silent.
+    No staff filter: staff never get a candidates row, so every row here is an
+    applicant by construction rather than by a WHERE clause.
     """
-    total, items = db.list_candidates(min(limit, 500), offset, q, include_staff)
+    total, items = db.list_candidates(min(limit, 500), offset, q)
     for it in items:
         it["id"] = str(it["id"])
         it["first_seen_at"] = it["first_seen_at"].isoformat()
@@ -335,11 +355,7 @@ async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = Non
                                     if it["last_submission_at"] else None)
         it["assessments"] = [{"key": k, "name": assessments.name_of(k)}
                              for k in (it["assessments"] or [])]
-    return {
-        "total": total,
-        "items": items,
-        "staff_hidden": 0 if include_staff else db.count_staff_candidates(),
-    }
+    return {"total": total, "items": items}
 
 
 @app.get("/api/submissions/{sub_id}")

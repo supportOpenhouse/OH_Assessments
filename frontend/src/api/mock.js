@@ -202,12 +202,7 @@ const CANDIDATES = [
   { id: '11111111-0000-4000-8000-000000000004', email: 'no.attempt@example.com',
     name: 'Rahul Menon', first_seen_at: '2026-08-28T09:00:00Z',
     last_seen_at: '2026-08-28T09:00:00Z', last_submission_at: null,
-    login_count: 1, attempts: 0, scored: 0, voided: 0, assessments: [], is_staff: false },
-  // Staff get a candidates row on sign-in too — hidden from this page by default.
-  { id: '11111111-0000-4000-8000-000000000005', email: 'sahaj.dureja@openhouse.in',
-    name: 'Sahaj Dureja', first_seen_at: '2026-08-31T10:47:33Z',
-    last_seen_at: '2026-08-31T10:47:33Z', last_submission_at: null,
-    login_count: 9, attempts: 0, scored: 0, voided: 0, assessments: [], is_staff: true },
+    login_count: 1, attempts: 0, scored: 0, voided: 0, assessments: [] },
 ];
 
 // Flip role to 'user' to walk the candidate path; submission_count drives where
@@ -265,18 +260,13 @@ export function mockApi(method, path, body) {
 
   if (method === 'GET' && path.startsWith('/api/candidates')) {
     const qs = new URLSearchParams(path.split('?')[1] || '');
-    const staff = qs.get('include_staff') === 'true';
     const q = (qs.get('q') || '').toLowerCase();
-    let items = staff ? CANDIDATES : CANDIDATES.filter((c) => !c.is_staff);
-    if (q) {
-      items = items.filter((c) => c.email.toLowerCase().includes(q)
-                               || (c.name || '').toLowerCase().includes(q));
-    }
-    return {
-      total: items.length,
-      items,
-      staff_hidden: staff ? 0 : CANDIDATES.filter((c) => c.is_staff).length,
-    };
+    // Every row is an applicant by construction — staff never get one.
+    const items = q
+      ? CANDIDATES.filter((c) => c.email.toLowerCase().includes(q)
+                              || (c.name || '').toLowerCase().includes(q))
+      : CANDIDATES;
+    return { total: items.length, items };
   }
 
   if (method === 'GET' && path === '/api/instructions') {

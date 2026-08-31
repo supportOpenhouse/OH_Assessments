@@ -3,6 +3,8 @@
 ```bash
 psql "$DATABASE_URL" -f migrations/001_schema.sql
 psql "$DATABASE_URL" -f migrations/002_seed_oh_users.sql   # edit the email first
+psql "$DATABASE_URL" -f migrations/003_candidate_display_name.sql
+psql "$DATABASE_URL" -f migrations/004_staff_are_not_candidates.sql
 ```
 
 **Numbered files run in order and are idempotent** — every statement is

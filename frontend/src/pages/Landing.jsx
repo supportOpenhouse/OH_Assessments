@@ -31,7 +31,7 @@ export default function Landing() {
       <Waves />
 
       <section className="landing-mark">
-        <h1 className="landing-brand"><Brand size="lg" /></h1>
+        <h1><Brand size="lg" /></h1>
       </section>
 
       <section className="landing-panel">

@@ -169,16 +169,17 @@ assessment. **Every submission hangs off this table** — a candidate who later
 takes a second assessment reuses this row, which is the entire reason it is
 separate rather than columns on the submission.
 
-> **The name undersells it: this is the identity table, not the applicant list.**
-> Everyone who signs in gets a row, staff included, because it is the FK target
-> for every submission and an admin who tests the flow needs one. "Who are my
-> applicants" is a *different question*, and the admin Candidates page answers it
-> by excluding anyone in `oh_users` — with the hidden count shown and a toggle to
-> include them. The filter belongs in the query; deleting staff rows to make the
-> page look right would break the FK the moment an admin submitted anything.
+> **Applicants only.** Staff never get a row here: an `@openhouse.in` address
+> that is not in `oh_users` is refused at sign-in, and one that IS in `oh_users`
+> signs in as staff without a candidates row. Every row is an applicant *by
+> construction*, so the Candidates page needs no filter at all.
 >
-> Membership in `oh_users` is the test, never the email domain — an
-> `@openhouse.in` address that is not staff is a genuine candidate.
+> Membership in `oh_users` decides the role, never the domain. The domain only
+> decides whether an unregistered address is refused rather than enrolled — so a
+> contractor on a personal address can still be staff.
+>
+> `migrations/004_staff_are_not_candidates.sql` cleans up rows created under the
+> old behaviour, deleting only those with **no** submissions and naming the rest.
 
 **The email is saved here on every sign-in**, before the person does anything
 else:

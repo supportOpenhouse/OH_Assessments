@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 # Action verbs. Constants so they are greppable and stable — a typo'd string
 # literal is an audit hole that nothing catches.
 LOGIN = "auth.login"
+LOGIN_REFUSED = "auth.refused"
 CANDIDATE_CREATED = "candidate.created"
 CANDIDATE_RENAMED = "candidate.renamed"
 SUBMISSION_CREATED = "submission.created"

@@ -324,50 +324,23 @@ def candidate_profile(email: str) -> dict | None:
     )
 
 
-def count_staff_candidates() -> int:
-    """How many candidates rows belong to Openhouse staff.
-
-    Surfaced on the Candidates page so their absence is visible rather than
-    silent — a hidden row that nobody knows is hidden is worse than a visible
-    one that does not belong.
-    """
-    return _one(
-        "select count(*) as n from candidates c "
-        "join oh_users o on o.email = c.email and o.is_active"
-    )["n"]
-
-
-def list_candidates(limit: int, offset: int, q: str | None = None,
-                    include_staff: bool = False) -> tuple[int, list]:
+def list_candidates(limit: int, offset: int, q: str | None = None) -> tuple[int, list]:
     """Applicants, with how many attempts and at what.
 
-    Staff are excluded by default. `candidates` holds a row for EVERYONE who
-    signs in — it is the identity table and the foreign-key target for every
-    submission, so an admin who tests the flow needs one. But this page is
-    asking "who are my applicants", which is a different question, and answering
-    it with "who has a row" puts the hiring team in their own candidate list.
-
-    Membership in oh_users is the test, not the email domain: an @openhouse.in
-    address that is not staff is a genuine candidate and must still appear.
+    No staff filter is needed: an @openhouse.in address that is not in oh_users
+    is refused at sign-in, and one that IS in oh_users never gets a candidates
+    row. Every row here is an applicant by construction.
 
     One grouped query rather than N+1: the assessment list per candidate is an
     array_agg, not a second round trip per row.
     """
-    # Joins first, then the predicate — a LEFT JOIN cannot follow a WHERE.
-    staff_join = "left join oh_users o on o.email = c.email and o.is_active "
-    where = (
-        "where (%s or o.id is null) "
-        "  and (%s::text is null or c.email ilike %s or c.name ilike %s) "
-    )
+    where = "where (%s::text is null or c.email ilike %s or c.name ilike %s) "
     like = f"%{q}%" if q else None
-    args = (include_staff, q, like, like)
+    args = (q, like, like)
 
-    total = _one(
-        f"select count(*) as n from candidates c {staff_join}{where}", args
-    )["n"]
+    total = _one(f"select count(*) as n from candidates c {where}", args)["n"]
     rows = _all(
         "select c.id, c.email, c.name, c.first_seen_at, c.last_seen_at, c.login_count, "
-        "       o.id is not null as is_staff, "
         "       count(s.id) as attempts, "
         "       count(s.id) filter (where s.status = 'scored') as scored, "
         "       count(s.id) filter (where s.status = 'voided') as voided, "
@@ -375,10 +348,9 @@ def list_candidates(limit: int, offset: int, q: str | None = None,
         "                filter (where s.id is not null), '{}') as assessments, "
         "       max(s.created_at) as last_submission_at "
         "from candidates c "
-        f"{staff_join}"
         "left join submissions s on s.candidate_id = c.id "
         f"{where}"
-        "group by c.id, o.id "
+        "group by c.id "
         "order by c.last_seen_at desc limit %s offset %s",
         args + (limit, offset),
     )

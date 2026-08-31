@@ -41,11 +41,16 @@ landing page** — there is no redirect and no `/login` route.
 }
 ```
 
-Side effects: upserts the `candidates` row (email saved, `last_seen_at` bumped,
-`login_count` incremented, name refreshed), and writes `auth.login` — plus
-`candidate.created` on a first-ever sign-in — to `activity_logs`.
+| Code | When |
+|---|---|
+| `403` | An `@openhouse.in` address that is **not** in `oh_users` — *"credentials not created, use non openhouse email and log in as candidate"*. Audited as `auth.refused` |
 
-`role` is `admin` when the email is in `oh_users`, else `user`.
+**Staff get no `candidates` row.** A sign-in by someone in `oh_users` writes only
+`auth.login`. A candidate sign-in additionally upserts the `candidates` row
+(email saved, `last_seen_at` bumped, `login_count` incremented) and writes
+`candidate.created` the first time.
+
+`role` comes from `oh_users` membership, never from the domain.
 
 | Code | When |
 |---|---|

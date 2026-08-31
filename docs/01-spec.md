@@ -24,9 +24,21 @@ with one submission per candidate. Every design decision below follows from that
 | **Candidate** | Anyone who signs in with Google and is not in `oh_users` | Read instructions, upload audio once, see submission status (`pending` / `submitted`) |
 | **Admin** | Any active email in `oh_users` | Everything a candidate can, plus: list all submissions, read transcripts, read scores and reasoning, play back audio, void a submission to grant a retry |
 
-Anyone can sign in. Being an OpenHouse employee grants nothing — `@openhouse.in`
-users who are not in `oh_users` are ordinary candidates. Admin access is explicit
-and table-driven, never inferred from a domain.
+**Staff and applicants are separate populations.**
+
+| Email | In `oh_users`? | Result |
+|---|---|---|
+| `@openhouse.in` | yes | Signs in as staff. **No candidate row** |
+| `@openhouse.in` | no | **Refused** — *"credentials not created, use non openhouse email and log in as candidate"* |
+| anything else | yes | Staff (a contractor on a personal address) |
+| anything else | no | Candidate |
+
+Membership in `oh_users` decides the role, never the domain — the domain only
+decides whether an unregistered address is refused rather than enrolled.
+
+An @openhouse.in colleague who signs in by accident is **told so**, rather than
+quietly appearing in the hiring team's own candidate list. Staff cannot take an
+assessment; they have no candidate row to hang one off.
 
 Identity lives in `candidates`, which is assessment-agnostic: the same row serves
 every assessment a person takes. See [03-data-model.md](03-data-model.md).

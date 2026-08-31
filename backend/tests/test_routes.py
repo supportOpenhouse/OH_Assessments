@@ -75,13 +75,11 @@ def client(monkeypatch):
         {"id": "other", "assessment_type": "sales_insight", "status": "failed",
          "created_at": ROW["created_at"]},
     ] if e == CANDIDATE else []))
-    monkeypatch.setattr(db, "count_staff_candidates", lambda: 2)
-    monkeypatch.setattr(db, "list_candidates", lambda *a: (1, [{
+    monkeypatch.setattr(db, "list_candidates", lambda *a, **k: (1, [{
         "id": CAND_ID, "email": CANDIDATE, "name": "Cand",
         "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
         "last_submission_at": ROW["created_at"], "login_count": 3,
         "attempts": 2, "scored": 1, "voided": 0, "assessments": ["sales_insight"],
-        "is_staff": False,
     }]))
     monkeypatch.setattr(db, "get_status", lambda i: (
         {"id": SUB_ID, "email": CANDIDATE, "status": "scored"} if i == SUB_ID else None
@@ -372,33 +370,6 @@ def test_me_reports_the_live_role_not_the_claim(client):
 
 # ── staff are not candidates ──────────────────────────────────────────────
 
-def test_staff_are_excluded_from_the_candidate_list_by_default(client, monkeypatch):
-    """An admin who signs in gets a candidates row — it is the identity table and
-    the FK target for submissions. They must not show up in the hiring team's own
-    list of applicants."""
-    seen = {}
-    monkeypatch.setattr(db, "list_candidates",
-                        lambda *a: (seen.update(args=a) or (0, [])))
-    client.get("/api/candidates", headers=ADM())
-    assert seen["args"][3] is False, "include_staff must default to False"
-
-
-def test_hidden_staff_are_counted_not_silently_dropped(client):
-    r = client.get("/api/candidates", headers=ADM()).json()
-    assert r["staff_hidden"] == 2
-
-
-def test_staff_can_be_shown_on_request(client, monkeypatch):
-    seen = {}
-    monkeypatch.setattr(db, "list_candidates",
-                        lambda *a: (seen.update(args=a) or (0, [])))
-    r = client.get("/api/candidates?include_staff=true", headers=ADM()).json()
-    assert seen["args"][3] is True
-    assert r["staff_hidden"] == 0, "nothing is hidden when staff are shown"
-
-
-# ── changing your own name ────────────────────────────────────────────────
-
 def test_me_prefers_the_stored_name_over_the_token_claim(client):
     """The claim is a snapshot of the Google profile at sign-in. A rename has to
     show immediately, not after the next login."""
@@ -452,3 +423,76 @@ def test_control_characters_and_whitespace_runs_are_stripped(client, monkeypatch
 
 def test_renaming_needs_authentication(client):
     assert client.patch("/api/me", json={"name": "Nobody"}).status_code == 401
+
+
+# ── staff and applicants are separate populations ─────────────────────────
+
+def _google(monkeypatch, email, name="Someone"):
+    monkeypatch.setattr(auth, "verify_google", lambda t: {"email": email, "name": name})
+
+
+def test_openhouse_email_not_in_oh_users_is_refused(client, monkeypatch):
+    """A colleague signing in by accident is told so, not quietly turned into a
+    candidate in the hiring team's own list."""
+    _google(monkeypatch, "nobody@openhouse.in")
+    r = client.post("/api/auth/google", json={"id_token": "x"})
+    assert r.status_code == 403
+    assert r.json()["detail"] == (
+        "credentials not created, use non openhouse email and log in as candidate"
+    )
+
+
+def test_a_refused_openhouse_login_creates_no_candidate_row(client, monkeypatch):
+    seen = []
+    monkeypatch.setattr(db, "upsert_candidate",
+                        lambda *a, **k: seen.append(a) or (CAND_ID, False))
+    _google(monkeypatch, "nobody@openhouse.in")
+    client.post("/api/auth/google", json={"id_token": "x"})
+    assert seen == [], "a refused sign-in must not touch candidates"
+
+
+def test_a_refusal_is_audited(client, monkeypatch):
+    _google(monkeypatch, "nobody@openhouse.in")
+    client.post("/api/auth/google", json={"id_token": "x"})
+    rows = [r for r in AUDIT if r["action"] == logs.LOGIN_REFUSED]
+    assert len(rows) == 1
+    assert rows[0]["actor_email"] == "nobody@openhouse.in"
+
+
+def test_staff_sign_in_and_get_no_candidate_row(client, monkeypatch):
+    seen = []
+    monkeypatch.setattr(db, "upsert_candidate",
+                        lambda *a, **k: seen.append(a) or (CAND_ID, False))
+    _google(monkeypatch, ADMIN, "Admin")
+    r = client.post("/api/auth/google", json={"id_token": "x"})
+    assert r.status_code == 200
+    assert r.json()["user"]["role"] == "admin"
+    assert seen == [], "staff are not applicants and get no candidates row"
+
+
+def test_a_non_openhouse_email_still_becomes_a_candidate(client, monkeypatch):
+    seen = []
+    monkeypatch.setattr(db, "upsert_candidate",
+                        lambda *a, **k: seen.append(a) or (CAND_ID, True))
+    _google(monkeypatch, "someone@gmail.com", "Someone")
+    r = client.post("/api/auth/google", json={"id_token": "x"})
+    assert r.status_code == 200
+    assert r.json()["user"]["role"] == "user"
+    assert len(seen) == 1
+
+
+def test_a_non_openhouse_email_in_oh_users_is_still_staff(client, monkeypatch):
+    """Membership decides, not the domain — a contractor on a personal address
+    can be staff."""
+    monkeypatch.setattr(db, "get_oh_user", lambda e: (
+        {"id": "x", "email": e, "name": "Contractor", "role": "admin"}
+        if e == "contractor@gmail.com" else None))
+    _google(monkeypatch, "contractor@gmail.com")
+    assert client.post("/api/auth/google", json={"id_token": "x"}).json()["user"]["role"] == "admin"
+
+
+def test_staff_cannot_submit_an_assessment(client):
+    r = client.post("/api/submissions", headers=ADM(),
+                    files={"file": ("x.mp3", b"\x00" * 32, "audio/mpeg")})
+    assert r.status_code == 403
+    assert "cannot take assessments" in r.json()["detail"]

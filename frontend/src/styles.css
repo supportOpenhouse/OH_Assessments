@@ -595,6 +595,256 @@ audio { width: 100%; }
 
 /* Selects and date inputs share the field's skin so the bar reads as one row of
    controls rather than three unrelated widgets. */
+/* ───────── Filter bar ─────────
+   One bordered container holding the whole query: search, three selects, a date
+   range, and Apply. With six controls, filtering on every keystroke would fire a
+   request per character and make the date range unusable — so this bar is
+   explicitly submitted. Enter in the search field submits it too.             */
+.filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  background: var(--paper-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--space-lg);
+}
+
+/* Search takes the slack; everything else is sized to its label, not its
+   contents. min-width:0 is required — a flex item will not shrink below its
+   intrinsic content width without it, and that is what a <select> full of
+   'submission.processing' insists on. */
+.filterbar > .field { flex: 1 1 160px; min-width: 110px; }
+
+.filterbar-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-mute);
+  padding-inline: var(--space-2xs);
+}
+
+.filterbar-to { color: var(--ink-mute); font-size: var(--text-sm); }
+
+/* Label, both inputs and "to" wrap as ONE unit — otherwise a narrow viewport
+   strands "DATE" at the end of the row above. */
+.filterbar-dates {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: none;
+}
+
+.filterbar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+
+/* Native <select>, with the platform arrow suppressed and one drawn to match the
+   rest of the type. Native keeps the OS picker, keyboard behaviour and mobile
+   wheel for free — an accessible custom listbox is a hundred lines that would
+   behave worse. */
+.select { position: relative; display: inline-flex; flex: 0 1 auto; min-width: 0; }
+.select::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-mute);
+  border-bottom: 1.5px solid var(--ink-mute);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.select select {
+  appearance: none;
+  padding-right: 28px;
+  cursor: pointer;
+  /* Sized to the LABEL, not to the longest option — a select otherwise claims
+     the width of its widest <option>, and one long verb ("submission.processing")
+     blows the bar from 1008px to 1462px. The dropdown still shows every option
+     in full. */
+  width: 112px;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+.select select:disabled { cursor: not-allowed; }
+
+/* A native date input needs room for dd/mm/yyyy AND the picker glyph, or it
+   truncates its own format hint — which reads as a broken field. */
+.field-date { width: 142px; flex: none; }
+
+@media (max-width: 760px) {
+  .filterbar { align-items: stretch; }
+  .filterbar > .field, .select, .select select { flex: 1 1 100%; width: 100%; }
+  .filterbar-dates { flex: 1 1 100%; }
+  .filterbar-dates .field { flex: 1; min-width: 0; }
+  .filterbar-end { margin-left: 0; flex: 1 1 100%; }
+  .filterbar-end .btn { flex: 1; }
+}
+
+/* ───────── Site footer ─────────
+   Openhouse's public-site footer, on the profile page. Three columns above a
+   ruled legal line — about + links + illustration — collapsing to one.        */
+.site-footer {
+  margin-top: var(--space-3xl);
+  border-top: var(--rule-hair);
+  padding-top: var(--space-2xl);
+}
+
+.site-footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: var(--space-2xl);
+  align-items: start;
+  padding-bottom: var(--space-2xl);
+}
+
+.site-footer-about { display: flex; flex-direction: column; gap: var(--space-md); }
+.site-footer-about .brand-lockup { height: 26px; }
+
+.site-footer-copy {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  max-width: 46ch;
+}
+
+.site-footer-links ul { list-style: none; margin: 0; padding: 0; }
+
+/* Its own class, not `.site-footer-links > ul` — that also matched the social
+   list, and at specificity (0,1,1) it beat `.site-footer-social` (0,1,0), which
+   laid four icons out as a 2x2 grid instead of a row. */
+.site-footer-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm) var(--space-lg);
+}
+.site-footer-links a {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.site-footer-links a:hover { color: var(--accent); text-decoration: none; }
+
+.site-footer-social-head {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: var(--space-xl) 0 var(--space-sm);
+}
+.site-footer-social { display: flex; gap: var(--space-md); }
+.site-footer-social a {
+  display: inline-flex;
+  color: var(--ink-mute);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.site-footer-social a:hover { color: var(--accent); }
+
+.site-footer-art { width: 240px; height: auto; justify-self: end; }
+
+.site-footer-legal {
+  border-top: var(--rule-hair);
+  padding-block: var(--space-lg);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--ink-mute);
+}
+
+@media (max-width: 900px) {
+  .site-footer-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-xl); }
+  /* The illustration is decoration — it goes first when space is short. */
+  .site-footer-art { display: none; }
+}
+@media (max-width: 620px) {
+  .site-footer-grid { grid-template-columns: 1fr; }
+  .site-footer-nav { grid-template-columns: 1fr; }
+}
+
+/* ───────── Facts list ─────────
+   Label/value pairs, one per ruled row. The label column is fixed so the values
+   align down the page; the value gets the rest, which is what stops a long email
+   wrapping mid-word.                                                           */
+.facts { margin: var(--space-xl) 0 0; border-top: var(--rule-hair); }
+
+.fact {
+  display: grid;
+  grid-template-columns: minmax(0, 200px) 1fr;
+  gap: var(--space-lg);
+  align-items: baseline;
+  padding-block: var(--space-sm);
+  border-bottom: var(--rule-hair);
+}
+
+.fact-k {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-mute);
+}
+
+.fact-v {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;   /* a long address breaks at the edge, not mid-column */
+}
+
+@media (max-width: 560px) {
+  .fact { grid-template-columns: 1fr; gap: var(--space-2xs); }
+}
+
+/* Profile's name: read-only until asked. The pencil only appears on hover or
+   focus, so the heading reads as a heading rather than as a form control — but
+   it is always in the tab order, so a keyboard user is never locked out. */
+.name-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-2xs);
+  font-size: var(--text-3xl);
+}
+.name-edit-btn {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+/* :focus, not :focus-visible — if the control has focus at all it must be
+   visible. A control a keyboard can reach but not see is a trap. */
+.name-head:hover .name-edit-btn,
+.name-edit-btn:focus { opacity: 1; }
+/* Touch has no hover — never hide it there. */
+@media (hover: none) { .name-edit-btn { opacity: 1; } }
+
+.name-edit {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-2xs);
+}
+.name-input {
+  flex: 0 1 340px;
+  /* Matches the heading it replaces, so the swap does not jump the layout. */
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  min-height: 52px;
+}
+
+.name-saved {
+  display: inline-flex; align-items: center; gap: var(--space-2xs);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--band-go);
+  animation: toast-in var(--dur-base) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) { .name-saved { animation: none; } }
+/* Clears the input's focus ring, which extends 3px past the border. */
+.name-hint { margin-top: var(--space-sm); }
+
+@media (max-width: 560px) { .name-input { flex: 1 1 100%; } }
+
 .filterbar select.field { min-width: 0; }
 .filterbar input[type="date"].field { min-width: 0; width: 142px; }
 /* The native picker glyph is near-black; tint it to the ink in dark mode or it
@@ -831,8 +1081,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
   font-family: var(--font-mono); font-size: var(--text-xl);
   font-variant-numeric: tabular-nums; color: var(--ink);
 }
-/* Profile facts are words, not figures — the display size reads as a stat. */
-.metric-v-sm { font-size: var(--text-base); word-break: break-word; }
 .metric-k {
   font-family: var(--font-mono); font-size: var(--text-xs);
   text-transform: uppercase; letter-spacing: .06em;

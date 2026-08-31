@@ -239,7 +239,7 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 | `/assessments` | **Choose** | Numbered ruled rows, one per assessment. An available one is a whole-row link; a used one is inert with its state on the right. **Not** a card grid — with one assessment that would be a single lonely tile, and with four it would be the icon-tile pattern this design exists to avoid |
 | `/assessments/:slug` | **Take it** | Numbered `01–04` instruction steps, numerals in the **left margin** in mono — then the dropzone below, full measure |
 | `/history` | **Previous** | One ruled row per attempt. In-flight ones carry the staged progress inline; finished ones a **stamp** — rotated 1.5°, mono `RECEIVED`. Diegetic, not a toast |
-| `/profile` | **Account** | A ruled metrics strip of facts, the assessment list, then preferences. Same page both roles |
+| `/profile` | **Account** | Openhouse's public-site **footer** at the bottom — copy, the four links, socials and illustration taken verbatim from openhouse.in. The name as a heading with a pencil beside it — read-only until asked, since it is touched once — then a **vertical `<dl>`** of label/value pairs, one per ruled row, and the assessment list. Not the metrics strip: these are pairs, not stats, and an email squeezed into a fifth of the width breaks mid-word. Same page both roles. No preferences section: the theme toggle and sign-out are in the sidebar |
 | `/admin` | **The board** | **The departure board.** Ruled rows, mono columns, status treatment. Search + status + score filters above it. No cards, no zebra, no shadows |
 | `/admin/candidates` | **Candidates** | Same board language: attempts, which assessments (as chips), sign-ins, first/last seen |
 | `/admin/activity` | **Activity** | The audit trail, behind a submitted filter bar — search · action · category · actor · date range · Apply |
@@ -461,10 +461,26 @@ same `RECEIVED` stamp. Only an admin learns a run errored.
 The `Direct_Inventory` welcome curtain is **cut**. A 1.7s full-screen animation on
 every sign-in fails the Restraint axis for a tool most people use exactly once.
 
+## 7d. Guarding the stylesheet
+
+```bash
+cd frontend && npm run check:css
+```
+
+Asserts that every class used in a `.jsx` file has a rule in `styles.css`. It is
+not a linter — it answers one question: *is anything referenced but undefined?*
+
+It exists because block-replacing a region of `styles.css` has twice deleted
+rules that components still used, and both times the result shipped visibly
+broken and was caught only by looking at it. Run it before calling a frontend
+change done.
+
 ## 8. Rules
 
 - **All CSS in `frontend/src/styles.css`**, sectioned with `/* ───────── name ───────── */`
-  banners, Hallmark stamp at the top.
+  banners, Hallmark stamp at the top. Never replace a *region between two section
+  markers* — an unrelated block can be sitting inside it. Replace exact rules.
+- **`npm run check:css` must pass** (§7d).
 - **Every colour is a token.** Both themes, or it doesn't ship.
 - **Every spacing value is on the 4pt scale.** A `padding: 17px` is a tell (gate 24).
 - **`overflow-x: clip` on both `html` and `body`** — hard requirement, and `clip`
