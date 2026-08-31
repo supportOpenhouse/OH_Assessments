@@ -41,7 +41,12 @@ function fromMock(method, path, body) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       try {
-        resolve(mockApi(method, path, body));
+        // Clone before resolving. The mock holds its fixtures in module state
+        // and mutates them; handing back the same object identity twice makes
+        // React bail out of re-rendering, because Object.is(prev, next) is true.
+        // Real HTTP always yields fresh objects — the mock has to as well, or it
+        // silently stops exercising the code path it exists to exercise.
+        resolve(structuredClone(mockApi(method, path, body)));
       } catch (e) {
         const err = new Error(e.message || 'mock error');
         err.status = e.status || 500;

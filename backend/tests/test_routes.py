@@ -58,10 +58,27 @@ def client(monkeypatch):
          "name": "Admin", "role": "admin"} if e == ADMIN else None
     ))
     monkeypatch.setattr(db, "upsert_candidate", lambda e, n, is_login=False: (CAND_ID, False))
-    monkeypatch.setattr(db, "live_submission", lambda e: (
+    monkeypatch.setattr(db, "live_submission", lambda e, t="sales_insight": (
         {"id": SUB_ID, "status": "scored", "created_at": ROW["created_at"]}
         if e == CANDIDATE else None
     ))
+    monkeypatch.setattr(db, "candidate_profile", lambda e: (
+        {"id": CAND_ID, "email": e, "name": "Cand",
+         "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
+         "login_count": 3, "submission_count": 1 if e == CANDIDATE else 0}
+    ))
+    monkeypatch.setattr(db, "my_submissions", lambda e: ([
+        {"id": SUB_ID, "assessment_type": "sales_insight", "status": "scored",
+         "created_at": ROW["created_at"]},
+        {"id": "other", "assessment_type": "sales_insight", "status": "failed",
+         "created_at": ROW["created_at"]},
+    ] if e == CANDIDATE else []))
+    monkeypatch.setattr(db, "list_candidates", lambda *a: (1, [{
+        "id": CAND_ID, "email": CANDIDATE, "name": "Cand",
+        "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
+        "last_submission_at": ROW["created_at"], "login_count": 3,
+        "attempts": 2, "scored": 1, "voided": 0, "assessments": ["sales_insight"],
+    }]))
     monkeypatch.setattr(db, "get_status", lambda i: (
         {"id": SUB_ID, "email": CANDIDATE, "status": "scored"} if i == SUB_ID else None
     ))
@@ -101,15 +118,11 @@ def test_status_never_leaks_a_score(client):
     assert "star" not in body and "reasoning" not in body
 
 
-def test_me_reports_submitted_for_any_live_row(client):
-    r = client.get("/api/me", headers=CAND()).json()
-    assert r["submission_status"] == "submitted"
-    assert r["submission_id"] == SUB_ID
-
-
-def test_me_reports_pending_when_no_live_row(client):
-    r = client.get("/api/me", headers=hdr("nobody@example.com", "user")).json()
-    assert r["submission_status"] == "pending"
+def test_me_reports_submission_count_for_routing(client):
+    # The client routes on this: >0 lands on history, 0 on the assessment list.
+    assert client.get("/api/me", headers=CAND()).json()["submission_count"] == 1
+    assert client.get("/api/me", headers=hdr("nobody@example.com", "user")
+                      ).json()["submission_count"] == 0
 
 
 # ── authorisation ─────────────────────────────────────────────────────────
@@ -242,3 +255,58 @@ def test_logs_endpoint_is_admin_only(client, monkeypatch):
     monkeypatch.setattr(db, "distinct_log_actions", lambda: [])
     assert client.get("/api/logs", headers=CAND()).status_code == 403
     assert client.get("/api/logs", headers=ADM()).status_code == 200
+
+
+# ── assessments and history ───────────────────────────────────────────────
+
+def test_assessment_list_reports_state_never_a_score(client):
+    body = client.get("/api/assessments", headers=CAND())
+    assert body.status_code == 200
+    item = body.json()["items"][0]
+    assert item["key"] == "sales_insight"
+    assert item["state"] == "submitted"
+    for leak in ("star", "score", "overall", "reasoning"):
+        assert leak not in body.text.lower()
+
+
+def test_a_candidate_with_no_attempt_sees_the_assessment_as_available(client):
+    r = client.get("/api/assessments", headers=hdr("nobody@example.com", "user")).json()
+    assert r["items"][0]["state"] == "available"
+    assert r["items"][0]["submission_id"] is None
+
+
+def test_history_collapses_failed_into_submitted(client):
+    """The candidate never learns a run errored. Both fixtures — one scored, one
+    failed — must read identically."""
+    items = client.get("/api/my/submissions", headers=CAND()).json()["items"]
+    assert [i["state"] for i in items] == ["submitted", "submitted"]
+
+
+def test_history_never_leaks_a_score(client):
+    body = client.get("/api/my/submissions", headers=CAND()).text.lower()
+    for leak in ("star", "score", "reasoning", "transcript", "failed"):
+        assert leak not in body
+
+
+# ── admin: candidates ─────────────────────────────────────────────────────
+
+def test_candidates_is_admin_only(client):
+    assert client.get("/api/candidates", headers=CAND()).status_code == 403
+    assert client.get("/api/candidates", headers=ADM()).status_code == 200
+
+
+def test_candidates_reports_attempts_and_which_assessments(client):
+    item = client.get("/api/candidates", headers=ADM()).json()["items"][0]
+    assert item["attempts"] == 2
+    assert item["login_count"] == 3
+    assert item["assessments"] == [{"key": "sales_insight", "name": "Sales (Insight)"}]
+
+
+def test_submission_filters_are_all_optional(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(db, "list_submissions",
+                        lambda *a: (seen.update(args=a) or (0, [])))
+    client.get("/api/submissions?status=scored&q=asha&stars=3", headers=ADM())
+    assert seen["args"][2] == "scored"
+    assert seen["args"][4] == "asha"
+    assert seen["args"][5] == 3

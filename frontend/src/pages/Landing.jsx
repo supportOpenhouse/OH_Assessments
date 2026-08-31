@@ -32,16 +32,16 @@ export default function Landing() {
           width="640"
           height="128"
         />
-        <span className="eyebrow">Sales (Insight)</span>
-        <h1>Sales<br />Assessment</h1>
+        <span className="eyebrow">Assessments</span>
+        <h1>Openhouse<br />Careers</h1>
         <div className="landing-rule" />
       </section>
 
       <section className="landing-panel">
         <div>
           <p className="landing-copy">
-            One recorded pitch. Two to three minutes. Assessed on what you said
-            and how you said it.
+            Take your assessment, see where your application stands, all in
+            one place.
           </p>
           <p className="landing-copy muted">
             Sign in with the Google account you applied with.

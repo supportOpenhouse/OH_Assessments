@@ -29,7 +29,7 @@ export default function AdminDetail() {
       .catch((e) => toast(e.message || 'Could not load that submission.', 'error'));
   }, [id]);
 
-  useEffect(load, [load]);
+  useEffect(() => { load(); }, [load]);
 
   async function voidIt() {
     setBusy(true);

@@ -3,16 +3,21 @@ import { useAuth } from './contexts/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import Toaster from './components/Toaster.jsx';
 import Landing from './pages/Landing.jsx';
+import Assessments from './pages/Assessments.jsx';
 import Assessment from './pages/Assessment.jsx';
-import Dashboard from './pages/Dashboard.jsx';
+import History from './pages/History.jsx';
+import Profile from './pages/Profile.jsx';
 import AdminList from './pages/AdminList.jsx';
 import AdminDetail from './pages/AdminDetail.jsx';
+import AdminCandidates from './pages/AdminCandidates.jsx';
 import AdminLogs from './pages/AdminLogs.jsx';
 
 // Where a signed-in visitor belongs. One redirect on sign-in, none afterwards.
+// A candidate who has attempted anything lands on their record, not on a list
+// of things to start.
 function homeFor(user) {
   if (user.role === 'admin') return '/admin';
-  return user.submission_status === 'submitted' ? '/dashboard' : '/assessment';
+  return user.submission_count > 0 ? '/history' : '/assessments';
 }
 
 function Splash() {
@@ -28,15 +33,7 @@ function RequireAuth({ children }) {
 
 function RequireAdmin({ children }) {
   const { user } = useAuth();
-  return user?.role === 'admin' ? children : <Navigate to="/assessment" replace />;
-}
-
-// A candidate who has already submitted must not reach the upload form again.
-function RequireNoSubmission({ children }) {
-  const { user } = useAuth();
-  return user?.submission_status === 'submitted'
-    ? <Navigate to="/dashboard" replace />
-    : children;
+  return user?.role === 'admin' ? children : <Navigate to="/assessments" replace />;
 }
 
 export default function App() {
@@ -53,13 +50,16 @@ export default function App() {
         />
 
         <Route element={<RequireAuth><Layout /></RequireAuth>}>
-          <Route
-            path="/assessment"
-            element={<RequireNoSubmission><Assessment /></RequireNoSubmission>}
-          />
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* Candidate */}
+          <Route path="/assessments" element={<Assessments />} />
+          <Route path="/assessments/:slug" element={<Assessment />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/profile" element={<Profile />} />
+
+          {/* Admin. The two literal segments MUST precede /admin/:id, or
+              "candidates" and "activity" parse as submission ids. */}
           <Route path="/admin" element={<RequireAdmin><AdminList /></RequireAdmin>} />
-          {/* Must precede /admin/:id, or "activity" is read as a submission id. */}
+          <Route path="/admin/candidates" element={<RequireAdmin><AdminCandidates /></RequireAdmin>} />
           <Route path="/admin/activity" element={<RequireAdmin><AdminLogs /></RequireAdmin>} />
           <Route path="/admin/:id" element={<RequireAdmin><AdminDetail /></RequireAdmin>} />
         </Route>

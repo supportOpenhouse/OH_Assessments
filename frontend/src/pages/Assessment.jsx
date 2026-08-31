@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { toast } from '../utils/toast.js';
@@ -16,27 +16,38 @@ export default function Assessment() {
   const [picked, setPicked] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [meta, setMeta] = useState(null);
   const { refresh } = useAuth();
   const navigate = useNavigate();
+  const { slug } = useParams();
 
   useEffect(() => {
     api.get('/api/instructions')
       .then((r) => setSections(parseSections(r.markdown)))
       .catch(() => toast('Could not load the instructions. Reload the page.', 'error'));
-  }, []);
+
+    // Resolve the slug so the page names the assessment it belongs to, and
+    // bounce anyone who already used their attempt.
+    api.get('/api/assessments').then((r) => {
+      const a = r.items.find((x) => x.slug === slug);
+      if (!a) { navigate('/assessments', { replace: true }); return; }
+      if (a.state !== 'available') { navigate('/history', { replace: true }); return; }
+      setMeta(a);
+    }).catch(() => {});
+  }, [slug, navigate]);
 
   async function submit() {
     setBusy(true);
     try {
       await api.upload('/api/submissions', picked.file);
       await refresh();
-      navigate('/dashboard', { replace: true });
+      navigate('/history', { replace: true });
     } catch (e) {
       setConfirming(false);
       if (e.status === 409) {
         toast('You have already submitted.', 'error');
         await refresh();
-        navigate('/dashboard', { replace: true });
+        navigate('/history', { replace: true });
         return;
       }
       toast(e.message || 'Upload failed. Please try again.', 'error');
@@ -48,7 +59,7 @@ export default function Assessment() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Assessment</span>
+        <span className="eyebrow">{meta ? meta.name : 'Assessment'}</span>
         <h2>Your recording</h2>
       </div>
 

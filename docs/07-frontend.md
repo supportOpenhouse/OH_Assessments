@@ -209,15 +209,24 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 
 | Route | Surface | Structure |
 |---|---|---|
-| `/` | **Landing** | **Off-axis.** Display mark anchored bottom-left of a full-height panel, one accent rule beneath it, a short "what this is" block flush right. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
-| `/assessment` | **Assessment** | Numbered `01–04` instruction steps, numerals in the **left margin** in mono, hairline between each — then the dropzone below, full measure. No cards, no icons, no 3-column grid |
-| `/dashboard` | **Dashboard** | While scoring: staged mono status and a hairline rule. Once submitted: a **stamp** — rotated 1.5°, `--rule-thick` border, mono `RECEIVED`, timestamp beneath. Diegetic, not a toast |
-| `/admin` | **The board** | **The departure board.** Ruled rows, mono columns, status treatment. No cards, no zebra, no shadows |
+| `/` | **Landing** | **Off-axis.** `Openhouse Careers` anchored bottom-left of a full-height panel, one accent rule beneath it, a short block flush right. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
+| `/assessments` | **Choose** | Numbered ruled rows, one per assessment. An available one is a whole-row link; a used one is inert with its state on the right. **Not** a card grid — with one assessment that would be a single lonely tile, and with four it would be the icon-tile pattern this design exists to avoid |
+| `/assessments/:slug` | **Take it** | Numbered `01–04` instruction steps, numerals in the **left margin** in mono — then the dropzone below, full measure |
+| `/history` | **Previous** | One ruled row per attempt. In-flight ones carry the staged progress inline; finished ones a **stamp** — rotated 1.5°, mono `RECEIVED`. Diegetic, not a toast |
+| `/profile` | **Account** | A ruled metrics strip of facts, the assessment list, then preferences. Same page both roles |
+| `/admin` | **The board** | **The departure board.** Ruled rows, mono columns, status treatment. Search + status + score filters above it. No cards, no zebra, no shadows |
+| `/admin/candidates` | **Candidates** | Same board language: attempts, which assessments (as chips), sign-ins, first/last seen |
+| `/admin/activity` | **Activity** | The audit trail, chip-filtered by action verb |
 | `/admin/:id` | **The record** | Verdict → ruled metrics strip → axes `01–05` as ruled blocks → transcript |
 
-**Where the candidate lands.** `/` is public. A signed-in candidate with no live
-submission is sent to `/assessment`; one with a live submission to `/dashboard`;
-an admin to `/admin`. One redirect on sign-in, none afterwards.
+**Where the candidate lands.** `/` is public. On sign-in: an admin goes to
+`/admin`; a candidate who has attempted anything goes to **`/history`** — their
+record, not a list of things to start — and one who hasn't goes to
+`/assessments`. One redirect on sign-in, none afterwards.
+
+**Nav is role-aware.** Three links for a candidate, four for an admin, in an
+edge-aligned row with an accent underline on the current page. No sidebar: a
+sidebar for four links is furniture.
 
 **Zero icon libraries.** Every glyph is hand-written SVG or a mono character.
 Emoji as a UI icon is an auto-fail (gate 30).
@@ -376,6 +385,8 @@ Design is the only thing this document replaces. Still true:
 - Plain CSS in one file. No CSS-in-JS.
 - `VITE_USE_MOCKS=true` mock layer so the whole UI is buildable before the backend.
 - Google ID token → our own JWT ([02-architecture.md §5](02-architecture.md)).
-- Routes: `/` (landing, public), `/assessment`, `/dashboard`, `/admin`, `/admin/:id`.
+- Routes: `/` (public) · `/assessments` · `/assessments/:slug` · `/history` ·
+  `/profile` · `/admin` · `/admin/candidates` · `/admin/activity` · `/admin/:id`.
+  The two literal `/admin/*` segments must be declared **before** `/admin/:id`.
 - Backend is on Render; Vercel rewrites `/api/*` across, so the client sees one
   origin ([02-architecture.md §4](02-architecture.md)).

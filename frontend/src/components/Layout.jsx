@@ -3,7 +3,22 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { IconSun, IconMoon, IconSignOut } from './icons.jsx';
 
-// Edge-aligned minimal nav. No sidebar — this app has four routes.
+// Edge-aligned minimal nav, role-aware. No sidebar — there are four
+// destinations per role, and a sidebar for four links is furniture.
+const NAV = {
+  admin: [
+    { to: '/admin', label: 'Submissions', end: true },
+    { to: '/admin/candidates', label: 'Candidates' },
+    { to: '/admin/activity', label: 'Activity' },
+    { to: '/profile', label: 'Profile' },
+  ],
+  user: [
+    { to: '/assessments', label: 'Assessments', end: true },
+    { to: '/history', label: 'Previous' },
+    { to: '/profile', label: 'Profile' },
+  ],
+};
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
@@ -14,20 +29,25 @@ export default function Layout() {
     navigate('/', { replace: true });
   }
 
+  const links = NAV[user?.role === 'admin' ? 'admin' : 'user'];
+
   return (
     <>
       <header className="shell">
         <nav className="nav">
-          <img className="brand-logo" src="/openhouse-logo.png" alt="Openhouse" width="640" height="128" />
-          <span className="eyebrow">Sales Assessment</span>
-          {user?.role === 'admin' && (
-            <div className="nav-links">
-              <NavLink className="nav-link" to="/admin" end>Submissions</NavLink>
-              <NavLink className="nav-link" to="/admin/activity">Activity</NavLink>
-            </div>
-          )}
+          <img className="brand-logo" src="/openhouse-logo.png" alt="Openhouse"
+               width="640" height="128" />
+          <span className="eyebrow">Careers</span>
+
+          <div className="nav-links">
+            {links.map((l) => (
+              <NavLink key={l.to} className="nav-link" to={l.to} end={l.end}>
+                {l.label}
+              </NavLink>
+            ))}
+          </div>
+
           <div className="nav-right">
-            {user && <span className="nav-who">{user.email}</span>}
             <button
               type="button"
               className="icon-btn"

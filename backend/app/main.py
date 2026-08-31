@@ -16,7 +16,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Requ
 from fastapi.middleware.cors import CORSMiddleware
 from mutagen import File as MutagenFile
 
-from . import auth, db, logs, scoring, storage, tasks
+from . import assessments, auth, db, logs, scoring, storage, tasks
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -110,18 +110,63 @@ async def google_login(body: dict, request: Request):
 
 @app.get("/api/me")
 async def me(u: dict = Depends(auth.current_user)):
-    """Never returns a number. Not a score, not a star count, not a band."""
-    live = db.live_submission(u["email"])
-    if not live:
-        return {**u, "submission_status": "pending"}
-    # 'submitted' for ANY live row — queued, processing, scored or failed alike.
-    # A candidate whose scoring errored is not shown a failure; that is ours.
+    """Identity and role. Never a number — not a score, star count, or band.
+
+    `submission_count` is what the client routes on: a candidate who has
+    attempted anything lands on their history, otherwise on the assessment list.
+    """
+    p = db.candidate_profile(u["email"])
     return {
         **u,
-        "submission_status": "submitted",
-        "submission_id": str(live["id"]),
-        "submitted_at": live["created_at"].isoformat(),
+        "first_seen_at": p["first_seen_at"].isoformat() if p else None,
+        "last_seen_at": p["last_seen_at"].isoformat() if p else None,
+        "login_count": p["login_count"] if p else 0,
+        "submission_count": p["submission_count"] if p else 0,
     }
+
+
+# ── assessments ───────────────────────────────────────────────────────────
+
+# A candidate is told 'assessing' or 'submitted', never 'scored' or 'failed'.
+# Collapsing the two here, once, is what keeps every candidate-facing route
+# structurally incapable of revealing that a run errored.
+_CANDIDATE_STATE = {
+    "queued": "assessing",
+    "processing": "assessing",
+    "scored": "submitted",
+    "failed": "submitted",
+}
+
+
+@app.get("/api/assessments")
+async def list_assessments(u: dict = Depends(auth.current_user)):
+    """What this candidate can take, and where they stand on each."""
+    items = []
+    for key in assessments.ASSESSMENTS:
+        live = db.live_submission(u["email"], key)
+        items.append({
+            **assessments.public(key),
+            "state": _CANDIDATE_STATE.get(live["status"], "assessing") if live else "available",
+            "submission_id": str(live["id"]) if live else None,
+            "submitted_at": live["created_at"].isoformat() if live else None,
+        })
+    return {"items": items}
+
+
+@app.get("/api/my/submissions")
+async def my_submissions(u: dict = Depends(auth.current_user)):
+    """The candidate's own history. State only — this query does not even select
+    a score column, so there is nothing to leak by accident."""
+    rows = db.my_submissions(u["email"])
+    return {"items": [{
+        "id": str(r["id"]),
+        "assessment_key": r["assessment_type"],
+        "assessment_name": assessments.name_of(r["assessment_type"]),
+        "assessment_slug": assessments.ASSESSMENTS.get(r["assessment_type"], {}).get("slug"),
+        "state": "voided" if r["status"] == "voided"
+                 else _CANDIDATE_STATE.get(r["status"], "assessing"),
+        "submitted_at": r["created_at"].isoformat(),
+    } for r in rows]}
 
 
 @app.get("/api/instructions")
@@ -202,14 +247,44 @@ async def submission_status(sub_id: str, u: dict = Depends(auth.current_user)):
 
 @app.get("/api/submissions")
 async def list_submissions(
-    limit: int = 50,
+    limit: int = 200,
     offset: int = 0,
     status: str | None = None,
+    assessment_type: str | None = None,
+    q: str | None = None,
+    stars: int | None = None,
     _: dict = Depends(auth.require_admin),
 ):
-    total, items = db.list_submissions(min(limit, 200), offset, status)
+    """Every filter optional, all ANDed. `q` matches candidate email or name."""
+    total, items = db.list_submissions(min(limit, 500), offset, status,
+                                       assessment_type, q, stars)
     for it in items:
         it["id"] = str(it["id"])
+        it["assessment_name"] = assessments.name_of(it["assessment_type"])
+    return {
+        "total": total,
+        "items": items,
+        "assessments": [assessments.public(k) for k in assessments.ASSESSMENTS],
+    }
+
+
+@app.get("/api/candidates")
+async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = None,
+                          _: dict = Depends(auth.require_admin)):
+    """Everyone who has ever signed in, with how many attempts and at what.
+
+    Attempt counts and the assessment list come from one grouped query — an
+    N+1 here would be one round trip per candidate.
+    """
+    total, items = db.list_candidates(min(limit, 500), offset, q)
+    for it in items:
+        it["id"] = str(it["id"])
+        it["first_seen_at"] = it["first_seen_at"].isoformat()
+        it["last_seen_at"] = it["last_seen_at"].isoformat()
+        it["last_submission_at"] = (it["last_submission_at"].isoformat()
+                                    if it["last_submission_at"] else None)
+        it["assessments"] = [{"key": k, "name": assessments.name_of(k)}
+                             for k in (it["assessments"] or [])]
     return {"total": total, "items": items}
 
 

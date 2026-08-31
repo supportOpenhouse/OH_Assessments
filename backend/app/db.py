@@ -115,17 +115,18 @@ def upsert_candidate(email: str, name: str | None, *, is_login: bool = False) ->
 ASSESSMENT_TYPE = "sales_insight"
 
 
-def live_submission(email: str) -> dict | None:
-    """The candidate's one non-voided submission for THIS assessment type.
+def live_submission(email: str, assessment_type: str = ASSESSMENT_TYPE) -> dict | None:
+    """The candidate's one non-voided submission for ONE assessment type.
 
-    Reads the parent only: who, which type, and status all live there.
+    Reads the parent only: who, which type, and status all live there. Scoped by
+    type because a candidate may take several assessments, each once.
     """
     return _one(
         "select s.id, s.status, s.created_at "
         "from submissions s "
         "join candidates c on c.id = s.candidate_id "
         "where c.email = %s and s.assessment_type = %s and s.status <> 'voided'",
-        (email, ASSESSMENT_TYPE),
+        (email, assessment_type),
     )
 
 
@@ -236,28 +237,98 @@ def get_submission(sub_id) -> dict | None:
     )
 
 
-def list_submissions(limit: int, offset: int, status: str | None) -> tuple[int, list]:
-    """The board, scoped to this assessment type.
+def list_submissions(limit: int, offset: int, status: str | None = None,
+                     assessment_type: str | None = None, q: str | None = None,
+                     stars: int | None = None) -> tuple[int, list]:
+    """The admin board. Every filter is optional and they AND together.
 
     duration_s comes from the child because it is audio-specific; everything
-    else the board shows is on the parent.
+    else the board shows is on the parent — which is why the type filter costs
+    nothing and a second assessment appears here for free.
+
+    Written as ONE statement with null-guards rather than assembled from
+    fragments: string-built SQL is how a filter becomes an injection.
     """
     where = (
-        "where s.assessment_type = %s "
+        "where (%s::text is null or s.assessment_type = %s) "
         "  and (%s::text is null or s.status = %s) "
+        "  and (%s::int  is null or s.overall_stars = %s) "
+        "  and (%s::text is null or c.email ilike %s or c.name ilike %s) "
     )
-    args = (ASSESSMENT_TYPE, status, status)
+    like = f"%{q}%" if q else None
+    args = (assessment_type, assessment_type, status, status,
+            stars, stars, q, like, like)
     total = _one(
-        f"select count(*) as n from submissions s {where}", args
+        "select count(*) as n from submissions s "
+        "join candidates c on c.id = s.candidate_id "
+        f"{where}",
+        args,
     )["n"]
     rows = _all(
-        "select s.id, c.email, c.name, s.status, s.overall_stars as overall, "
-        "       d.duration_s, s.created_at, d.rubric_version "
+        "select s.id, c.email, c.name, s.assessment_type, s.status, "
+        "       s.overall_stars as overall, d.duration_s, s.created_at, "
+        "       d.rubric_version "
         "from submissions s "
         "join candidates c on c.id = s.candidate_id "
         "left join sales_insight_submissions d on d.id = s.id "
         f"{where}"
         "order by s.created_at desc limit %s offset %s",
+        args + (limit, offset),
+    )
+    return total, rows
+
+
+def my_submissions(email: str) -> list:
+    """A candidate's own history, across every assessment type.
+
+    Returns state, never a score. `scored` and `failed` are both collapsed to
+    'submitted' by the serializer — this query does not even select
+    overall_stars, so there is nothing for a caller to leak by accident.
+    """
+    return _all(
+        "select s.id, s.assessment_type, s.status, s.created_at "
+        "from submissions s "
+        "join candidates c on c.id = s.candidate_id "
+        "where c.email = %s "
+        "order by s.created_at desc",
+        (email,),
+    )
+
+
+def candidate_profile(email: str) -> dict | None:
+    return _one(
+        "select c.id, c.email, c.name, c.first_seen_at, c.last_seen_at, "
+        "       c.login_count, "
+        "       (select count(*) from submissions s where s.candidate_id = c.id) as submission_count "
+        "from candidates c where c.email = %s",
+        (email,),
+    )
+
+
+def list_candidates(limit: int, offset: int, q: str | None) -> tuple[int, list]:
+    """Everyone who has ever signed in, with what they have attempted.
+
+    One grouped query rather than N+1: the assessment list per candidate is an
+    array_agg, not a second round trip per row.
+    """
+    where = "where (%s::text is null or c.email ilike %s or c.name ilike %s) "
+    like = f"%{q}%" if q else None
+    args = (q, like, like)
+
+    total = _one(f"select count(*) as n from candidates c {where}", args)["n"]
+    rows = _all(
+        "select c.id, c.email, c.name, c.first_seen_at, c.last_seen_at, c.login_count, "
+        "       count(s.id) as attempts, "
+        "       count(s.id) filter (where s.status = 'scored') as scored, "
+        "       count(s.id) filter (where s.status = 'voided') as voided, "
+        "       coalesce(array_agg(distinct s.assessment_type) "
+        "                filter (where s.id is not null), '{}') as assessments, "
+        "       max(s.created_at) as last_submission_at "
+        "from candidates c "
+        "left join submissions s on s.candidate_id = c.id "
+        f"{where}"
+        "group by c.id "
+        "order by c.last_seen_at desc limit %s offset %s",
         args + (limit, offset),
     )
     return total, rows

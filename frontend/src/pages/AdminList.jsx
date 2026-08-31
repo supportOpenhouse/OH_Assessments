@@ -12,21 +12,32 @@ const FILTERS = ['all', 'scored', 'processing', 'failed', 'voided'];
 // no zebra striping, no shadows — the hairlines do the separating.
 export default function AdminList() {
   const [rows, setRows] = useState(null);
-  const [filter, setFilter] = useState('all');
+  const [total, setTotal] = useState(0);
+  const [types, setTypes] = useState([]);
+  const [status, setStatus] = useState('all');
+  const [type, setType] = useState('all');
+  const [stars, setStars] = useState('all');
+  const [q, setQ] = useState('');
   const navigate = useNavigate();
 
+  // Filtering happens server-side: with a growing table the client cannot hold
+  // every row, and 'processing' has to include 'queued', which a naive client
+  // filter gets wrong.
   useEffect(() => {
-    api.get('/api/submissions?limit=200')
-      .then((r) => setRows(r.items))
-      .catch((e) => { setRows([]); toast(e.message || 'Could not load submissions.', 'error'); });
-  }, []);
+    const t = setTimeout(() => {
+      const p = new URLSearchParams({ limit: '200' });
+      if (status !== 'all') p.set('status', status);
+      if (type !== 'all') p.set('assessment_type', type);
+      if (stars !== 'all') p.set('stars', stars);
+      if (q) p.set('q', q);
+      api.get(`/api/submissions?${p}`)
+        .then((r) => { setRows(r.items); setTotal(r.total); setTypes(r.assessments || []); })
+        .catch((e) => { setRows([]); toast(e.message || 'Could not load submissions.', 'error'); });
+    }, 250);   // debounced so typing does not fire a request per keystroke
+    return () => clearTimeout(t);
+  }, [status, type, stars, q]);
 
-  const shown = useMemo(() => {
-    if (!rows) return [];
-    if (filter === 'all') return rows;
-    if (filter === 'processing') return rows.filter((r) => r.status === 'processing' || r.status === 'queued');
-    return rows.filter((r) => r.status === filter);
-  }, [rows, filter]);
+  const shown = rows || [];
 
   // Scores from different rubric versions are not comparable. Say so rather
   // than letting someone rank across them silently.
@@ -42,19 +53,55 @@ export default function AdminList() {
       <div className="page-head">
         <span className="eyebrow">Admin</span>
         <h2>Submissions</h2>
+        <p className="mono muted" style={{ marginTop: 'var(--space-2xs)' }}>
+          {total} {total === 1 ? 'submission' : 'submissions'}
+        </p>
       </div>
 
-      <div className="seg" role="group" aria-label="Filter by status">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            aria-pressed={filter === f}
-            onClick={() => setFilter(f)}
-          >
-            {f}
+      <div className="filters">
+        <input
+          className="field"
+          type="search"
+          placeholder="Search name or email"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Search submissions by candidate name or email"
+        />
+
+        <div className="seg" role="group" aria-label="Filter by status">
+          {FILTERS.map((f) => (
+            <button key={f} type="button" aria-pressed={status === f} onClick={() => setStatus(f)}>
+              {f}
+            </button>
+          ))}
+        </div>
+
+        {/* Only worth showing once a second assessment exists. */}
+        {types.length > 1 && (
+          <div className="seg" role="group" aria-label="Filter by assessment">
+            <button type="button" aria-pressed={type === 'all'} onClick={() => setType('all')}>
+              all
+            </button>
+            {types.map((a) => (
+              <button key={a.key} type="button" aria-pressed={type === a.key}
+                      onClick={() => setType(a.key)}>
+                {a.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="seg" role="group" aria-label="Filter by overall score">
+          <button type="button" aria-pressed={stars === 'all'} onClick={() => setStars('all')}>
+            any
           </button>
-        ))}
+          {[0, 1, 2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" aria-pressed={String(stars) === String(n)}
+                    onClick={() => setStars(String(n))}>
+              {n}
+            </button>
+          ))}
+        </div>
       </div>
 
       {mixedRubrics && (
@@ -102,7 +149,11 @@ export default function AdminList() {
 
       {rows === null && <div className="empty">Loading…</div>}
       {rows !== null && shown.length === 0 && (
-        <div className="empty">No submissions{filter === 'all' ? ' yet' : ` with status “${filter}”`}.</div>
+        <div className="empty">
+          {status === 'all' && stars === 'all' && !q
+            ? 'No submissions yet.'
+            : 'No submission matches those filters.'}
+        </div>
       )}
     </>
   );

@@ -173,12 +173,51 @@ const LOGS = [
     data: { name: 'Priya Sharma' }, ip: '49.36.180.2' },
 ];
 
+const ASSESSMENT = {
+  key: 'sales_insight',
+  slug: 'sales-insight',
+  name: 'Sales (Insight)',
+  blurb: 'A recorded sales pitch, assessed on what you said and how you said it.',
+  format: 'Audio recording',
+  target_length: '2–3 minutes',
+  attempts: 1,
+};
+
+const CANDIDATES = [
+  { id: '11111111-0000-4000-8000-000000000001', email: 'asha.r@example.com',
+    name: 'Asha Ramesh', first_seen_at: '2026-08-20T10:02:00Z',
+    last_seen_at: '2026-08-27T09:04:55Z', last_submission_at: '2026-08-27T09:12:03Z',
+    login_count: 4, attempts: 1, scored: 1, voided: 0,
+    assessments: [{ key: 'sales_insight', name: 'Sales (Insight)' }] },
+  { id: '11111111-0000-4000-8000-000000000002', email: 'dev.k@example.com',
+    name: 'Dev Kulkarni', first_seen_at: '2026-08-24T08:00:00Z',
+    last_seen_at: '2026-08-26T14:02:00Z', last_submission_at: '2026-08-26T14:02:00Z',
+    login_count: 2, attempts: 1, scored: 1, voided: 0,
+    assessments: [{ key: 'sales_insight', name: 'Sales (Insight)' }] },
+  { id: '11111111-0000-4000-8000-000000000003', email: 'priya.s@example.com',
+    name: 'Priya Sharma', first_seen_at: '2026-08-25T11:29:02Z',
+    last_seen_at: '2026-08-25T11:30:00Z', last_submission_at: '2026-08-25T11:30:00Z',
+    login_count: 1, attempts: 2, scored: 0, voided: 1,
+    assessments: [{ key: 'sales_insight', name: 'Sales (Insight)' }] },
+  { id: '11111111-0000-4000-8000-000000000004', email: 'no.attempt@example.com',
+    name: 'Rahul Menon', first_seen_at: '2026-08-28T09:00:00Z',
+    last_seen_at: '2026-08-28T09:00:00Z', last_submission_at: null,
+    login_count: 1, attempts: 0, scored: 0, voided: 0, assessments: [] },
+];
+
+// Flip role to 'user' to walk the candidate path; submission_count drives where
+// sign-in lands (0 -> /assessments, >0 -> /history).
 let me_ = {
   email: 'you@openhouse.in',
   name: 'You',
   role: 'admin',
-  submission_status: 'pending',
+  first_seen_at: '2026-08-01T09:00:00Z',
+  last_seen_at: '2026-08-31T09:00:00Z',
+  login_count: 12,
+  submission_count: 0,
 };
+
+let myHistory_ = [];
 
 let pollCount = 0; // lets the dashboard's polling path be exercised offline
 
@@ -197,25 +236,53 @@ export function mockApi(method, path, body) {
 
   if (method === 'GET' && path === '/api/me') return me_;
 
+  if (method === 'GET' && path === '/api/assessments') {
+    const live = myHistory_[0];
+    return { items: [{ ...ASSESSMENT,
+      state: live ? live.state : 'available',
+      submission_id: live ? live.id : null,
+      submitted_at: live ? live.submitted_at : null }] };
+  }
+
+  if (method === 'GET' && path === '/api/my/submissions') {
+    return { items: myHistory_ };
+  }
+
+  if (method === 'GET' && path.startsWith('/api/candidates')) {
+    const m = path.match(/[?&]q=([^&]+)/);
+    const q = m ? decodeURIComponent(m[1]).toLowerCase() : null;
+    const items = q
+      ? CANDIDATES.filter((c) => c.email.toLowerCase().includes(q)
+                              || (c.name || '').toLowerCase().includes(q))
+      : CANDIDATES;
+    return { total: items.length, items };
+  }
+
   if (method === 'GET' && path === '/api/instructions') {
     return { markdown: INSTRUCTIONS, version: 'mock01' };
   }
 
   if (method === 'POST' && path === '/api/submissions') {
     pollCount = 0;
-    me_ = {
-      ...me_,
-      submission_status: 'submitted',
-      submission_id: SUBMISSIONS[0].id,
-      submitted_at: new Date().toISOString(),
-    };
+    const now = new Date().toISOString();
+    me_ = { ...me_, submission_count: me_.submission_count + 1 };
+    myHistory_ = [{
+      id: SUBMISSIONS[0].id,
+      assessment_key: ASSESSMENT.key,
+      assessment_name: ASSESSMENT.name,
+      assessment_slug: ASSESSMENT.slug,
+      state: 'assessing',
+      submitted_at: now,
+    }];
     return { id: SUBMISSIONS[0].id, status: 'queued' };
   }
 
   // Three polls of 'processing', then 'scored' — exercises the real UI path.
   if (method === 'GET' && /^\/api\/submissions\/[^/]+\/status$/.test(path)) {
     pollCount += 1;
-    return { id: path.split('/')[3], status: pollCount < 4 ? 'processing' : 'scored' };
+    const status = pollCount < 4 ? 'processing' : 'scored';
+    if (status === 'scored' && myHistory_[0]) myHistory_[0].state = 'submitted';
+    return { id: path.split('/')[3], status };
   }
 
   if (method === 'GET' && path.startsWith('/api/logs')) {
@@ -240,9 +307,24 @@ export function mockApi(method, path, body) {
   }
 
   if (method === 'GET' && path.startsWith('/api/submissions')) {
+    const p = new URLSearchParams(path.split('?')[1] || '');
+    let items = SUBMISSIONS;
+    if (p.get('status')) {
+      const want = p.get('status');
+      items = items.filter((s) => (want === 'processing'
+        ? s.status === 'processing' || s.status === 'queued'
+        : s.status === want));
+    }
+    if (p.get('stars')) items = items.filter((s) => String(s.overall_stars) === p.get('stars'));
+    if (p.get('q')) {
+      const q = p.get('q').toLowerCase();
+      items = items.filter((s) => s.email.toLowerCase().includes(q)
+                               || (s.name || '').toLowerCase().includes(q));
+    }
     return {
-      total: SUBMISSIONS.length,
-      items: SUBMISSIONS.map((s) => ({
+      total: items.length,
+      assessments: [ASSESSMENT],
+      items: items.map((s) => ({
         id: s.id,
         email: s.email,
         name: s.name,
