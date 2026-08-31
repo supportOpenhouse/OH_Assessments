@@ -1,7 +1,13 @@
 """Every SQL statement in the project lives here.
 
-No ORM, two tables, hand-written parameterised SQL. Nothing is ever interpolated
-into query text.
+No ORM, hand-written parameterised SQL. Nothing is ever interpolated into query
+text — including the table names, which are written literally on purpose. See
+the recipe at the bottom of schema.sql for adding an assessment type.
+
+Three tables:
+    oh_users                    staff                   (assessment-agnostic)
+    candidates                  people being assessed   (assessment-agnostic)
+    sales_insight_submissions   this assessment         (per assessment type)
 """
 
 import os
@@ -16,9 +22,10 @@ _pool: ConnectionPool | None = None
 
 
 class AlreadySubmitted(Exception):
-    """The submissions_one_live partial unique index fired.
+    """The sales_insight_one_live partial unique index fired.
 
-    The candidate already has a submission that has not been voided.
+    The candidate already has a submission for THIS assessment that has not been
+    voided. Says nothing about other assessment types.
     """
 
 
@@ -55,24 +62,57 @@ def _exec(sql: str, params: tuple = ()) -> int:
         return conn.execute(sql, params).rowcount
 
 
-# ── admins ────────────────────────────────────────────────────────────────
+# ── oh_users ──────────────────────────────────────────────────────────────
 
-def is_admin(email: str) -> bool:
-    return _one("select 1 as ok from admins where email = %s", (email,)) is not None
+def get_oh_user(email: str) -> dict | None:
+    """Staff record, or None for an ordinary candidate.
 
-
-# ── submissions ───────────────────────────────────────────────────────────
-
-def live_submission(email: str) -> dict | None:
-    """The candidate's one non-voided submission, whatever its status."""
+    Deactivating someone is `is_active = false` rather than a delete, so their
+    name stays resolvable on submissions they voided.
+    """
     return _one(
-        "select id, status, created_at from submissions "
-        "where email = %s and status <> 'voided'",
+        "select id, email, name, role from oh_users "
+        "where email = %s and is_active",
         (email,),
     )
 
 
-def create_submission(sub_id, email, name, audio_key, audio_type, audio_bytes) -> str:
+# ── candidates ────────────────────────────────────────────────────────────
+
+def upsert_candidate(email: str, name: str | None) -> str:
+    """Called on every sign-in. Returns the candidate id.
+
+    Staff get a candidate row too — it costs nothing and it is what lets an
+    admin walk the candidate flow end to end. Role comes from oh_users, never
+    from the presence of a row here.
+    """
+    row = _one(
+        "insert into candidates (email, name) values (%s, %s) "
+        "on conflict (email) do update set "
+        "  name = coalesce(excluded.name, candidates.name), "
+        "  last_seen_at = now() "
+        "returning id",
+        (email, name or None),
+    )
+    return str(row["id"])
+
+
+# ── sales_insight_submissions ─────────────────────────────────────────────
+# Everything below is specific to ONE assessment type. A second assessment
+# copies this section against its own table.
+
+def live_submission(email: str) -> dict | None:
+    """The candidate's one non-voided submission for this assessment."""
+    return _one(
+        "select s.id, s.status, s.created_at "
+        "from sales_insight_submissions s "
+        "join candidates c on c.id = s.candidate_id "
+        "where c.email = %s and s.status <> 'voided'",
+        (email,),
+    )
+
+
+def create_submission(sub_id, candidate_id, audio_key, audio_type, audio_bytes) -> str:
     """Claim the one-attempt slot. Raises AlreadySubmitted on a duplicate.
 
     The id is passed in rather than generated here so the R2 object key and the
@@ -81,10 +121,10 @@ def create_submission(sub_id, email, name, audio_key, audio_type, audio_bytes) -
     try:
         with pool().connection() as conn:
             conn.execute(
-                "insert into submissions "
-                "(id, email, name, audio_key, audio_type, audio_bytes) "
-                "values (%s, %s, %s, %s, %s, %s)",
-                (sub_id, email, name, audio_key, audio_type, audio_bytes),
+                "insert into sales_insight_submissions "
+                "(id, candidate_id, audio_key, audio_type, audio_bytes) "
+                "values (%s, %s, %s, %s, %s)",
+                (sub_id, candidate_id, audio_key, audio_type, audio_bytes),
             )
     except psycopg.errors.UniqueViolation:
         raise AlreadySubmitted()
@@ -92,15 +132,20 @@ def create_submission(sub_id, email, name, audio_key, audio_type, audio_bytes) -
 
 
 def set_processing(sub_id) -> None:
-    _exec("update submissions set status = 'processing' where id = %s", (sub_id,))
+    _exec(
+        "update sales_insight_submissions set status = 'processing' where id = %s",
+        (sub_id,),
+    )
 
 
 def finish_submission(sub_id, *, transcript, metrics, scores, duration_s,
                       rubric_version, model, stt_model) -> None:
     _exec(
-        "update submissions set status = 'scored', transcript = %s, metrics = %s, "
-        "scores = %s, duration_s = %s, rubric_version = %s, model = %s, "
-        "stt_model = %s, error = null, scored_at = now() where id = %s",
+        "update sales_insight_submissions set "
+        "status = 'scored', transcript = %s, metrics = %s, scores = %s, "
+        "duration_s = %s, rubric_version = %s, model = %s, stt_model = %s, "
+        "error = null, scored_at = now() "
+        "where id = %s",
         (transcript, Json(metrics), Json(scores), duration_s,
          rubric_version, model, stt_model, sub_id),
     )
@@ -108,7 +153,7 @@ def finish_submission(sub_id, *, transcript, metrics, scores, duration_s,
 
 def fail_submission(sub_id, error: str) -> None:
     _exec(
-        "update submissions set status = 'failed', error = %s where id = %s",
+        "update sales_insight_submissions set status = 'failed', error = %s where id = %s",
         (error[:500], sub_id),
     )
 
@@ -120,7 +165,7 @@ def fail_stale(older_than: timedelta, reason: str) -> int:
     'processing' forever, silently consuming the candidate's one attempt.
     """
     return _exec(
-        "update submissions set status = 'failed', error = %s "
+        "update sales_insight_submissions set status = 'failed', error = %s "
         "where status in ('queued', 'processing') "
         "and created_at < now() - %s::interval",
         (reason, older_than),
@@ -128,39 +173,65 @@ def fail_stale(older_than: timedelta, reason: str) -> int:
 
 
 def get_status(sub_id) -> dict | None:
-    """Minimal row for the polling endpoint. email is used for the ownership check."""
-    return _one("select id, email, status from submissions where id = %s", (sub_id,))
+    """Minimal row for the polling endpoint. email drives the ownership check."""
+    return _one(
+        "select s.id, c.email, s.status "
+        "from sales_insight_submissions s "
+        "join candidates c on c.id = s.candidate_id "
+        "where s.id = %s",
+        (sub_id,),
+    )
 
 
 def get_submission(sub_id) -> dict | None:
-    return _one("select * from submissions where id = %s", (sub_id,))
+    return _one(
+        "select s.*, c.email, c.name, v.email as voided_by_email "
+        "from sales_insight_submissions s "
+        "join candidates c on c.id = s.candidate_id "
+        "left join oh_users v on v.id = s.voided_by "
+        "where s.id = %s",
+        (sub_id,),
+    )
 
 
 def list_submissions(limit: int, offset: int, status: str | None) -> tuple[int, list]:
     if status:
-        total = _one("select count(*) as n from submissions where status = %s", (status,))["n"]
+        total = _one(
+            "select count(*) as n from sales_insight_submissions where status = %s",
+            (status,),
+        )["n"]
         rows = _all(
-            "select id, email, name, status, duration_s, created_at, rubric_version, "
-            "(scores->'overall'->>'stars')::int as overall "
-            "from submissions where status = %s "
-            "order by created_at desc limit %s offset %s",
+            "select s.id, c.email, c.name, s.status, s.duration_s, s.created_at, "
+            "s.rubric_version, (s.scores->'overall'->>'stars')::int as overall "
+            "from sales_insight_submissions s "
+            "join candidates c on c.id = s.candidate_id "
+            "where s.status = %s "
+            "order by s.created_at desc limit %s offset %s",
             (status, limit, offset),
         )
     else:
-        total = _one("select count(*) as n from submissions")["n"]
+        total = _one("select count(*) as n from sales_insight_submissions")["n"]
         rows = _all(
-            "select id, email, name, status, duration_s, created_at, rubric_version, "
-            "(scores->'overall'->>'stars')::int as overall "
-            "from submissions order by created_at desc limit %s offset %s",
+            "select s.id, c.email, c.name, s.status, s.duration_s, s.created_at, "
+            "s.rubric_version, (s.scores->'overall'->>'stars')::int as overall "
+            "from sales_insight_submissions s "
+            "join candidates c on c.id = s.candidate_id "
+            "order by s.created_at desc limit %s offset %s",
             (limit, offset),
         )
     return total, rows
 
 
-def void_submission(sub_id, by: str) -> bool:
-    """Returns False if it was already voided."""
+def void_submission(sub_id, by_email: str) -> bool:
+    """Returns False if it was already voided.
+
+    voided_by is resolved from the email in one statement rather than making the
+    caller carry an oh_users id around.
+    """
     return _exec(
-        "update submissions set status = 'voided', voided_at = now(), voided_by = %s "
+        "update sales_insight_submissions set "
+        "status = 'voided', voided_at = now(), "
+        "voided_by = (select id from oh_users where email = %s) "
         "where id = %s and status <> 'voided'",
-        (by, sub_id),
+        (by_email, sub_id),
     ) > 0

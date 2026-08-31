@@ -41,6 +41,9 @@ landing page** — there is no redirect and no `/login` route.
 }
 ```
 
+Side effect: upserts the `candidates` row (`last_seen_at` bumped, name refreshed).
+`role` is `admin` when the email is in `oh_users`, else `user`.
+
 | Code | When |
 |---|---|
 | `401` | Signature invalid, expired, `aud` mismatch, or `email_verified` false |
@@ -149,7 +152,12 @@ included so the board can warn when visible rows aren't comparable.
 ## `GET /api/submissions/{id}` — **admin only**
 
 The full record: `transcript`, `metrics`, `scores` with every reasoning string,
-`rubric_version`, `model`, `stt_model`, `error` if it failed.
+`rubric_version`, `model`, `stt_model`, `error` if it failed, plus the
+candidate's `email` and `name` from the `candidates` join and `voided_by_email`
+when it was voided.
+
+`candidate_id` and the raw `voided_by` id are stripped — internal join keys are
+not admin-facing fields.
 
 Plus `audio_url` — a **presigned R2 GET URL with a 1-hour TTL**, generated at read
 time. The stored `audio_key` is never returned.

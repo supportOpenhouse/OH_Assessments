@@ -116,7 +116,7 @@ testpaths = tests
 
 - [ ] **Step 2: Write `schema.sql`**
 
-Copy verbatim from [`docs/03-data-model.md` §1](03-data-model.md) — the `admins` table, the `submissions` table, the `submissions_one_live` partial unique index, and `submissions_created_idx`. Do not paraphrase: the predicate `where status <> 'voided'` is load-bearing, and `audio_key` is a key, not a URL.
+Copy verbatim from [`docs/03-data-model.md` §2–§4](03-data-model.md) — `oh_users`, `candidates`, `sales_insight_submissions`, and the `sales_insight_one_live` partial unique index. Do not paraphrase: the predicate `where status <> 'voided'` is load-bearing, `audio_key` is a key rather than a URL, and the one-live index is scoped to the per-assessment table so a future assessment type is unaffected.
 
 - [ ] **Step 3: Write the failing tests**
 
@@ -1064,7 +1064,8 @@ git add frontend/src && git commit -m "feat(fe): admin board and the score recor
 **Interfaces:**
 - Consumes: nothing from earlier tasks
 - Produces:
-  - `db.is_admin(email) -> bool`, `db.live_submission(email) -> dict | None`, `db.create_submission(...) -> str`, `db.set_processing(id)`, `db.finish_submission(id, **r)`, `db.fail_submission(id, error)`, `db.fail_stale(older_than, reason) -> int`, `db.get_status(id) -> dict | None`, `db.list_submissions(limit, offset, status) -> (total, items)`, `db.get_submission(id) -> dict | None`, `db.void_submission(id, by) -> bool`, `db.AlreadySubmitted`
+  - Assessment-agnostic: `db.get_oh_user(email) -> dict | None`, `db.upsert_candidate(email, name) -> str`
+  - Per-assessment: `db.live_submission(email) -> dict | None`, `db.create_submission(sub_id, candidate_id, audio_key, audio_type, audio_bytes) -> str`, `db.set_processing(id)`, `db.finish_submission(id, **r)`, `db.fail_submission(id, error)`, `db.fail_stale(older_than, reason) -> int`, `db.get_status(id) -> dict | None`, `db.list_submissions(limit, offset, status) -> (total, items)`, `db.get_submission(id) -> dict | None`, `db.void_submission(id, by_email) -> bool`, `db.AlreadySubmitted`
   - `auth.verify_google(id_token) -> {"email","name"}`, `auth.mint(email, name, role, ttl_s) -> str`, `auth.verify(token) -> dict`, `auth.AuthError`, `auth.current_user` and `auth.require_admin` FastAPI dependencies
 
 - [ ] **Step 1: Write the failing auth tests**
@@ -1241,7 +1242,11 @@ async def google_login(body: dict):
         info = auth.verify_google(body["id_token"])
     except auth.AuthError as e:
         raise HTTPException(401, str(e))
-    role = "admin" if db.is_admin(info["email"]) else "user"
+    # Everyone who signs in gets a candidate row — staff included. Role comes
+    # from oh_users membership, never from having a candidates row.
+    db.upsert_candidate(info["email"], info["name"])
+    oh = db.get_oh_user(info["email"])
+    role = oh["role"] if oh else "user"
     return {"token": auth.mint(info["email"], info["name"], role),
             "user": {**info, "role": role}}
 
@@ -1684,7 +1689,7 @@ Set `VITE_USE_MOCKS=false` in `frontend/.env`. Run uvicorn on `:5060` and Vite o
 - Land on `/`, sign in with a **real Google account** through the popup
 - As a candidate: read the steps, upload a real 2–3 minute recording
 - Watch the dashboard poll from `queued` → `processing` → the stamp
-- Sign in as an admin (an email seeded into `admins`), open `/admin`
+- Sign in as an admin (an email seeded into `oh_users`), open `/admin`
 - Open the record: play the audio through the presigned URL, read the metrics, read all five axes
 - Void it, then confirm the candidate can upload again
 

@@ -18,7 +18,7 @@ export default function Layout() {
     <>
       <header className="shell">
         <nav className="nav">
-          <span className="nav-mark">Openhouse</span>
+          <img className="brand-logo" src="/openhouse-logo.png" alt="Openhouse" width="640" height="128" />
           <span className="eyebrow">Sales Assessment</span>
           <div className="nav-right">
             {user && <span className="nav-who">{user.email}</span>}

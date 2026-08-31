@@ -21,12 +21,15 @@ with one submission per candidate. Every design decision below follows from that
 
 | Role | Who | Can do |
 |---|---|---|
-| **Candidate** | Anyone who signs in with Google and is not in the `admins` table | Read instructions, upload audio once, see submission status (`pending` / `submitted`) |
-| **Admin** | Any email present in the `admins` table | Everything a candidate can, plus: list all submissions, read transcripts, read scores and reasoning, play back audio, void a submission to grant a retry |
+| **Candidate** | Anyone who signs in with Google and is not in `oh_users` | Read instructions, upload audio once, see submission status (`pending` / `submitted`) |
+| **Admin** | Any active email in `oh_users` | Everything a candidate can, plus: list all submissions, read transcripts, read scores and reasoning, play back audio, void a submission to grant a retry |
 
 Anyone can sign in. Being an OpenHouse employee grants nothing — `@openhouse.in`
-users who are not in the `admins` table are ordinary candidates. Admin access is
-explicit and table-driven, never inferred from a domain.
+users who are not in `oh_users` are ordinary candidates. Admin access is explicit
+and table-driven, never inferred from a domain.
+
+Identity lives in `candidates`, which is assessment-agnostic: the same row serves
+every assessment a person takes. See [03-data-model.md](03-data-model.md).
 
 > **Decided against:** domain-based admin (every employee would see every
 > candidate's results) and an invite-only flow (an invite table and management UI

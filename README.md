@@ -101,11 +101,11 @@ record — with nothing else running. The mock user is an admin; change
 
 ### 2. Database
 
-Create a Neon project, then apply the schema and seed yourself as an admin:
+Create a Neon project, then apply the schema and seed yourself into `oh_users`:
 
 ```bash
 psql "$DATABASE_URL" -f schema.sql
-psql "$DATABASE_URL" -f seed_admins.sql     # edit the email first
+psql "$DATABASE_URL" -f seed_oh_users.sql    # edit the email first
 ```
 
 ### 3. Backend

@@ -82,7 +82,14 @@ async def google_login(body: dict):
         info = auth.verify_google(token)
     except auth.AuthError as e:
         raise HTTPException(401, str(e))
-    role = "admin" if db.is_admin(info["email"]) else "user"
+
+    # Everyone who signs in gets a candidate row — staff included. It costs
+    # nothing and it is what lets an admin walk the candidate flow. Role comes
+    # from oh_users membership, never from having a candidates row.
+    db.upsert_candidate(info["email"], info["name"])
+
+    oh = db.get_oh_user(info["email"])
+    role = oh["role"] if oh else "user"
     return {
         "token": auth.mint(info["email"], info["name"], role),
         "user": {**info, "role": role},
@@ -135,12 +142,13 @@ async def create_submission(
         raise HTTPException(422, "recording is longer than 10 minutes")
 
     # Everything validated. Only now does anything get written.
+    candidate_id = db.upsert_candidate(u["email"], u["name"])
     sub_id = str(uuid.uuid4())
     key = f"audio/{sub_id}{ext}"
     storage.put(key, data, file.content_type)
 
     try:
-        db.create_submission(sub_id, u["email"], u["name"], key, file.content_type, len(data))
+        db.create_submission(sub_id, candidate_id, key, file.content_type, len(data))
     except db.AlreadySubmitted:
         storage.delete(key)  # a rejected double-submit leaves nothing behind
         raise HTTPException(409, "you have already submitted")
@@ -181,6 +189,8 @@ async def submission_detail(sub_id: str, _: dict = Depends(auth.require_admin)):
     if not row:
         raise HTTPException(404, "not found")
     key = row.pop("audio_key")  # the key never leaves the server
+    row.pop("candidate_id", None)  # internal join key, not an admin-facing field
+    row.pop("voided_by", None)     # replaced by voided_by_email from the join
     row["id"] = str(row["id"])
     row["audio_url"] = storage.presign(key)
     return row

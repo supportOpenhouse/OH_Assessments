@@ -207,6 +207,28 @@ audio { width: 100%; }
   border-bottom: var(--rule-hair);
 }
 .nav-mark { font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: -0.02em; }
+
+/* ───────── Brand mark ─────────
+   openhouse-logo.png is a flat cream wordmark, drawn for a dark ground — on our
+   light paper it would be invisible. It is single-colour, so a filter can
+   restate it as ink: brightness(0) collapses it to black, and the opacity backs
+   it off to roughly --ink rather than a harder black than any text on the page.
+   Dark mode leaves the artwork alone: cream is what it was drawn for.          */
+.brand-logo {
+  height: 22px;
+  width: auto;
+  /* align-self is load-bearing: in a flex column the default `stretch` blows the
+     width out to the whole column and the fixed height then squashes the
+     artwork. flex-start lets width:auto resolve from the natural 5:1 ratio. */
+  align-self: flex-start;
+  flex: none;
+  object-fit: contain;
+  filter: brightness(0);
+  opacity: .82;
+}
+[data-theme='dark'] .brand-logo { filter: none; opacity: 1; }
+
+.brand-logo-lg { height: 24px; }
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
 .nav-who { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-mute); }
 
@@ -309,6 +331,7 @@ audio { width: 100%; }
   gap: var(--space-md);
 }
 .landing-mark h1 { font-size: var(--text-mark); line-height: .95; }
+.landing-brand { margin-bottom: var(--space-md); }
 .landing-rule { width: 64px; height: 2px; background: var(--accent); }
 
 .landing-panel {

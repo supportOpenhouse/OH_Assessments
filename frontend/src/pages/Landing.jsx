@@ -25,7 +25,14 @@ export default function Landing() {
   return (
     <div className="landing">
       <section className="landing-mark">
-        <span className="eyebrow">Openhouse · Sales (Insight)</span>
+        <img
+          className="brand-logo brand-logo-lg landing-brand"
+          src="/openhouse-logo.png"
+          alt="Openhouse"
+          width="640"
+          height="128"
+        />
+        <span className="eyebrow">Sales (Insight)</span>
         <h1>Sales<br />Assessment</h1>
         <div className="landing-rule" />
       </section>

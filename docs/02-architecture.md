@@ -19,7 +19,7 @@ frontend rewrites `/api/*` to a Render backend); none of its visual language is 
 | Styling | **Plain CSS, one `styles.css`, OKLCH custom properties** | Hallmark token system. No Tailwind, no CSS-in-JS, no component library |
 | Auth (client) | `@react-oauth/google` | Popup flow, no redirect |
 | Backend | **FastAPI + uvicorn** in a Render web service | Always-on container. No function limits |
-| DB | **Neon Postgres** via `psycopg[binary,pool]`, hand-written SQL | No ORM. Two tables |
+| DB | **Neon Postgres** via `psycopg[binary,pool]`, hand-written SQL | No ORM. Three tables |
 | Object storage | **Cloudflare R2** via `boto3` | S3-compatible, zero egress, survives redeploys |
 | STT | **ElevenLabs Scribe v2** | Word timestamps + audio events at $0.22/hr |
 | AI scoring | **Claude Opus 5** (`claude-opus-5`), `effort: max` | |
@@ -74,7 +74,8 @@ OH_Assessments/
 │   ├── requirements.txt
 │   └── render.yaml
 │
-├── schema.sql
+├── schema.sql                   # oh_users · candidates · sales_insight_submissions
+├── seed_oh_users.sql
 └── docs/
 ```
 
@@ -171,7 +172,9 @@ faster than they score. Then the background task becomes a real queue. Not befor
 2. `POST /api/auth/google { id_token }`.
 3. Backend verifies signature and `aud` with `google.oauth2.id_token.verify_oauth2_token`.
    Never by decoding unverified.
-4. Role resolves from the table: `SELECT 1 FROM admins WHERE email = %s` → `admin`, else `user`.
+4. Backend upserts a `candidates` row, then resolves role from `oh_users`
+   membership → that row's `role`, else `user`. Staff get a candidate row too,
+   so an admin can walk the candidate flow; role never comes from having one.
 5. Backend mints **our own** JWT (7 days, HS256, `JWT_SECRET`) and returns `{ token, user }`.
 6. Frontend stores it under `oha_token` and sends `Authorization: Bearer`.
 7. Any `401` fires an `auth:expired` window event → toast → back to the landing page.

@@ -33,8 +33,11 @@ SCORES = {
     "summary": "y" * 30,
 }
 
+CAND_ID = "11111111-0000-4000-8000-000000000001"
+
 ROW = {
     "id": SUB_ID,
+    "candidate_id": CAND_ID,
     "email": CANDIDATE,
     "name": "Cand",
     "audio_key": f"audio/{SUB_ID}.mp3",
@@ -43,13 +46,19 @@ ROW = {
     "transcript": "hello",
     "metrics": {"wpm": 150},
     "scores": SCORES,
+    "voided_by": None,
+    "voided_by_email": None,
     "created_at": datetime(2026, 8, 27, tzinfo=timezone.utc),
 }
 
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr(db, "is_admin", lambda e: e == ADMIN)
+    monkeypatch.setattr(db, "get_oh_user", lambda e: (
+        {"id": "22222222-0000-4000-8000-000000000001", "email": ADMIN,
+         "name": "Admin", "role": "admin"} if e == ADMIN else None
+    ))
+    monkeypatch.setattr(db, "upsert_candidate", lambda e, n: CAND_ID)
     monkeypatch.setattr(db, "live_submission", lambda e: (
         {"id": SUB_ID, "status": "scored", "created_at": ROW["created_at"]}
         if e == CANDIDATE else None
@@ -143,6 +152,13 @@ def test_detail_carries_the_full_scores(client):
 
 def test_unknown_id_is_404_for_an_admin(client):
     assert client.get("/api/submissions/does-not-exist", headers=ADM()).status_code == 404
+
+
+def test_detail_hides_internal_join_keys(client):
+    r = client.get(f"/api/submissions/{SUB_ID}", headers=ADM()).json()
+    assert "candidate_id" not in r, "internal join key, not an admin-facing field"
+    assert "voided_by" not in r, "the raw oh_users id is replaced by voided_by_email"
+    assert r["email"] == CANDIDATE, "the candidates join must supply the identity"
 
 
 # ── upload validation ─────────────────────────────────────────────────────
