@@ -111,6 +111,21 @@ def upsert_candidate(email: str, name: str | None, *, is_login: bool = False) ->
     return str(row["id"]), bool(row["created"])
 
 
+def update_candidate_name(email: str, name: str) -> dict | None:
+    """Set a display name chosen by the person themselves.
+
+    Flips name_set_by_user so the sign-in upsert stops overwriting it. Returns
+    the previous name so the caller can record what changed.
+    """
+    return _one(
+        "update candidates set "
+        "  name = %s, name_set_by_user = true, name_updated_at = now() "
+        "where email = %s "
+        "returning id, (select name from candidates where email = %s) as previous",
+        (name, email, email),
+    )
+
+
 # ── submissions (parent) + sales_insight_submissions (child) ──────────────
 # The parent holds what is true of any assessment. The child holds the audio
 # bits. They share a primary key, so a "submission" is one logical row split
