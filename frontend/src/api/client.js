@@ -6,22 +6,33 @@
 
 import { toast } from '../utils/toast.js';
 
-const BASE = import.meta.env.VITE_API_BASE || '';
+const RAW_BASE = import.meta.env.VITE_API_BASE || '';
 
-// A cross-origin BASE cannot carry the session, and it fails in a way that
-// looks like a server bug: sign-in 200s with a user, then every call after it
-// 401s "not signed in". The browser will not store a cross-site Set-Cookie, and
-// SameSite=Lax would refuse to send it regardless. This was survivable while the
-// token rode in an Authorization header; it is not, now that it is a cookie.
-// Leave VITE_API_BASE blank — Vercel's rewrite and Vite's dev proxy both make
-// /api/* same-origin.
-if (BASE && new URL(BASE, location.origin).origin !== location.origin) {
+// A cross-origin base cannot carry the session, so it is IGNORED rather than
+// obeyed. The failure it causes looks like a server bug — sign-in 200s with a
+// user, then every call after it 401s "not signed in" — because the browser
+// will not store a cross-site Set-Cookie and SameSite=Lax would refuse to send
+// it anyway. This was survivable while the token rode in an Authorization
+// header; it stopped being survivable when the session became a cookie.
+//
+// Falling back to same-origin is not a workaround hiding a misconfiguration:
+// /api/* is same-origin by design (Vercel's rewrite in production, Vite's dev
+// proxy locally), and that is the only shape cookie auth works in. Obeying the
+// variable would leave the app permanently signed out instead.
+let crossOrigin = false;
+try {
+  crossOrigin = !!RAW_BASE && new URL(RAW_BASE, location.origin).origin !== location.origin;
+} catch { /* unparseable base — treat it as same-origin and let the URL fail loudly */ }
+
+if (crossOrigin) {
   console.error(
-    `VITE_API_BASE points at ${BASE}, a different origin to ${location.origin}. ` +
-    'The session cookie cannot survive that, so you will be signed out right ' +
-    'after login. Unset VITE_API_BASE and let the rewrite/proxy handle /api/*.'
+    `VITE_API_BASE points at ${RAW_BASE}, a different origin to ${location.origin}. ` +
+    'A session cookie cannot survive that, so it is being ignored and /api/* ' +
+    'will go same-origin via the rewrite. Unset VITE_API_BASE to silence this.'
   );
 }
+
+const BASE = crossOrigin ? '' : RAW_BASE;
 
 // The session is an httpOnly cookie set by the server. There is deliberately no
 // token in JS: nothing here can read it, so nothing injected here can steal it.
