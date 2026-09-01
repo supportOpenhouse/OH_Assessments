@@ -9,7 +9,7 @@ import MetricsStrip from '../components/MetricsStrip.jsx';
 import Dialog from '../components/Dialog.jsx';
 import AudioPlayer from '../components/AudioPlayer.jsx';
 import { Skeleton, SkeletonLines, LoadingNote } from '../components/Skeleton.jsx';
-import { IconBack, IconAlert } from '../components/icons.jsx';
+import { IconBack, IconAlert, IconClose, IconRescore } from '../components/icons.jsx';
 
 const AXES = [
   ['pitch', 'Pitch'],
@@ -22,6 +22,7 @@ export default function AdminDetail() {
   const { id } = useParams();
   const [row, setRow] = useState(null);
   const [voiding, setVoiding] = useState(false);
+  const [rescoring, setRescoring] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
@@ -32,6 +33,34 @@ export default function AdminDetail() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // A re-score runs in the background, so the row lands here as 'processing'
+  // and would sit stale until a manual refresh. Same 2s cadence the candidate
+  // dashboard uses. Also covers landing on a submission that is mid-run.
+  const inFlight = row?.status === 'queued' || row?.status === 'processing';
+  useEffect(() => {
+    if (!inFlight) return undefined;
+    const t = setInterval(() => {
+      api.get(`/api/submissions/${id}/status`)
+        .then((st) => { if (st.status !== 'queued' && st.status !== 'processing') load(); })
+        .catch(() => {});
+    }, 2000);
+    return () => clearInterval(t);
+  }, [inFlight, id, load]);
+
+  async function rescoreIt() {
+    setBusy(true);
+    try {
+      await api.post(`/api/submissions/${id}/rescore`);
+      setRescoring(false);
+      toast('Re-scoring started. This takes a minute or two.');
+      load();
+    } catch (e) {
+      toast(e.message || 'Could not start a re-score.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function voidIt() {
     setBusy(true);
@@ -130,7 +159,33 @@ export default function AdminDetail() {
         </div>
       )}
 
-      {row.audio_url && <AudioPlayer src={row.audio_url} preload="none" label="submission" />}
+      {row.audio_url && (
+        <div className="record-audio">
+          <AudioPlayer src={row.audio_url} preload="none" label="submission" />
+          <div className="record-audio-acts">
+            <button
+              type="button"
+              className="icon-btn icon-btn-danger"
+              onClick={() => setVoiding(true)}
+              disabled={row.status === 'voided'}
+              title="Void submission"
+              aria-label="Void submission"
+            >
+              <IconClose size={18} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn icon-btn-danger"
+              onClick={() => setRescoring(true)}
+              disabled={row.status === 'voided' || inFlight}
+              title="Re-score: transcribe and judge this audio again"
+              aria-label="Re-score this submission"
+            >
+              <IconRescore size={18} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <MetricsStrip metrics={row.metrics} />
 
@@ -169,12 +224,19 @@ export default function AdminDetail() {
         <span>scored {stamp(row.scored_at)}</span>
       </div>
 
-      {row.status !== 'voided' && (
-        <div style={{ marginTop: 'var(--space-xl)' }}>
-          <button type="button" className="btn btn-danger" onClick={() => setVoiding(true)}>
-            Void submission
-          </button>
-        </div>
+      {rescoring && (
+        <Dialog
+          title="Re-score this submission?"
+          confirmLabel="Re-score"
+          confirmClass="btn-danger"
+          busy={busy}
+          onCancel={() => setRescoring(false)}
+          onConfirm={rescoreIt}
+        >
+          The audio is transcribed and judged again from scratch. The existing
+          score, reasoning and transcript are overwritten in place — only the
+          activity log will show that an earlier result existed.
+        </Dialog>
       )}
 
       {voiding && (

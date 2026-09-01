@@ -408,6 +408,23 @@ audio { width: 100%; }
 .icon-btn:active { background: var(--paper-4); }
 .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
 
+/* Void and re-score, on the admin record. Red because both are destructive:
+   one frees the candidate's slot, the other discards the score in place. */
+.icon-btn-danger { color: var(--band-stop); }
+.icon-btn-danger:hover { background: var(--band-stop); color: #fff; }
+.icon-btn-danger:active { background: var(--band-stop); color: #fff; }
+
+/* The player takes the leftover width; the actions never shrink. Wraps rather
+   than squashing the progress bar to nothing on a narrow viewport. */
+.record-audio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.record-audio > .player { flex: 1; min-width: 260px; }
+.record-audio-acts { display: flex; gap: var(--space-2xs); flex: none; }
+
 .page-head { margin-bottom: var(--space-xl); }
 .page-head h2 { font-size: var(--text-3xl); margin-top: var(--space-2xs); }
 
@@ -733,9 +750,19 @@ audio { width: 100%; }
    rather than a generic undo. */
 .player-skip-n {
   position: absolute;
-  font-size: 7px;
+  /* Measured against the 22px glyph, not guessed: at 9px the digits touch the
+     ring on both sides, at 7.5px they go thin. 8px is the largest that keeps
+     clearance. */
+  font-size: 8px;
   font-weight: 700;
   line-height: 1;
+  /* Two digits in a small circle: the default gap reads as "1 0", and Public
+     Sans' proportional figures leave the 1 adrift from the 0. */
+  letter-spacing: -.06em;
+  font-variant-numeric: tabular-nums;
+  /* The ring's open side is on the right, under the arrowhead, so a
+     geometrically centred span looks pushed right. Half a pixel back. */
+  transform: translate(-.5px, .5px);
   pointer-events: none;
 }
 

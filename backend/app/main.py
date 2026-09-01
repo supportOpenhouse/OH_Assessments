@@ -398,6 +398,47 @@ async def void_submission(sub_id: str, request: Request,
                 entity=logs.ENTITY_SUBMISSION, entity_id=sub_id,
                 data={"candidate_email": row["email"], "previous_status": row["status"]},
                 request=request)
+
+
+@app.post("/api/submissions/{sub_id}/rescore", status_code=202)
+async def rescore_submission(sub_id: str, background: BackgroundTasks, request: Request,
+                             u: dict = Depends(auth.require_admin)):
+    """Run the whole pipeline again — Scribe, then Claude — on the stored audio.
+
+    Same background task the original upload schedules, so there is exactly one
+    scoring path. finish_submission overwrites the child row and clears the
+    parent's error, and the overall_sync trigger re-derives overall_stars, so a
+    re-run leaves no trace of the previous result in the record itself. The
+    activity log is what makes it traceable — hence this entry, recorded BEFORE
+    the task is scheduled, so an admin-initiated re-run is on file even if the
+    run then dies.
+    """
+    row = db.get_submission(sub_id)
+    if not row:
+        raise HTTPException(404, "not found")
+    if row["status"] == "voided":
+        raise HTTPException(409, "voided submissions cannot be re-scored")
+    # queued/processing already has a run in flight; a second would race it and
+    # both would write the same child row.
+    if row["status"] in ("queued", "processing"):
+        raise HTTPException(409, "this submission is already being scored")
+    if not row["audio_key"]:
+        raise HTTPException(422, "no audio stored for this submission")
+
+    logs.record(logs.SUBMISSION_RESCORED, **logs.for_user(u),
+                entity=logs.ENTITY_SUBMISSION, entity_id=sub_id,
+                # Never the scores themselves — the same rule the scoring task
+                # follows. Enough to say what was discarded, not what it said.
+                data={"candidate_email": row["email"],
+                      "previous_status": row["status"],
+                      "previous_rubric_version": row.get("rubric_version"),
+                      "previous_model": row.get("model"),
+                      "previous_stt_model": row.get("stt_model")},
+                request=request)
+
+    db.set_processing(sub_id)
+    background.add_task(tasks.score_submission, sub_id)
+    return {"id": sub_id, "status": "processing"}
     return {"id": sub_id, "status": "voided"}
 
 

@@ -14,7 +14,7 @@ import {
   LuSun, LuMoon, LuLogOut, LuUpload, LuCheck, LuTriangleAlert,
   LuArrowRight, LuArrowLeft, LuPencil, LuX,
   LuInbox, LuUsers, LuActivity, LuUser, LuClipboardList, LuHistory,
-  LuPlay, LuPause, LuRotateCcw, LuRotateCw,
+  LuPlay, LuPause, LuRotateCcw, LuRotateCw, LuRefreshCw,
   // Kept for the audio player's commented-out controls — see AudioPlayer.jsx.
   LuVolume2, LuHeart, LuSkipBack, LuSkipForward,
 } from 'react-icons/lu';
@@ -58,6 +58,9 @@ export const IconPlay = wrap(LuPlay, { fill: 'currentColor', strokeWidth: 1 });
 export const IconPause = wrap(LuPause, { fill: 'currentColor', strokeWidth: 1 });
 export const IconBack10 = wrap(LuRotateCcw);
 export const IconForward10 = wrap(LuRotateCw);
+// Distinct from IconForward10 (also a circular arrow) on purpose: this one is a
+// two-arrow refresh, so a destructive re-run never reads as a seek control.
+export const IconRescore = wrap(LuRefreshCw);
 
 // Parked for the player's commented-out controls.
 export const IconVolume = wrap(LuVolume2);

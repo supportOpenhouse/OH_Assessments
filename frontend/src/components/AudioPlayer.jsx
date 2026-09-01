@@ -113,7 +113,7 @@ export default function AudioPlayer({ src, preload = 'metadata', label = 'Record
 
         <button type="button" className="player-btn" onClick={() => nudge(-SKIP)}
                 aria-label={`Back ${SKIP} seconds`}>
-          <IconBack10 />
+          <IconBack10 size={22} />
           <span className="player-skip-n">{SKIP}</span>
         </button>
 
@@ -124,7 +124,7 @@ export default function AudioPlayer({ src, preload = 'metadata', label = 'Record
 
         <button type="button" className="player-btn" onClick={() => nudge(SKIP)}
                 aria-label={`Forward ${SKIP} seconds`}>
-          <IconForward10 />
+          <IconForward10 size={22} />
           <span className="player-skip-n">{SKIP}</span>
         </button>
 

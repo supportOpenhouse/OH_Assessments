@@ -31,6 +31,7 @@ SUBMISSION_PROCESSING = "submission.processing"
 SUBMISSION_SCORED = "submission.scored"
 SUBMISSION_FAILED = "submission.failed"
 SUBMISSION_VOIDED = "submission.voided"
+SUBMISSION_RESCORED = "submission.rescored"
 SUBMISSION_SWEPT = "submission.swept"
 
 ENTITY_SUBMISSION = "submission"   # addresses submissions.id, whatever the type

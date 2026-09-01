@@ -17,7 +17,7 @@ os.environ.setdefault("R2_BUCKET", "test")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import auth, db, logs, main, storage  # noqa: E402
+from app import auth, db, logs, main, storage, tasks  # noqa: E402
 
 CANDIDATE = "cand@example.com"
 ADMIN = "admin@openhouse.in"
@@ -88,6 +88,10 @@ def client(monkeypatch):
     monkeypatch.setattr(db, "list_submissions", lambda *a: (1, [dict(ROW)]))
     monkeypatch.setattr(db, "void_submission", lambda i: True)
     monkeypatch.setattr(db, "fail_stale", lambda *a: 0)
+    # Nothing in this suite may reach the real scoring pipeline or the real DB.
+    SCHEDULED.clear(); PROCESSED.clear()
+    monkeypatch.setattr(db, "set_processing", lambda i: PROCESSED.append(i))
+    monkeypatch.setattr(tasks, "score_submission", lambda i: SCHEDULED.append(i))
     monkeypatch.setattr(storage, "presign", lambda k, ttl_s=3600: "https://signed.example/x")
     AUDIT.clear()
     monkeypatch.setattr(db, "insert_log", lambda **kw: AUDIT.append(kw))
@@ -96,6 +100,8 @@ def client(monkeypatch):
 
 
 AUDIT: list[dict] = []
+SCHEDULED: list[str] = []
+PROCESSED: list[str] = []
 
 
 def hdr(email, role):
@@ -237,6 +243,7 @@ def test_a_failed_audit_write_does_not_fail_the_action(client, monkeypatch):
 
 
 def test_audit_rows_never_carry_a_score_or_a_transcript(client):
+    client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
     client.post(f"/api/submissions/{SUB_ID}/void", headers=ADM())
     client.post("/api/submissions", headers=CAND(),
                 files={"file": ("x.pdf", b"%PDF-1.4", "application/pdf")})
@@ -551,3 +558,73 @@ def test_a_tampered_cookie_is_refused(client):
 
 def test_no_cookie_and_no_header_is_401(client):
     assert client.get("/api/me").status_code == 401
+
+
+# ── re-score ──────────────────────────────────────────────────────────────
+
+def _row(status="scored", **over):
+    return {**ROW, "status": status, **over}
+
+
+def test_rescore_is_admin_only(client):
+    r = client.post(f"/api/submissions/{SUB_ID}/rescore", headers=CAND())
+    assert r.status_code == 403
+    assert SCHEDULED == [], "a candidate must not be able to spend a scoring run"
+
+
+def test_rescore_404s_on_an_unknown_id(client):
+    r = client.post("/api/submissions/does-not-exist/rescore", headers=ADM())
+    assert r.status_code == 404
+
+
+def test_rescore_reruns_the_same_pipeline_and_marks_it_processing(client):
+    r = client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
+    assert r.status_code == 202
+    assert r.json()["status"] == "processing"
+    # The status flips before the response, so the dashboard's next poll already
+    # shows the re-run rather than the stale score.
+    assert PROCESSED == [SUB_ID]
+    # Scheduled through the SAME background task the upload uses — one scoring
+    # path, so a re-run cannot drift from an original run.
+    assert SCHEDULED == [SUB_ID]
+
+
+def test_rescore_refuses_a_voided_submission(client, monkeypatch):
+    monkeypatch.setattr(db, "get_submission", lambda i: _row("voided"))
+    r = client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
+    assert r.status_code == 409
+    assert SCHEDULED == []
+
+
+def test_rescore_refuses_a_run_already_in_flight(client, monkeypatch):
+    for status in ("queued", "processing"):
+        monkeypatch.setattr(db, "get_submission", lambda i, s=status: _row(s))
+        r = client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
+        # Two concurrent runs would race on the same child row.
+        assert r.status_code == 409, status
+    assert SCHEDULED == []
+
+
+def test_rescore_refuses_when_there_is_no_audio(client, monkeypatch):
+    monkeypatch.setattr(db, "get_submission", lambda i: _row(audio_key=None))
+    r = client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
+    assert r.status_code == 422
+    assert SCHEDULED == []
+
+
+def test_rescore_writes_an_audit_row_naming_the_actor(client):
+    client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
+    rows = [r for r in AUDIT if r["action"] == logs.SUBMISSION_RESCORED]
+    assert len(rows) == 1
+    # A re-run overwrites the previous result in place, so this row is the only
+    # evidence that an earlier score ever existed, or who discarded it.
+    assert rows[0]["actor_email"] == ADMIN
+    assert rows[0]["actor_role"] == "admin"
+    assert rows[0]["entity_id"] == SUB_ID
+    assert rows[0]["data"]["previous_status"] == "scored"
+
+
+def test_a_refused_rescore_is_not_audited_as_one(client, monkeypatch):
+    monkeypatch.setattr(db, "get_submission", lambda i: _row("voided"))
+    client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
+    assert [r for r in AUDIT if r["action"] == logs.SUBMISSION_RESCORED] == []
