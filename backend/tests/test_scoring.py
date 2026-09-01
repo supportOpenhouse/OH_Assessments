@@ -189,11 +189,6 @@ def test_the_model_must_say_which_speaker_it_judged():
     assert sp["required"] == ["speaker", "reasoning"]
 
 
-def test_discovery_is_a_scored_axis():
-    assert "discovery" in scoring.AXES
-    assert "discovery" in scoring.SCORE_SCHEMA["required"]
-
-
 def test_the_prompt_says_who_is_being_assessed():
     block = scoring.build_submission_block("[speaker_0] hi", {"wpm": 150})
     assert "salesperson" in block.lower() and "customer" in block.lower()

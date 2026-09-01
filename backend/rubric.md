@@ -142,34 +142,6 @@ presumably explain if asked.
 | 4 | Accurate and differentiated; names what makes Openhouse different from a broker or a portal |
 | 5 | Speaks like someone who already works here. Accurate, specific, persuasive |
 
-## Axis: Discovery & listening
-
-What the salesperson learned about this seller, and whether they used it. This
-is the axis a real conversation reveals and a rehearsed pitch cannot. Read
-`question_count` and `talk_ratio` — but read the transcript over both: five
-questions the rep asks and then talks straight over are worse than two they
-listen to the answers of.
-
-**Three questions were explicitly asked for** — why they are selling, their
-timeline, the property's condition. Those are the floor, not the ceiling. Asking
-all three mechanically and doing nothing with the answers is a 2; asking two well
-and following where they lead is a 4. Not asking any of them, on a call that had
-room for them, caps this axis at 1.
-
-| Stars | Criteria |
-|---|---|
-| 0 | No interaction — talks at the customer from start to finish |
-| 1 | Asks nothing. Pitches over the customer. Interrupts to get back to the script |
-| 2 | One or two questions, but the answers change nothing that follows |
-| 3 | Asks about the property and the situation, and acknowledges the answers |
-| 4 | Genuine discovery — motivation, timeline, price expectation — and the pitch visibly bends to fit what came back |
-| 5 | The customer does most of the talking and the rep still runs the call. Every question earns its place; the close is built out of the customer's own words |
-
-Guidance on the numbers: a rep at a `talk_ratio` above ~.75 is monologuing, and
-one below ~.25 has lost control of the call — both cost a band. A couple of
-`interruptions` is ordinary conversational overlap; a pattern of the rep talking
-over the customer is a real defect and belongs in the reasoning.
-
 ## Axis: Sales skills
 
 | Stars | Criteria |
@@ -181,7 +153,16 @@ over the customer is a real defect and belongs in the reasoning.
 | 4 | Qualifies, meets the objection with substance, closes for a specific next step |
 | 5 | Reads like a top performer — qualification, framing, urgency, and a close the customer agrees to |
 
-**Objection handling is the sharpest signal on this axis**, and on a real call
+**Qualification is the first half of this axis.** Three questions were
+explicitly asked for — why they are selling, their timeline, the property's
+condition. Asking all three mechanically and doing nothing with the answers is a
+2; asking two well and following where they lead is a 4. Not asking any of them,
+on a call that had room for them, caps this axis at 2. Read `question_count` and
+`talk_ratio`, but read the transcript over both: questions asked and then talked
+straight over are worse than fewer questions genuinely listened to. A rep above a
+`talk_ratio` of ~.75 is monologuing at a seller rather than qualifying them.
+
+**Objection handling is the second half, and the sharpest signal on this axis**, and on a real call
 the objections are whatever the customer actually raised — "I already have a
 broker", "not selling right now", "what do you charge", "send me something on
 WhatsApp". Judge the handling, not the objection. Dismissing or steamrolling one

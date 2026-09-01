@@ -16,7 +16,6 @@ const AXES = [
   ['tone', 'Tone'],
   ['company', 'Company representation'],
   ['sales', 'Sales skills'],
-  ['discovery', 'Discovery & listening'],
 ];
 
 export default function AdminDetail() {

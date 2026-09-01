@@ -64,7 +64,7 @@ the transcript.
 
 The top-level block is the WHOLE recording, both voices blended. Do not score
 delivery from it on a two-party call — it is the average of two people. Read
-`by_speaker[<the salesperson>]` for Tone, and `conversation` for Discovery.
+`by_speaker[<the salesperson>]` for Tone, and `conversation` for Sales skills.
 
 ## by_speaker — one block per voice, keyed by the speaker id in the transcript
 
@@ -75,8 +75,8 @@ longest_pause_s  measured INSIDE that speaker's own turns, so it is hesitation,
                  not the gap while the other person is talking. > 6s is usually
                  a lost thread or a restart
 pause_count_2s   deliberate pauses land emphasis; clustered ones read as searching
-question_count   turns ending in "?". The single strongest signal for Discovery.
-                 A rep asking none is talking AT the customer
+question_count   turns ending in "?". A rep asking none is talking AT the
+                 customer rather than qualifying them
 turn_count       how often they took the floor
 longest_turn_s   their longest single unbroken stretch
 
@@ -108,7 +108,7 @@ audio_events     non-speech sounds Scribe tagged (laughter, music, applause)
 # (`minLength`) are out for the same reason, so the "no one-line reasoning"
 # rule moved to _reject_stub_reasoning() below. Keep this schema to:
 # object / string / integer+enum / array / required / additionalProperties.
-AXES = ("pitch", "tone", "company", "sales", "discovery", "overall")
+AXES = ("pitch", "tone", "company", "sales", "overall")
 
 _AXIS = {
     "type": "object",

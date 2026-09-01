@@ -73,7 +73,7 @@ def _speaker_stats(own: list[dict]) -> dict:
         "longest_pause_s": max(gaps) if gaps else 0.0,
         "turn_count": len(own),
         # A turn ending in "?" is the cheap, reliable proxy for a question asked.
-        # Discovery is the axis that lives or dies on this number.
+        # Qualification on the Sales axis is largely judged on this number.
         "question_count": sum(1 for t in own if t["text"].rstrip().endswith("?")),
         "longest_turn_s": round(max(t["end"] - t["start"] for t in own), 2) if own else 0.0,
     }

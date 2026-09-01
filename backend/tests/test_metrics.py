@@ -109,7 +109,7 @@ def test_a_pause_while_the_other_person_talks_is_not_hesitation():
     assert m["by_speaker"]["speaker_0"]["pause_count_2s"] == 0
 
 
-def test_talk_ratio_and_questions_feed_the_discovery_axis():
+def test_talk_ratio_and_questions_are_measured_per_speaker():
     words = [rep("what is your timeline?", 0.0, 2.0),
              cust("about", 2.0, 3.0), cust("six months", 3.0, 5.0),
              rep("understood", 5.0, 6.0)]
