@@ -8,6 +8,21 @@ import { toast } from '../utils/toast.js';
 
 const BASE = import.meta.env.VITE_API_BASE || '';
 
+// A cross-origin BASE cannot carry the session, and it fails in a way that
+// looks like a server bug: sign-in 200s with a user, then every call after it
+// 401s "not signed in". The browser will not store a cross-site Set-Cookie, and
+// SameSite=Lax would refuse to send it regardless. This was survivable while the
+// token rode in an Authorization header; it is not, now that it is a cookie.
+// Leave VITE_API_BASE blank — Vercel's rewrite and Vite's dev proxy both make
+// /api/* same-origin.
+if (BASE && new URL(BASE, location.origin).origin !== location.origin) {
+  console.error(
+    `VITE_API_BASE points at ${BASE}, a different origin to ${location.origin}. ` +
+    'The session cookie cannot survive that, so you will be signed out right ' +
+    'after login. Unset VITE_API_BASE and let the rewrite/proxy handle /api/*.'
+  );
+}
+
 // The session is an httpOnly cookie set by the server. There is deliberately no
 // token in JS: nothing here can read it, so nothing injected here can steal it.
 // `credentials: same-origin` is what attaches it — Vercel rewrites /api/* to the
