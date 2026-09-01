@@ -25,3 +25,20 @@ export default function Loader({ label = 'Loading' }) {
     </span>
   );
 }
+
+// A REFETCH state for the boards: filters changed, the rows on screen are now
+// stale, and there is nothing to reserve layout for because the layout is
+// already there. It lives inside the existing <tbody> so the header row and the
+// board's rules stay put.
+//
+// Not SkeletonRows: those are for the FIRST paint, where their job is to hold
+// the column widths before any content exists. Once the table is on screen a
+// skeleton would just redraw the same shape, which reads as a flicker rather
+// than as work happening. The user asked for the house here.
+export function BoardLoader({ cols, label = 'Loading' }) {
+  return (
+    <tr className="board-loading">
+      <td colSpan={cols}><Loader label={label} /></td>
+    </tr>
+  );
+}

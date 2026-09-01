@@ -5,6 +5,7 @@ import { toast } from '../utils/toast.js';
 import { mmss, stamp } from '../utils/format.js';
 import Stars from '../components/Stars.jsx';
 import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
+import { BoardLoader } from '../components/Loader.jsx';
 import { IconAlert } from '../components/icons.jsx';
 
 const FILTERS = ['all', 'scored', 'processing', 'failed', 'voided'];
@@ -13,6 +14,10 @@ const FILTERS = ['all', 'scored', 'processing', 'failed', 'voided'];
 // no zebra striping, no shadows — the hairlines do the separating.
 export default function AdminList() {
   const [rows, setRows] = useState(null);
+  // Separate from `rows === null`: that is only ever true on the FIRST load, so
+  // without this a filter change left the stale table on screen, unchanged, for
+  // the whole round trip — no signal that anything was happening.
+  const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [types, setTypes] = useState([]);
   const [status, setStatus] = useState('all');
@@ -25,6 +30,7 @@ export default function AdminList() {
   // every row, and 'processing' has to include 'queued', which a naive client
   // filter gets wrong.
   useEffect(() => {
+    setLoading(true);   // synchronous, so the press registers before the debounce
     const t = setTimeout(() => {
       const p = new URLSearchParams({ limit: '200' });
       if (status !== 'all') p.set('status', status);
@@ -33,7 +39,8 @@ export default function AdminList() {
       if (q) p.set('q', q);
       api.get(`/api/submissions?${p}`)
         .then((r) => { setRows(r.items); setTotal(r.total); setTypes(r.assessments || []); })
-        .catch((e) => { setRows([]); toast(e.message || 'Could not load submissions.', 'error'); });
+        .catch((e) => { setRows([]); toast(e.message || 'Could not load submissions.', 'error'); })
+        .finally(() => setLoading(false));
     }, 250);   // debounced so typing does not fire a request per keystroke
     return () => clearTimeout(t);
   }, [status, type, stars, q]);
@@ -129,7 +136,8 @@ export default function AdminList() {
           <tbody>
             {rows === null && <SkeletonRows rows={5} cols={5} stacked={[0]}
               widths={['60%', '80%', '40%', '55%', '30%']} />}
-            {shown.map((r) => (
+            {rows !== null && loading && <BoardLoader cols={5} label="Loading submissions" />}
+            {!loading && shown.map((r) => (
               <tr
                 key={r.id}
                 tabIndex={0}
@@ -151,7 +159,7 @@ export default function AdminList() {
       </div>
 
       {rows === null && <LoadingNote>Loading submissions</LoadingNote>}
-      {rows !== null && shown.length === 0 && (
+      {rows !== null && !loading && shown.length === 0 && (
         <div className="empty">
           {status === 'all' && stars === 'all' && !q
             ? 'No submissions yet.'

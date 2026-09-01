@@ -4,6 +4,7 @@ import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
 import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
+import { BoardLoader } from '../components/Loader.jsx';
 
 // The audit trail. Every mutation, newest first.
 //
@@ -30,6 +31,7 @@ function toneOf(action) {
 
 export default function AdminLogs() {
   const [rows, setRows] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [opts, setOpts] = useState({ actions: [], categories: [], actors: [] });
 
@@ -40,6 +42,7 @@ export default function AdminLogs() {
   const navigate = useNavigate();
 
   const load = useCallback((f) => {
+    setLoading(true);
     const p = new URLSearchParams({ limit: '200' });
     Object.entries(f).forEach(([k, v]) => v && p.set(k, v));
     api.get(`/api/logs?${p}`)
@@ -48,7 +51,8 @@ export default function AdminLogs() {
         setTotal(r.total);
         setOpts({ actions: r.actions || [], categories: r.categories || [], actors: r.actors || [] });
       })
-      .catch((e) => { setRows([]); toast(e.message || 'Could not load the activity log.', 'error'); });
+      .catch((e) => { setRows([]); toast(e.message || 'Could not load the activity log.', 'error'); })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(applied); }, [load, applied]);
@@ -159,7 +163,8 @@ export default function AdminLogs() {
           <tbody>
             {rows === null && <SkeletonRows rows={6} cols={4} stacked={[1, 3]}
               widths={['80%', '70%', '65%', '90%']} />}
-            {(rows || []).map((r) => (
+            {rows !== null && loading && <BoardLoader cols={4} label="Loading activity" />}
+            {!loading && (rows || []).map((r) => (
               <tr
                 key={r.id}
                 tabIndex={r.entity === 'submission' ? 0 : -1}
@@ -187,7 +192,7 @@ export default function AdminLogs() {
       </div>
 
       {rows === null && <LoadingNote>Loading activity</LoadingNote>}
-      {rows !== null && rows.length === 0 && (
+      {rows !== null && !loading && rows.length === 0 && (
         <div className="empty">{dirty ? 'No activity matches those filters.' : 'No activity yet.'}</div>
       )}
     </>
