@@ -455,7 +455,32 @@ field stops on `visibilitychange`, draws one static frame under
 `prefers-reduced-motion`, and its `touchmove` is passive — the source called
 `preventDefault`, which would kill scrolling on a phone.
 
-## 7c. The loader
+## 7c. Skeletons
+
+Every page that fetches shows a placeholder **shaped like the content**, not a
+spinner. `<Skeleton />`, `<SkeletonLines />`, `<SkeletonRows />`.
+
+Boards render skeleton rows **inside the existing `<tbody>`**, so the header,
+filters and column widths hold and the table does not resize when data lands.
+Measured: **0px drift** on both row and table height.
+
+Getting that to zero took matching the real text metrics — the candidate cell is
+a 1rem/1.5 name over a 0.75rem `<small>`, so its placeholder is a 20px bar over a
+16px one. A single 14px bar left the table jumping 100px, which is the exact
+thing a skeleton exists to prevent.
+
+**The house `<Loader />` is now only for route-level waits** — the auth splash,
+where there is no shape to reserve yet.
+
+**Accessibility:** every skeleton is `aria-hidden`, and each group carries one
+`<LoadingNote>` (`role="status"`, `.sr-only`). A screen reader hears "Loading
+submissions" once rather than a stream of empty boxes.
+
+Under `prefers-reduced-motion` the shimmer stops and the blocks hold a flat
+tone — a pulse across a screenful of placeholders is precisely what that setting
+is for.
+
+## 7d. The loader
 
 Six bars tracing a **house** — roof, walls, floor — in the accent, then erasing
 it. `<Loader />`, used for the auth splash and every page-level loading state.
@@ -476,7 +501,7 @@ Under `prefers-reduced-motion` the house is held **complete and static** rather
 than blanked: six bars pulsing for three seconds is exactly what that setting is
 for, but an empty box is not a loading indicator.
 
-## 7d. Motion
+## 7e. Motion
 
 The one piece of real motion: the scoring wait on `/dashboard`. The upload
 returns `202` in a couple of seconds; the page then polls
@@ -494,7 +519,7 @@ same `RECEIVED` stamp. Only an admin learns a run errored.
 The `Direct_Inventory` welcome curtain is **cut**. A 1.7s full-screen animation on
 every sign-in fails the Restraint axis for a tool most people use exactly once.
 
-## 7e. Guarding the stylesheet
+## 7f. Guarding the stylesheet
 
 ```bash
 cd frontend && npm run check:css

@@ -68,3 +68,34 @@ def test_the_placeholder_can_be_allowed_for_pipeline_testing(monkeypatch):
     with pytest.raises(Exception):
         scoring.score(b"anything")      # fails later, at transcription
     assert called.get("hit"), "the guard must not fire when explicitly allowed"
+
+
+# ── the SDK contract we actually depend on ────────────────────────────────
+
+def test_the_installed_sdk_exposes_speech_to_text():
+    """elevenlabs 1.x has speech_to_speech but NOT speech_to_text — pinning a
+    version from memory shipped exactly that break. This fails loudly if the pin
+    ever moves back."""
+    from elevenlabs.client import ElevenLabs
+    assert hasattr(ElevenLabs(api_key="x"), "speech_to_text")
+
+
+def test_scribe_v2_is_a_model_id_the_sdk_accepts():
+    import typing
+    from elevenlabs.speech_to_text.types.speech_to_text_convert_request_model_id \
+        import SpeechToTextConvertRequestModelId as M
+    allowed = typing.get_args(typing.get_args(M)[0])
+    assert scoring.STT_MODEL in allowed, f"{scoring.STT_MODEL} not in {allowed}"
+
+
+def test_the_word_fields_metrics_reads_all_exist():
+    from elevenlabs.types.speech_to_text_word_response_model import (
+        SpeechToTextWordResponseModel as W)
+    for field in ("text", "start", "end", "type", "speaker_id"):
+        assert field in W.model_fields, field
+
+
+def test_the_response_carries_an_authoritative_duration():
+    from elevenlabs.types.speech_to_text_chunk_response_model import (
+        SpeechToTextChunkResponseModel as R)
+    assert "audio_duration_secs" in R.model_fields

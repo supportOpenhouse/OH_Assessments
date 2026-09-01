@@ -3,12 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { kb, stamp } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
 import Stars from '../components/Stars.jsx';
 import AxisBlock from '../components/AxisBlock.jsx';
 import MetricsStrip from '../components/MetricsStrip.jsx';
 import Dialog from '../components/Dialog.jsx';
 import AudioPlayer from '../components/AudioPlayer.jsx';
+import { Skeleton, SkeletonLines, LoadingNote } from '../components/Skeleton.jsx';
 import { IconBack, IconAlert } from '../components/icons.jsx';
 
 const AXES = [
@@ -46,7 +46,48 @@ export default function AdminDetail() {
     }
   }
 
-  if (!row) return <div className="loading-block"><Loader /></div>;
+  // The record has a lot of shape — verdict, metrics strip, five axes. A spinner
+  // here means the whole page arrives at once and shoves the layout; the
+  // skeleton reserves it.
+  if (!row) {
+    return (
+      <>
+        <LoadingNote>Loading submission</LoadingNote>
+        <div className="page-head">
+          <Skeleton w="22ch" h={12} />
+          <div style={{ marginTop: 'var(--space-sm)' }}><Skeleton w="30%" h={34} /></div>
+          <div style={{ marginTop: 'var(--space-sm)' }}><Skeleton w="45%" h={12} /></div>
+        </div>
+        <div style={{ marginBottom: 'var(--space-xl)' }}>
+          <Skeleton w="18%" h={44} />
+          <div style={{ marginTop: 'var(--space-md)' }}>
+            <SkeletonLines n={2} widths={['70%', '48%']} />
+          </div>
+        </div>
+        <Skeleton w="100%" h={58} r={12} />
+        <div className="metrics">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div className="metric" key={i}>
+              <Skeleton w="60%" h={22} />
+              <div style={{ marginTop: 'var(--space-2xs)' }}><Skeleton w="80%" h={10} /></div>
+            </div>
+          ))}
+        </div>
+        {[1, 2, 3].map((n) => (
+          <section className="axis" data-tone="mid" key={n}>
+            <span className="axis-n"><Skeleton w={20} /></span>
+            <div className="axis-body">
+              <Skeleton w="30%" h={20} />
+              <div style={{ margin: 'var(--space-sm) 0 var(--space-md)' }}>
+                <Skeleton w="22%" h={26} />
+              </div>
+              <SkeletonLines n={2} widths={['94%', '66%']} />
+            </div>
+          </section>
+        ))}
+      </>
+    );
+  }
 
   const s = row.scores;
   const failed = row.status === 'failed';

@@ -5,6 +5,7 @@ import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
 import { IconCheck, IconEdit, IconClose } from '../components/icons.jsx';
 import SiteFooter from '../components/SiteFooter.jsx';
+import { Skeleton, LoadingNote } from '../components/Skeleton.jsx';
 
 const NAME_MAX = 80;
 
@@ -73,12 +74,16 @@ export default function Profile() {
 
   // Third element: render as mono. Every figure in this app is monospaced and
   // tabular — a date or a count set in the UI face reads as prose.
+  // `user` comes from the session and is available immediately; `me` is fetched.
+  // Anything sourced from `me` shows a placeholder until it lands, rather than a
+  // dash that reads as "none".
+  const loading = me === null;
   const facts = [
-    ['Email', user?.email, true],
-    ['Role', user?.role === 'admin' ? 'Openhouse team' : 'Candidate', false],
-    ['First signed in', me?.first_seen_at ? stamp(me.first_seen_at) : '—', true],
-    ['Sign-ins', me?.login_count ?? '—', true],
-    ['Assessments attempted', me?.submission_count ?? 0, true],
+    ['Email', user?.email, true, false],
+    ['Role', user?.role === 'admin' ? 'Openhouse team' : 'Candidate', false, false],
+    ['First signed in', me?.first_seen_at ? stamp(me.first_seen_at) : '—', true, true],
+    ['Sign-ins', me?.login_count ?? '—', true, true],
+    ['Assessments attempted', me?.submission_count ?? 0, true, true],
   ];
 
   return (
@@ -131,11 +136,14 @@ export default function Profile() {
 
       {/* A <dl>, not a stat strip: these are label/value pairs, and squeezing an
           email address into a fifth of the width breaks it mid-word. */}
+      {loading && <LoadingNote>Loading your profile</LoadingNote>}
       <dl className="facts">
-        {facts.map(([k, v, mono]) => (
+        {facts.map(([k, v, mono, fetched]) => (
           <div className="fact" key={k}>
             <dt className="fact-k">{k}</dt>
-            <dd className={`fact-v${mono ? ' mono' : ''}`}>{v}</dd>
+            <dd className={`fact-v${mono ? ' mono' : ''}`}>
+              {loading && fetched ? <Skeleton w="7ch" /> : v}
+            </dd>
           </div>
         ))}
       </dl>

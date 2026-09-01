@@ -181,9 +181,21 @@ faster than they score. Then the background task becomes a real queue. Not befor
 4. Backend upserts a `candidates` row, then resolves role from `oh_users`
    membership → that row's `role`, else `user`. Staff get a candidate row too,
    so an admin can walk the candidate flow; role never comes from having one.
-5. Backend mints **our own** JWT (7 days, HS256, `JWT_SECRET`) and returns `{ token, user }`.
-6. Frontend stores it under `oha_token` and sends `Authorization: Bearer`.
-7. Any `401` fires an `auth:expired` window event → toast → back to the landing page.
+5. Backend mints **our own** JWT (7 days, HS256, `JWT_SECRET`) and returns it as
+   an **httpOnly `oha_session` cookie** — `Secure`, `SameSite=Lax`, `Max-Age` 7
+   days. The response body carries only `{ user }`.
+6. The browser attaches the cookie automatically (`credentials: 'same-origin'`).
+   **No token exists in JavaScript**, so an injected script has nothing to read.
+7. `POST /api/auth/logout` clears it — only the server can, which is the point.
+8. Any `401` fires an `auth:expired` window event → toast → back to the landing.
+
+> **Why not localStorage.** A token in `localStorage` is readable by any script
+> that runs on the page, so a single XSS is a full session theft. httpOnly puts
+> it out of reach. `SameSite=Lax` covers the CSRF exposure that cookie auth
+> introduces: the browser will not attach it to a cross-site POST.
+>
+> **`COOKIE_SECURE=false` is required for local http** and must be `true`
+> anywhere deployed.
 
 > Google ID tokens expire in an hour, which would sign a candidate out mid-upload.
 > Our own token avoids that, and `Direct_Inventory` already does exactly this, so

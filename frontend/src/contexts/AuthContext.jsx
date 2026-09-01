@@ -1,73 +1,67 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api, setAuthToken } from '../api/client.js';
+import { api, resetExpiryNotice } from '../api/client.js';
+
+// The session lives in an httpOnly cookie set by the server. Nothing is stored
+// in JS or localStorage — there is no token here for an injected script to read,
+// and closing the tab changes nothing because the cookie has its own 7-day life.
 
 const AuthContext = createContext(null);
-const TOKEN_KEY = 'oha_token';
-
-function readToken() {
-  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
-}
-function writeToken(t) {
-  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); }
-  catch { /* private window — session lasts until reload, which is acceptable */ }
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Boot: if we already hold a token, find out who it belongs to.
+  // Boot: ask the server who the cookie belongs to.
   useEffect(() => {
-    const t = readToken();
-    if (!t) { setLoading(false); return; }
-    setAuthToken(t);
-    api.get('/api/me')
-      .then(setUser)
-      .catch(() => { writeToken(null); setAuthToken(null); })
-      .finally(() => setLoading(false));
+    let alive = true;
+    api.get('/api/me', { quiet: true })
+      .then((me) => { if (alive) setUser(me); })
+      .catch((e) => {
+        // ONLY a 401 means "not signed in". Treating every failure as a sign-out
+        // is what logged people out on a cold backend, a 500, or a dropped
+        // connection — and with localStorage it destroyed the token on the way,
+        // so the next load was signed out too.
+        if (alive && e.status !== 401) {
+          // eslint-disable-next-line no-console
+          console.warn('Could not verify the session:', e.message);
+        }
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, []);
 
-  // Session killed server-side (any 401 while signed in) — drop auth so
-  // RequireAuth sends the user back to the landing page.
+  // Session killed server-side (a 401 while we believed we were signed in).
   useEffect(() => {
-    function onExpired() {
-      writeToken(null);
-      setAuthToken(null);
-      setUser(null);
-    }
+    function onExpired() { setUser(null); }
     window.addEventListener('auth:expired', onExpired);
     return () => window.removeEventListener('auth:expired', onExpired);
   }, []);
 
-  // Google's popup hands us an ID token; the backend verifies it and returns
-  // our own 7-day JWT. Google's own token expires in an hour, which would sign
-  // a candidate out mid-upload.
+  // Google's popup hands us an ID token; the backend verifies it and replies
+  // with Set-Cookie. The token itself never reaches this code.
   const loginWithGoogle = useCallback(async (idToken) => {
     const r = await api.post('/api/auth/google', { id_token: idToken });
-    writeToken(r.token);
-    setAuthToken(r.token);
+    resetExpiryNotice();
     setUser(r.user);
     return r.user;
   }, []);
 
-  // Called after an upload lands, so submission_status is current.
+  // Called after an upload lands, so submission_count is current.
   const refresh = useCallback(async () => {
     const me = await api.get('/api/me');
     setUser(me);
     return me;
   }, []);
 
-  // The stored name is authoritative, so the server's response replaces the
-  // whole user rather than being merged into it.
   const rename = useCallback(async (name) => {
     const me = await api.patch('/api/me', { name });
     setUser(me);
     return me;
   }, []);
 
-  const logout = useCallback(() => {
-    writeToken(null);
-    setAuthToken(null);
+  // Only the server can clear an httpOnly cookie, so signing out is a request.
+  const logout = useCallback(async () => {
+    try { await api.post('/api/auth/logout'); } catch { /* clear locally anyway */ }
     setUser(null);
   }, []);
 

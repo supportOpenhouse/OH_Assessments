@@ -35,3 +35,6 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
+      # Production is https. Never set this false on a deployed service.
+      - key: COOKIE_SECURE
+        value: "true"

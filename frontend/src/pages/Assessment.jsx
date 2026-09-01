@@ -4,11 +4,11 @@ import { api } from '../api/client.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { toast } from '../utils/toast.js';
 import { kb, mmss } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
 import Markdown, { parseSections } from '../components/Markdown.jsx';
 import UploadDrop from '../components/UploadDrop.jsx';
 import AudioPlayer from '../components/AudioPlayer.jsx';
 import Dialog from '../components/Dialog.jsx';
+import { Skeleton, SkeletonLines, LoadingNote } from '../components/Skeleton.jsx';
 import { IconAlert } from '../components/icons.jsx';
 
 // Instructions and the dropzone on one page. Steps are numbered with the
@@ -73,7 +73,20 @@ export default function Assessment() {
       </div>
 
       {sections === null ? (
-        <div className="loading-block"><Loader label="Loading instructions" /></div>
+        <>
+          <LoadingNote>Loading instructions</LoadingNote>
+          <div className="steps">
+            {[0, 1, 2].map((i) => (
+              <section className="step" key={i}>
+                <span className="step-n"><Skeleton w={20} /></span>
+                <div className="step-body">
+                  <Skeleton w="34%" h={18} />
+                  <SkeletonLines n={2} widths={['96%', '70%']} />
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
       ) : (
         <div className="steps">
           {sections.map((s, i) => (

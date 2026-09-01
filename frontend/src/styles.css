@@ -1300,6 +1300,46 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
   .scrim, .dialog { animation: none; }
 }
 
+/* ───────── Skeletons ─────────
+   Placeholders shaped like the content, so the page reserves its geometry and
+   settles rather than reflowing when data lands.                              */
+.skel {
+  display: block;
+  background: linear-gradient(90deg,
+    var(--paper-3) 0%, var(--paper-4) 40%, var(--paper-3) 80%);
+  background-size: 300% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+
+.skel-lines { display: flex; flex-direction: column; gap: var(--space-xs); }
+
+/* Match the real row's height so the table does not resize on arrival. */
+.skel-row td { padding-block: var(--space-sm); border-bottom: var(--rule-hair); }
+/* The second line of a stacked cell — mirrors the <small> under a name. */
+.skel-sub { margin-top: 6px; }
+
+@keyframes skel-shimmer {
+  0%   { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+/* A pulse across a screenful of blocks is exactly what this setting is for.
+   The shape stays; the movement goes. */
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; background: var(--paper-3); }
+}
+
+/* Visible to assistive tech only — the skeletons are aria-hidden, so one of
+   these carries the whole announcement. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ───────── Loader ─────────
    Six bars tracing a hexagon. Orange, on the accent token.
 

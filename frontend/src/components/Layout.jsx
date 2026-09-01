@@ -29,8 +29,11 @@ export default function Layout() {
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
 
-  function signOut() {
-    logout();
+  // logout is a server call now (only the server can clear an httpOnly cookie),
+  // so wait for it before leaving — otherwise the landing page can race the
+  // still-valid session and bounce straight back in.
+  async function signOut() {
+    await logout();
     navigate('/', { replace: true });
   }
 

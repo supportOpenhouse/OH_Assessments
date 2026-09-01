@@ -12,7 +12,10 @@ import pathlib
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import (
+    BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, Response,
+    UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from mutagen import File as MutagenFile
 
@@ -77,7 +80,7 @@ async def health():
 
 
 @app.post("/api/auth/google")
-async def google_login(body: dict, request: Request):
+async def google_login(body: dict, request: Request, response: Response):
     token = (body or {}).get("id_token")
     if not token:
         raise HTTPException(401, "missing id_token")
@@ -105,17 +108,20 @@ async def google_login(body: dict, request: Request):
         # Staff. No candidates row — they are not applicants.
         role = oh["role"]
         token = auth.mint(info["email"], oh["name"] or info["name"], role)
+        auth.set_session_cookie(response, token)
         logs.record(logs.LOGIN, actor_email=info["email"], actor_role=role,
                     data={"staff": True, "session": auth.verify(token)["jti"]},
                     request=request)
-        return {"token": token,
-                "user": {**info, "name": oh["name"] or info["name"], "role": role}}
+        # The token is NOT in the body. It lives in an httpOnly cookie, where no
+        # script — ours or an injected one — can read it.
+        return {"user": {**info, "name": oh["name"] or info["name"], "role": role}}
 
     # Candidate. The email is saved on EVERY sign-in, before anything else.
     candidate_id, created = db.upsert_candidate(info["email"], info["name"], is_login=True)
     stored = db.candidate_profile(info["email"])
     display = stored["name"] if stored and stored["name"] else info["name"]
     token = auth.mint(info["email"], display, "user")
+    auth.set_session_cookie(response, token)
 
     if created:
         logs.record(logs.CANDIDATE_CREATED, actor_email=info["email"], actor_role="user",
@@ -127,10 +133,18 @@ async def google_login(body: dict, request: Request):
                 data={"new_candidate": created, "session": auth.verify(token)["jti"]},
                 request=request)
 
-    return {"token": token, "user": {**info, "name": display, "role": "user"}}
+    return {"user": {**info, "name": display, "role": "user"}}
 
 
 # ── candidate ─────────────────────────────────────────────────────────────
+
+@app.post("/api/auth/logout")
+async def logout(response: Response):
+    """Clears the session cookie. A client cannot do this itself — the cookie is
+    httpOnly, which is the point."""
+    auth.clear_session_cookie(response)
+    return {"ok": True}
+
 
 @app.get("/api/me")
 async def me(u: dict = Depends(auth.current_user)):

@@ -128,7 +128,12 @@ def transcribe(audio: bytes) -> dict:
     words = [w.model_dump() if hasattr(w, "model_dump") else dict(w) for w in (r.words or [])]
     if not words:
         raise ScoringError("transcription returned no speech: audio may be silent or corrupt")
-    return {"text": r.text, "words": words}
+    # audio_duration_secs is the AUDIO's length; the last word's end time is not.
+    return {
+        "text": r.text,
+        "words": words,
+        "audio_duration_s": getattr(r, "audio_duration_secs", None),
+    }
 
 
 def judge(transcript: str, m: dict) -> dict:
@@ -174,7 +179,7 @@ def score(audio: bytes) -> dict:
             "the pipeline."
         )
     t = transcribe(audio)
-    m = metrics.derive(t["words"])
+    m = metrics.derive(t["words"], t.get("audio_duration_s"))
     scores = judge(t["text"], m)
     return {
         "transcript": t["text"],

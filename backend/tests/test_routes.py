@@ -496,3 +496,58 @@ def test_staff_cannot_submit_an_assessment(client):
                     files={"file": ("x.mp3", b"\x00" * 32, "audio/mpeg")})
     assert r.status_code == 403
     assert "cannot take assessments" in r.json()["detail"]
+
+
+# ── the session is a cookie, not a body token ─────────────────────────────
+
+def test_login_sets_an_httponly_session_cookie(client, monkeypatch):
+    _google(monkeypatch, "someone@gmail.com")
+    monkeypatch.setattr(db, "upsert_candidate", lambda *a, **k: (CAND_ID, False))
+    r = client.post("/api/auth/google", json={"id_token": "x"})
+    assert r.status_code == 200
+    raw = r.headers.get("set-cookie", "")
+    assert auth.COOKIE_NAME in raw
+    assert "HttpOnly" in raw, "a readable session cookie is the thing we moved away from"
+    assert "SameSite=lax" in raw or "samesite=lax" in raw.lower(), "CSRF defence"
+    assert f"Max-Age={auth.TTL_S}" in raw, "must outlive the tab — 7 days"
+
+
+def test_login_does_not_return_the_token_in_the_body(client, monkeypatch):
+    """If the body carried it, the client would store it and we would be back to
+    a token any script can read."""
+    _google(monkeypatch, "someone@gmail.com")
+    monkeypatch.setattr(db, "upsert_candidate", lambda *a, **k: (CAND_ID, False))
+    body = client.post("/api/auth/google", json={"id_token": "x"}).json()
+    assert "token" not in body
+    assert body["user"]["email"] == "someone@gmail.com"
+
+
+def test_the_cookie_alone_authenticates(client):
+    client.cookies.set(auth.COOKIE_NAME, auth.mint(CANDIDATE, "C", "user"))
+    try:
+        r = client.get("/api/me")
+        assert r.status_code == 200
+        assert r.json()["email"] == CANDIDATE
+    finally:
+        client.cookies.clear()
+
+
+def test_logout_clears_the_cookie(client):
+    r = client.post("/api/auth/logout")
+    assert r.status_code == 200
+    raw = r.headers.get("set-cookie", "")
+    assert auth.COOKIE_NAME in raw
+    assert 'Max-Age=0' in raw or 'expires=Thu, 01 Jan 1970' in raw.lower()
+
+
+def test_a_tampered_cookie_is_refused(client):
+    tok = auth.mint(CANDIDATE, "C", "user")
+    client.cookies.set(auth.COOKIE_NAME, tok[:-4] + "AAAA")
+    try:
+        assert client.get("/api/me").status_code == 401
+    finally:
+        client.cookies.clear()
+
+
+def test_no_cookie_and_no_header_is_401(client):
+    assert client.get("/api/me").status_code == 401

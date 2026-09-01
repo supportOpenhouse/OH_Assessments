@@ -3,6 +3,8 @@ CLAUDE.md
 
 # env
 .env
+.dev-secret
+backend/local.py
 .env.local
 .env*.local
 
@@ -22,3 +24,4 @@ dist/
 *.log
 .DS_Store
 .pytest_cache/
+graphify-out

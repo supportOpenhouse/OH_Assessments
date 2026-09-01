@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { mmss, stamp } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
 import Stars from '../components/Stars.jsx';
+import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
 import { IconAlert } from '../components/icons.jsx';
 
 const FILTERS = ['all', 'scored', 'processing', 'failed', 'voided'];
@@ -127,6 +127,8 @@ export default function AdminList() {
             </tr>
           </thead>
           <tbody>
+            {rows === null && <SkeletonRows rows={5} cols={5} stacked={[0]}
+              widths={['60%', '80%', '40%', '55%', '30%']} />}
             {shown.map((r) => (
               <tr
                 key={r.id}
@@ -148,7 +150,7 @@ export default function AdminList() {
         </table>
       </div>
 
-      {rows === null && <div className="loading-block"><Loader /></div>}
+      {rows === null && <LoadingNote>Loading submissions</LoadingNote>}
       {rows !== null && shown.length === 0 && (
         <div className="empty">
           {status === 'all' && stars === 'all' && !q

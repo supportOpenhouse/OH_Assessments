@@ -53,3 +53,19 @@ def test_speech_ratio_flags_dead_air():
     words = [w("a", 0.0, 1.0), w("b", 9.0, 10.0)]
     m = derive(words)
     assert m["speech_ratio"] == 0.2
+
+
+def test_scribes_own_duration_wins_over_the_last_word_end():
+    """The last word ends at 1.0s but the clip runs 30s — 29 seconds of trailing
+    silence that `max(end)` cannot see. Reporting 1.0s here would put
+    speech_ratio at 1.0 on a recording that is mostly silence."""
+    words = [w("hello", 0.0, 0.5), w("there", 0.6, 1.0)]
+    m = derive(words, audio_duration_s=30.0)
+    assert m["duration_s"] == 30.0
+    assert m["speech_ratio"] == round(0.9 / 30.0, 3)
+
+
+def test_duration_falls_back_to_the_last_timestamp():
+    words = [w("hello", 0.0, 0.5), w("there", 0.6, 1.0)]
+    assert derive(words)["duration_s"] == 1.0
+    assert derive(words, audio_duration_s=None)["duration_s"] == 1.0

@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
 import { IconArrow } from '../components/icons.jsx';
+import { Skeleton, SkeletonLines, LoadingNote } from '../components/Skeleton.jsx';
 
 // Ruled rows, not a card grid — one assessment today, and a three-column grid of
 // icon tiles is exactly the shape this design exists to avoid.
@@ -30,7 +30,23 @@ export default function Assessments() {
         <h2>Choose an assessment</h2>
       </div>
 
-      {items === null && <div className="loading-block"><Loader /></div>}
+      {items === null && (
+        <>
+          <LoadingNote>Loading assessments</LoadingNote>
+          <div className="steps">
+            {[0, 1].map((i) => (
+              <div className="step" key={i}>
+                <span className="step-n"><Skeleton w={20} /></span>
+                <div className="step-body">
+                  <Skeleton w="42%" h={20} />
+                  <SkeletonLines n={2} widths={['90%', '55%']} />
+                </div>
+                <div className="step-end"><Skeleton w={90} /></div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="steps">
         {(items || []).map((a, i) => {

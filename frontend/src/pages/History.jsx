@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
 import ScoringProgress from '../components/ScoringProgress.jsx';
+import { Skeleton, SkeletonLines, LoadingNote } from '../components/Skeleton.jsx';
 
 // A candidate's own record. State only — the API sends no score, and this tree
 // has no path to render one.
@@ -27,7 +27,23 @@ export default function History() {
         <h2>Previous assessments</h2>
       </div>
 
-      {items === null && <div className="loading-block"><Loader /></div>}
+      {items === null && (
+        <>
+          <LoadingNote>Loading your record</LoadingNote>
+          <div className="steps">
+            {[0].map((i) => (
+              <div className="step" key={i}>
+                <span className="step-n"><Skeleton w={20} /></span>
+                <div className="step-body">
+                  <Skeleton w="38%" h={20} />
+                  <SkeletonLines n={2} widths={['80%', '60%']} />
+                </div>
+                <div className="step-end"><Skeleton w={90} h={28} /></div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="steps">
         {(items || []).map((s, i) => (

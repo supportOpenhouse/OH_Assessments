@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
+import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
 
 // Everyone who has ever signed in. Attempts and which assessments come from one
 // grouped query, not a round trip per row.
@@ -57,6 +57,8 @@ export default function AdminCandidates() {
             </tr>
           </thead>
           <tbody>
+            {rows === null && <SkeletonRows rows={5} cols={6} stacked={[0]}
+              widths={['65%', '25%', '70%', '25%', '75%', '75%']} />}
             {(rows || []).map((c) => (
               <tr key={c.id} style={{ cursor: 'default' }}>
                 <td className="cand">
@@ -83,7 +85,7 @@ export default function AdminCandidates() {
         </table>
       </div>
 
-      {rows === null && <div className="loading-block"><Loader /></div>}
+      {rows === null && <LoadingNote>Loading candidates</LoadingNote>}
       {rows !== null && rows.length === 0 && (
         <div className="empty">
           {q ? `No applicant matches “${q}”.` : 'No applicants yet.'}

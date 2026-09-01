@@ -32,12 +32,13 @@ result = client.speech_to_text.convert(
 )
 ```
 
-> ⚠️ **Verify `model_id` before wiring this up.** The ElevenLabs docs name the
-> models "Scribe v2" and "Scribe v2 Realtime" but do not print the exact id
-> strings; `scribe_v2` is the expected form and `scribe_v1` is the known-good
-> predecessor. Confirm against the live STT reference or a `GET /v1/models` call
-> on the first day of implementation, and write the answer into `CLAUDE.md`.
-> Whichever it is, store it in the `stt_model` column so old scores stay traceable.
+> ✅ **`model_id` confirmed: `scribe_v2`.** The SDK types the parameter as
+> `Literal['scribe_v2', 'scribe_v1']`, so both are live and v2 is the one used.
+> `test_scribe_v2_is_a_model_id_the_sdk_accepts` asserts this against the
+> installed package rather than a docs page.
+>
+> **The SDK must be `elevenlabs` 2.x.** 1.x exposes `speech_to_speech` but not
+> `speech_to_text`; Scribe only exists from 2.x onward.
 
 The response's `words` array classifies each entry as `word`, `spacing`, or
 `audio_event` — that three-way split is what makes stage ② possible.

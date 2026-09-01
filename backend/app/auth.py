@@ -14,7 +14,7 @@ import time
 import uuid
 
 import jwt
-from fastapi import Header, HTTPException
+from fastapi import Cookie, Header, HTTPException
 from google.auth.transport import requests as g_requests
 from google.oauth2 import id_token as g_id_token
 
@@ -26,6 +26,12 @@ ALG = "HS256"
 # Candidates submit once and are done; a week means they are not signed out
 # mid-flow. Admin privilege does NOT ride on this window — see current_user.
 TTL_S = 7 * 24 * 3600
+
+# The session cookie. httpOnly so no script can read it — that is the whole
+# reason for moving off localStorage, where any XSS could exfiltrate the token.
+COOKIE_NAME = "oha_session"
+# Off only for local http. Anything reachable over the network must keep it on.
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").lower() != "false"
 
 MIN_SECRET_LEN = 32
 
@@ -91,16 +97,44 @@ def verify(token: str) -> dict:
         raise AuthError(str(e))
 
 
-def _claims(authorization: str) -> dict:
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(401, "missing bearer token")
+def set_session_cookie(response, token: str) -> None:
+    """Hand the browser the session as an httpOnly cookie.
+
+    samesite='lax' is the CSRF defence: the browser will not attach this cookie
+    to a cross-site POST, and every mutation here is a POST or PATCH.
+    """
+    response.set_cookie(
+        COOKIE_NAME, token,
+        max_age=TTL_S,          # 7 days — matches the token's own exp
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="lax",
+        path="/",
+    )
+
+
+def clear_session_cookie(response) -> None:
+    response.delete_cookie(COOKIE_NAME, path="/", samesite="lax", secure=COOKIE_SECURE)
+
+
+def _claims(authorization: str, cookie: str | None) -> dict:
+    """Cookie first; the Authorization header stays as a fallback so curl and
+    the test suite can still drive the API without a browser."""
+    token = cookie
+    if not token and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    if not token:
+        raise HTTPException(401, "not signed in")
     try:
-        return verify(authorization[7:])
+        return verify(token)
     except AuthError as e:
         raise HTTPException(401, str(e))
 
 
-async def current_user(authorization: str = Header(default="")) -> dict:
+async def current_user(
+    authorization: str = Header(default=""),
+    oha_session: str | None = Cookie(default=None),
+) -> dict:
     """Identity from the token; **privilege from the database**.
 
     The role claim inside a 7-day token is a snapshot of who someone was when
@@ -113,7 +147,7 @@ async def current_user(authorization: str = Header(default="")) -> dict:
     re-derives the role on every request. One indexed lookup on a tiny table,
     against a revocation that is otherwise a week late.
     """
-    c = _claims(authorization)
+    c = _claims(authorization, oha_session)
     oh = db.get_oh_user(c["email"])
     return {
         "email": c["email"],
@@ -123,8 +157,11 @@ async def current_user(authorization: str = Header(default="")) -> dict:
     }
 
 
-async def require_admin(authorization: str = Header(default="")) -> dict:
-    u = await current_user(authorization)
+async def require_admin(
+    authorization: str = Header(default=""),
+    oha_session: str | None = Cookie(default=None),
+) -> dict:
+    u = await current_user(authorization, oha_session)
     if u["role"] != "admin":
         raise HTTPException(403, "admin only")
     return u

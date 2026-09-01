@@ -82,7 +82,7 @@ reference, on [openhouse.in](https://openhouse.in)'s exact palette. See
 - [ ] Google OAuth client id (authorised origins: `localhost:5175` + the Vercel domain)
 - [ ] `ELEVENLABS_API_KEY`, `ANTHROPIC_API_KEY`
 - [ ] Render **Starter** ($7/mo) — always-on. The free tier suspends background scoring tasks
-- [ ] Confirm the Scribe v2 `model_id` string ([05-scoring.md §1](docs/05-scoring.md))
+- [ ] ~~Confirm the Scribe v2 `model_id`~~ — done: `scribe_v2`, asserted against the SDK
 
 ## Setup
 
@@ -144,17 +144,27 @@ can drift. Two triggers enforce it. See
 cd backend
 python3.12 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-cp .env.example .env                        # fill in every value
 ./run.sh                                    # http://localhost:5060
 ```
 
+`run.sh` copies `.env.example` on first run and tells you which values it still
+needs. Only two block startup — `DATABASE_URL` and `GOOGLE_OAUTH_CLIENT_ID`; the
+API keys are warnings, since they only bite once something is scored.
+
+Leave the bottom section of `.env` blank. `run.sh` fills it in with values that
+are right on localhost and wrong in production:
+
+| | local (`run.sh`) | production (`render.yaml`) |
+|---|---|---|
+| `COOKIE_SECURE` | `false` — a `Secure` cookie is never sent over http, so `true` makes sign-in fail silently | `true` |
+| `ALLOW_PLACEHOLDER_RUBRIC` | `true`, so you can exercise the pipeline | unset — scoring refuses while `rubric.md` is the placeholder, because a score from placeholder criteria looks real and gets acted on |
+| `JWT_SECRET` | generated once into `backend/.dev-secret` (gitignored), so a restart does not sign you out | a real secret |
+
+Render runs `uvicorn` directly and never calls `run.sh`, so none of that reaches
+a deployed service. Setting any of them in `.env` overrides the default.
+
 Vite's dev proxy forwards `/api/*` to `:5060`, which is exactly what Vercel's
 rewrite does in production, so the browser sees one origin either way.
-
-**Scoring refuses to run while `backend/rubric.md` is the placeholder.** That is
-deliberate: a score produced against placeholder criteria looks real and gets
-acted on. Replace it, or set `ALLOW_PLACEHOLDER_RUBRIC=true` to exercise the
-pipeline first.
 
 ### 4. Tests
 

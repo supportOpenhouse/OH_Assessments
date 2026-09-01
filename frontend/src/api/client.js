@@ -8,16 +8,16 @@ import { toast } from '../utils/toast.js';
 
 const BASE = import.meta.env.VITE_API_BASE || '';
 
-let token = null;
+// The session is an httpOnly cookie set by the server. There is deliberately no
+// token in JS: nothing here can read it, so nothing injected here can steal it.
+// `credentials: same-origin` is what attaches it — Vercel rewrites /api/* to the
+// backend and Vite's dev proxy does the same, so the browser sees one origin.
+const CREDS = 'same-origin';
+
 let expiredFired = false; // guards the notice: parallel 401s must not stack toasts
 
-export function setAuthToken(t) {
-  token = t;
-  if (t) expiredFired = false; // fresh session — re-arm the expiry notice
-}
-
-export function getAuthToken() {
-  return token;
+export function resetExpiryNotice() {
+  expiredFired = false;
 }
 
 // A 401 while we still hold a token means the server killed the session. Say so
@@ -29,8 +29,10 @@ function sessionExpired() {
   window.dispatchEvent(new CustomEvent('auth:expired'));
 }
 
-async function unwrap(res) {
-  if (res.status === 401 && token) sessionExpired();
+async function unwrap(res, { quiet = false } = {}) {
+  // `quiet` is for the boot probe: a 401 there just means "not signed in", which
+  // is not an expiry worth announcing.
+  if (res.status === 401 && !quiet) sessionExpired();
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const e = new Error(data.detail || data.error || res.statusText);
@@ -41,15 +43,13 @@ async function unwrap(res) {
   return data;
 }
 
-async function request(method, path, body) {
+async function request(method, path, body, opts) {
   let res;
   try {
     res = await fetch(BASE + path, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      credentials: CREDS,
+      headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
@@ -58,7 +58,7 @@ async function request(method, path, body) {
     e.status = 0;
     throw e;
   }
-  return unwrap(res);
+  return unwrap(res, opts);
 }
 
 // multipart — deliberately NO Content-Type header. Setting it by hand breaks the
@@ -71,7 +71,7 @@ async function upload(path, file) {
   try {
     res = await fetch(BASE + path, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: CREDS,
       body: fd,
     });
   } catch {
@@ -83,7 +83,7 @@ async function upload(path, file) {
 }
 
 export const api = {
-  get: (p) => request('GET', p),
+  get: (p, opts) => request('GET', p, undefined, opts),
   post: (p, b) => request('POST', p, b),
   patch: (p, b) => request('PATCH', p, b),
   upload,

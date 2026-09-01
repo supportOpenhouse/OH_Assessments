@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
-import Loader from '../components/Loader.jsx';
+import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
 
 // The audit trail. Every mutation, newest first.
 //
@@ -157,6 +157,8 @@ export default function AdminLogs() {
             </tr>
           </thead>
           <tbody>
+            {rows === null && <SkeletonRows rows={6} cols={4} stacked={[1, 3]}
+              widths={['80%', '70%', '65%', '90%']} />}
             {(rows || []).map((r) => (
               <tr
                 key={r.id}
@@ -184,7 +186,7 @@ export default function AdminLogs() {
         </table>
       </div>
 
-      {rows === null && <div className="loading-block"><Loader /></div>}
+      {rows === null && <LoadingNote>Loading activity</LoadingNote>}
       {rows !== null && rows.length === 0 && (
         <div className="empty">{dirty ? 'No activity matches those filters.' : 'No activity yet.'}</div>
       )}

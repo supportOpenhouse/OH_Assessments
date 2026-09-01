@@ -19,10 +19,15 @@ EMPTY = {
 }
 
 
-def derive(words: list[dict]) -> dict:
+def derive(words: list[dict], audio_duration_s: float | None = None) -> dict:
     """Turn Scribe's word list into the delivery numbers Claude scores tone from.
 
     `words` entries carry a `type` of "word", "spacing", or "audio_event".
+
+    `audio_duration_s` is Scribe's own `audio_duration_secs`. Prefer it: the last
+    word's end time is not the end of the AUDIO, so trailing silence disappears
+    and speech_ratio comes out flattering. Falls back to the last timestamp when
+    the caller has nothing better.
     """
     spoken = [x for x in words if x.get("type") == "word"]
     events = [x for x in words if x.get("type") == "audio_event"]
@@ -30,7 +35,9 @@ def derive(words: list[dict]) -> dict:
     if not spoken:
         return dict(EMPTY)
 
-    duration_s = round(max(x["end"] for x in words), 2)
+    duration_s = round(
+        audio_duration_s if audio_duration_s else max(x["end"] for x in words), 2
+    )
     speech_s = round(sum(x["end"] - x["start"] for x in spoken), 2)
 
     # Gaps between consecutive spoken words. An audio event sitting inside a gap
