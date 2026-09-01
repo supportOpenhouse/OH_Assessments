@@ -4,7 +4,6 @@ CLAUDE.md
 # env
 .env
 .dev-secret
-backend/local.py
 .env.local
 .env*.local
 
