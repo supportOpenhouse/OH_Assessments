@@ -160,7 +160,12 @@ def transcribe(audio: bytes) -> dict:
 
 
 def judge(transcript: str, m: dict) -> dict:
-    client = anthropic.Anthropic()
+    # The SDK default is 2 retries, which a 529 (Anthropic overloaded) can still
+    # outlast — and here that costs a candidate their single attempt, since the
+    # run dies and an admin has to notice and re-score by hand. This is a
+    # background job with nobody waiting on it, so trade latency for delivery:
+    # 8 attempts with the SDK's own exponential backoff and jitter.
+    client = anthropic.Anthropic(max_retries=8)
     msg = client.messages.parse(
         model=MODEL,
         max_tokens=16000,
