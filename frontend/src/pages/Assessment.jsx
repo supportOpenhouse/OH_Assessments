@@ -16,6 +16,7 @@ import { IconAlert } from '../components/icons.jsx';
 export default function Assessment() {
   const [sections, setSections] = useState(null);
   const [picked, setPicked] = useState(null);
+  const [notes, setNotes] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [meta, setMeta] = useState(null);
@@ -41,7 +42,7 @@ export default function Assessment() {
   async function submit() {
     setBusy(true);
     try {
-      await api.upload('/api/submissions', picked.file);
+      await api.upload('/api/submissions', picked.file, notes);
       await refresh();
       navigate('/history', { replace: true });
     } catch (e) {
@@ -113,6 +114,17 @@ export default function Assessment() {
             <div style={{ marginTop: 'var(--space-md)' }}>
               <AudioPlayer src={picked.url} label="your recording" />
             </div>
+            <label className="notes-field">
+              <span className="notes-label">Your notes from the call</span>
+              <textarea
+                className="field notes-input"
+                value={notes}
+                maxLength={4000}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={'Address\nSeller\'s name\nPhone number\nAsking price\n\nWhat you took away from the call'}
+              />
+            </label>
+
             <div className="picked-actions">
               <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)}>
                 Submit this recording

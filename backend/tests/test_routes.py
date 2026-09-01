@@ -628,3 +628,74 @@ def test_a_refused_rescore_is_not_audited_as_one(client, monkeypatch):
     monkeypatch.setattr(db, "get_submission", lambda i: _row("voided"))
     client.post(f"/api/submissions/{SUB_ID}/rescore", headers=ADM())
     assert [r for r in AUDIT if r["action"] == logs.SUBMISSION_RESCORED] == []
+
+
+# ── call notes ────────────────────────────────────────────────────────────
+# The candidate logs the seller's details and what they took away, and submits
+# that with the audio. It is stored and shown to admins; it never reaches the
+# scoring model.
+
+def _wav() -> bytes:
+    """A real 0.1s silent WAV. The upload route runs mutagen over the bytes, so
+    a fake payload is rejected at validation and never reaches the DB layer —
+    which is the layer these tests are about."""
+    import io
+    import wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(8000)
+        w.writeframes(b"\x00\x00" * 800)
+    return buf.getvalue()
+
+
+def _upload(client, monkeypatch, notes=None):
+    monkeypatch.setattr(storage, "put", lambda *a, **k: None)
+    monkeypatch.setattr(storage, "delete", lambda *a, **k: None)
+    data = {"notes": notes} if notes is not None else None
+    return client.post("/api/submissions", headers=CAND(),
+                       files={"file": ("call.wav", _wav(), "audio/wav")},
+                       data=data)
+
+
+def test_notes_are_stored_with_the_submission(client, monkeypatch):
+    seen = {}
+
+    def fake_create(sub_id, cand, key, ctype, size, notes=None):
+        seen["notes"] = notes
+        return sub_id
+
+    monkeypatch.setattr(db, "create_submission", fake_create)
+    r = _upload(client, monkeypatch, notes="Sector 45 Gurugram · Mr Rao · 1.2cr")
+    assert r.status_code == 202, r.text
+    assert seen["notes"] == "Sector 45 Gurugram · Mr Rao · 1.2cr"
+
+
+def test_no_notes_stores_null_rather_than_an_empty_string(client, monkeypatch):
+    seen = {}
+
+    def fake_create(sub_id, cand, key, ctype, size, notes=None):
+        seen["notes"] = notes
+        return sub_id
+
+    monkeypatch.setattr(db, "create_submission", fake_create)
+    assert _upload(client, monkeypatch).status_code == 202
+    assert seen["notes"] is None
+
+
+def test_overlong_notes_are_rejected(client, monkeypatch):
+    r = _upload(client, monkeypatch, notes="x" * 4001)
+    assert r.status_code == 422
+    assert "notes" in r.json()["detail"]
+
+
+def test_notes_never_reach_the_scoring_prompt(client, monkeypatch):
+    """The rubric scores the CALL. Feeding the candidate's own write-up to the
+    judge would score the claim instead of the conversation, and hands an
+    applicant a direct line into the model's input."""
+    import inspect
+
+    from app import scoring
+    src = inspect.getsource(scoring)
+    assert "notes" not in src, "scoring.py must not read the candidate's notes"

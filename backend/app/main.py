@@ -13,7 +13,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import (
-    BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, Response,
+    BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, Response,
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +31,17 @@ STAFF_DOMAIN = "@openhouse.in"
 
 MAX_BYTES = 25 * 1024 * 1024
 MAX_SECONDS = 600
+
+# The candidate's notes from the call. Generous enough for the seller's details
+# and a few paragraphs, bounded because it is free text from an applicant that
+# lands in a database column and an admin page.
+#
+# These notes are NOT part of the scoring prompt. They are the candidate's own
+# account of the call, and the rubric scores the call: letting someone write
+# "I asked about their timeline" into the judge's context would score the claim
+# instead of the conversation, and hands an applicant a direct line into the
+# model's input. The audio is the evidence; the notes are for a human to read.
+MAX_NOTES = 4000
 
 # Content type -> extension. The browser reports these; anything else is refused
 # before a single byte is written anywhere.
@@ -259,6 +270,7 @@ async def create_submission(
     background: BackgroundTasks,
     request: Request,
     file: UploadFile = File(...),
+    notes: str = Form(""),
     u: dict = Depends(auth.current_user),
 ):
     """Validate, store, claim the slot, schedule, return. Two to four seconds."""
@@ -276,6 +288,13 @@ async def create_submission(
     if u["role"] != "user":
         raise reject(403, "staff_account",
                      "Openhouse team accounts cannot take assessments")
+
+    # Candidate-written free text. Capped because it is stored and rendered in
+    # the admin record; NOT sent to the scoring model — see the note on
+    # MAX_NOTES. Empty is allowed: the recording is the assessment.
+    notes = (notes or "").strip()
+    if len(notes) > MAX_NOTES:
+        raise reject(422, "notes_too_long", f"notes must be under {MAX_NOTES} characters")
 
     ext = ALLOWED.get((file.content_type or "").lower())
     if not ext:
@@ -298,7 +317,8 @@ async def create_submission(
     storage.put(key, data, file.content_type)
 
     try:
-        db.create_submission(sub_id, candidate_id, key, file.content_type, len(data))
+        db.create_submission(sub_id, candidate_id, key, file.content_type, len(data),
+                             notes or None)
     except db.AlreadySubmitted:
         storage.delete(key)  # a rejected double-submit leaves nothing behind
         raise reject(409, "already_submitted", "you have already submitted")

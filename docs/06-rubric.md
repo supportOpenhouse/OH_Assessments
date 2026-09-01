@@ -30,9 +30,17 @@ and that hash is stored on every `submissions` row. So:
 - Editing the rubric requires **no code change and no redeploy of logic** — just
   a new deploy of the file.
 
-Rewrite the rubric freely. Do not rename the five axes (`pitch`, `tone`,
-`company`, `sales`, `overall`) without also editing `SCORE_SCHEMA` in
-[05-scoring.md §5](05-scoring.md).
+Rewrite the rubric freely. Do not rename the six axes (`pitch`, `tone`,
+`company`, `sales`, `discovery`, `overall`) without also editing `AXES` in
+`backend/app/scoring.py` and the `AXES` list in
+`frontend/src/pages/AdminDetail.jsx` — the schema, the stub-reasoning check and
+the admin display all read that one tuple.
+
+**The recordings are two-party sales calls**, a candidate and a real customer,
+and only the candidate is scored. The model identifies which speaker is the
+salesperson and returns it as `salesperson`; the delivery metrics carry a
+`by_speaker` block so Tone is measured on the rep alone, and a `conversation`
+block (talk ratio, interruptions, questions) that the `discovery` axis reads.
 
 ---
 

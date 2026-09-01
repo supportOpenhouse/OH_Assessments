@@ -16,7 +16,87 @@ EMPTY = {
     "duration_s": 0.0, "speech_s": 0.0, "speech_ratio": 0.0, "word_count": 0,
     "wpm": 0.0, "pause_count_2s": 0, "longest_pause_s": 0.0, "mean_pause_s": 0.0,
     "filler_count": 0, "fillers_per_min": 0.0, "audio_events": {}, "speaker_count": 0,
+    "by_speaker": {}, "conversation": {},
 }
+
+UNKNOWN_SPEAKER = "speaker_unknown"
+
+
+def _fillers(spoken: list[dict]) -> int:
+    return sum(1 for x in spoken if x["text"].strip().lower().strip(".,!?") in FILLERS)
+
+
+def _per_min(n: int, seconds: float) -> float:
+    return round(n / (seconds / 60), 1) if seconds else 0.0
+
+
+def turns(spoken: list[dict]) -> list[dict]:
+    """Consecutive words by one speaker, collapsed into a turn.
+
+    Everything conversational is measured over turns rather than raw words. A
+    gap between two of a speaker's words is only a hesitation if it falls INSIDE
+    their own turn — the gap while the other person talks is not dead air, and
+    counting it as one is how a good listener gets scored as halting.
+    """
+    out: list[dict] = []
+    for w in spoken:
+        sp = w.get("speaker_id") or UNKNOWN_SPEAKER
+        if out and out[-1]["speaker"] == sp:
+            out[-1]["words"].append(w)
+        else:
+            out.append({"speaker": sp, "words": [w]})
+    for t in out:
+        t["start"] = t["words"][0]["start"]
+        t["end"] = t["words"][-1]["end"]
+        t["text"] = " ".join(w["text"].strip() for w in t["words"]).strip()
+    return out
+
+
+def _speaker_stats(own: list[dict]) -> dict:
+    """Delivery numbers for ONE speaker, measured only within their own turns."""
+    spoken = [w for t in own for w in t["words"]]
+    speech_s = round(sum(w["end"] - w["start"] for w in spoken), 2)
+    gaps = [
+        round(b["start"] - a["end"], 2)
+        for t in own
+        for a, b in zip(t["words"], t["words"][1:])
+        if b["start"] > a["end"]
+    ]
+    fillers = _fillers(spoken)
+    return {
+        "word_count": len(spoken),
+        "speech_s": speech_s,
+        "wpm": round(len(spoken) / (speech_s / 60), 1) if speech_s else 0.0,
+        "filler_count": fillers,
+        "fillers_per_min": _per_min(fillers, speech_s),
+        "pause_count_2s": sum(1 for g in gaps if g >= PAUSE_THRESHOLD_S),
+        "longest_pause_s": max(gaps) if gaps else 0.0,
+        "turn_count": len(own),
+        # A turn ending in "?" is the cheap, reliable proxy for a question asked.
+        # Discovery is the axis that lives or dies on this number.
+        "question_count": sum(1 for t in own if t["text"].rstrip().endswith("?")),
+        "longest_turn_s": round(max(t["end"] - t["start"] for t in own), 2) if own else 0.0,
+    }
+
+
+def _conversation(all_turns: list[dict], speech_by: dict[str, float]) -> dict:
+    """Numbers that only exist because there are two people on the recording."""
+    total = sum(speech_by.values())
+    # A turn starting before the previous speaker's last word ended is one
+    # person talking over another. Diarised word timings genuinely overlap when
+    # that happens, which is the only reason this is measurable at all.
+    interruptions: dict[str, int] = {}
+    for prev, cur in zip(all_turns, all_turns[1:]):
+        if cur["start"] < prev["end"]:
+            interruptions[cur["speaker"]] = interruptions.get(cur["speaker"], 0) + 1
+    return {
+        "turn_count": len(all_turns),
+        "talk_ratio": {sp: round(s / total, 3) if total else 0.0
+                       for sp, s in speech_by.items()},
+        "interruptions": interruptions,
+        "longest_monologue_s": round(max((t["end"] - t["start"] for t in all_turns),
+                                         default=0.0), 2),
+    }
 
 
 def derive(words: list[dict], audio_duration_s: float | None = None) -> dict:
@@ -66,6 +146,13 @@ def derive(words: list[dict], audio_duration_s: float | None = None) -> dict:
 
     speakers = {x.get("speaker_id") for x in spoken if x.get("speaker_id")}
 
+    all_turns = turns(spoken)
+    by_speaker = {
+        sp: _speaker_stats([t for t in all_turns if t["speaker"] == sp])
+        for sp in dict.fromkeys(t["speaker"] for t in all_turns)   # first-heard order
+    }
+    speech_by = {sp: s["speech_s"] for sp, s in by_speaker.items()}
+
     return {
         "duration_s": duration_s,
         "speech_s": speech_s,
@@ -79,4 +166,10 @@ def derive(words: list[dict], audio_duration_s: float | None = None) -> dict:
         "fillers_per_min": round(fillers / (speech_s / 60), 1) if speech_s else 0.0,
         "audio_events": counts,
         "speaker_count": len(speakers),
+        # Everything above is the WHOLE recording, both voices blended. On a
+        # two-party call that is the wrong number to score a rep on — their wpm
+        # and filler rate are diluted by the customer's. Tone reads by_speaker;
+        # the blended figures stay because the admin metrics strip renders them.
+        "by_speaker": by_speaker,
+        "conversation": _conversation(all_turns, speech_by),
     }

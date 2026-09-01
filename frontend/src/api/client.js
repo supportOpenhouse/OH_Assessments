@@ -89,9 +89,10 @@ async function request(method, path, body, opts) {
 
 // multipart — deliberately NO Content-Type header. Setting it by hand breaks the
 // multipart boundary; the browser must generate its own.
-async function upload(path, file) {
+async function upload(path, file, notes = '') {
   const fd = new FormData();
   fd.append('file', file);
+  fd.append('notes', notes);
 
   let res;
   try {

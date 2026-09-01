@@ -149,7 +149,8 @@ def live_submission(email: str, assessment_type: str = ASSESSMENT_TYPE) -> dict 
     )
 
 
-def create_submission(sub_id, candidate_id, audio_key, audio_type, audio_bytes) -> str:
+def create_submission(sub_id, candidate_id, audio_key, audio_type, audio_bytes,
+                      notes: str | None = None) -> str:
     """Insert the parent then the child, in ONE transaction.
 
     Order is forced by the foreign key and by the child's parent-guard trigger.
@@ -167,8 +168,9 @@ def create_submission(sub_id, candidate_id, audio_key, audio_type, audio_bytes) 
             )
             conn.execute(
                 "insert into sales_insight_submissions "
-                "(id, audio_key, audio_type, audio_bytes) values (%s, %s, %s, %s)",
-                (sub_id, audio_key, audio_type, audio_bytes),
+                "(id, audio_key, audio_type, audio_bytes, notes) "
+                "values (%s, %s, %s, %s, %s)",
+                (sub_id, audio_key, audio_type, audio_bytes, notes),
             )
     except psycopg.errors.UniqueViolation:
         raise AlreadySubmitted()
@@ -245,7 +247,7 @@ def get_submission(sub_id) -> dict | None:
         "select s.id, s.assessment_type, s.status, s.overall_stars, s.error, "
         "       s.created_at, s.scored_at, s.voided_at, "
         "       d.audio_key, d.audio_type, d.audio_bytes, d.duration_s, "
-        "       d.transcript, d.metrics, d.scores, d.rubric_version, "
+        "       d.notes, d.transcript, d.metrics, d.scores, d.rubric_version, "
         "       d.model, d.stt_model, "
         "       c.email, c.name "
         "from submissions s "

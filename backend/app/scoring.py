@@ -60,17 +60,44 @@ METRICS_GLOSSARY = """\
 # How to read the delivery metrics
 
 These are measured from the recording's word-level timings, not inferred from
-the transcript. Use them for the Tone axis.
+the transcript.
+
+The top-level block is the WHOLE recording, both voices blended. Do not score
+delivery from it on a two-party call — it is the average of two people. Read
+`by_speaker[<the salesperson>]` for Tone, and `conversation` for Discovery.
+
+## by_speaker — one block per voice, keyed by the speaker id in the transcript
 
 wpm              < 110 slow/hesitant · 110-135 measured · 135-165 brisk, engaging
                  · 165-190 fast · > 190 rushed, hard to follow
 fillers_per_min  < 2 clean · 2-4 normal · 4-7 noticeable · > 7 distracting
+longest_pause_s  measured INSIDE that speaker's own turns, so it is hesitation,
+                 not the gap while the other person is talking. > 6s is usually
+                 a lost thread or a restart
+pause_count_2s   deliberate pauses land emphasis; clustered ones read as searching
+question_count   turns ending in "?". The single strongest signal for Discovery.
+                 A rep asking none is talking AT the customer
+turn_count       how often they took the floor
+longest_turn_s   their longest single unbroken stretch
+
+## conversation — only meaningful because two people are on the call
+
+talk_ratio          share of speech time per speaker. On a good discovery call
+                    the REP is usually the smaller share (~.40-.55). A rep above
+                    ~.75 is monologuing; below ~.25 has lost control of the call
+interruptions       turns that began before the other person finished. A couple
+                    is normal conversational overlap; a pattern is talking over
+                    the customer, and it matters most when the rep does it
+longest_monologue_s the longest unbroken stretch by anyone
+turn_count          total floor changes. A very low count on a long call means
+                    two monologues rather than a conversation
+
+## whole-recording
+
 speech_ratio     > .90 dense · .80-.90 natural · .70-.80 halting
                  · < .70 heavy dead air
-longest_pause_s  > 6s usually a lost thread or a restart
-pause_count_2s   deliberate pauses land emphasis; clustered ones read as searching
-speaker_count    > 1 means another voice is on the recording. Note it in flags;
-                 do not lower a score for it on its own
+speaker_count    2 is expected. 1 means diarisation found only one voice — flag
+                 it, since a one-sided recording cannot show the interaction
 audio_events     non-speech sounds Scribe tagged (laughter, music, applause)
 """
 
@@ -81,7 +108,7 @@ audio_events     non-speech sounds Scribe tagged (laughter, music, applause)
 # (`minLength`) are out for the same reason, so the "no one-line reasoning"
 # rule moved to _reject_stub_reasoning() below. Keep this schema to:
 # object / string / integer+enum / array / required / additionalProperties.
-AXES = ("pitch", "tone", "company", "sales", "overall")
+AXES = ("pitch", "tone", "company", "sales", "discovery", "overall")
 
 _AXIS = {
     "type": "object",
@@ -99,9 +126,19 @@ _AXIS = {
 SCORE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": [*AXES, "flags", "summary"],
+    "required": [*AXES, "salesperson", "flags", "summary"],
     "properties": {
         **{a: _AXIS for a in AXES},
+        # Which voice was judged. Nothing tells us which speaker id is the rep —
+        # the customer speaks first on plenty of calls, and the rep is not
+        # reliably the one who talks most (a rep who lets the customer talk is
+        # what the rubric REWARDS). So the model decides from context and has to
+        # say so, and an admin can check that against the transcript. A score
+        # against the wrong speaker is worse than no score, and silently so.
+        "salesperson": {"type": "object", "additionalProperties": False,
+                        "required": ["speaker", "reasoning"],
+                        "properties": {"speaker": {"type": "string"},
+                                       "reasoning": {"type": "string"}}},
         "flags": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
     },
@@ -151,12 +188,32 @@ def build_submission_block(transcript: str, m: dict) -> str:
     lives in the cached system prefix, and duplicating it would double input
     cost for nothing."""
     return (
-        "Assess this candidate's recorded sales pitch against the rubric.\n\n"
+        "Assess the SALESPERSON on this recorded call against the rubric.\n\n"
+        "Two people are on the recording: the candidate (a salesperson) and a "
+        "customer. The transcript is diarised but the speaker ids are arbitrary "
+        "— work out which one is the salesperson from the content of the call, "
+        "report it in `salesperson`, and score only that person. The customer is "
+        "not being assessed.\n\n"
         "## Delivery metrics\n\n```json\n"
         + json.dumps(m, indent=2)
         + "\n```\n\n## Transcript\n\n"
         + transcript
     )
+
+
+def diarized_transcript(words: list[dict], fallback: str) -> str:
+    """One line per turn, labelled with the speaker.
+
+    Scribe's plain `.text` is a single undivided wall with no idea who said
+    what, which on a two-party call makes it impossible to score one of them.
+    Falls back to that plain text when diarisation found only one voice — a
+    transcript labelled `[speaker_unknown]` throughout is worse than none.
+    """
+    spoken = [w for w in words if w.get("type") == "word"]
+    turns = metrics.turns(spoken)
+    if len({t["speaker"] for t in turns}) < 2:
+        return fallback
+    return "\n".join(f"[{t['speaker']}] {t['text']}" for t in turns)
 
 
 def transcribe(audio: bytes) -> dict:
@@ -238,9 +295,12 @@ def score(audio: bytes) -> dict:
         )
     t = transcribe(audio)
     m = metrics.derive(t["words"], t.get("audio_duration_s"))
-    scores = judge(t["text"], m)
+    # The diarised transcript is what gets judged AND what gets stored, so an
+    # admin reads exactly what the model read.
+    transcript = diarized_transcript(t["words"], t["text"])
+    scores = judge(transcript, m)
     return {
-        "transcript": t["text"],
+        "transcript": transcript,
         "metrics": m,
         "scores": scores,
         "duration_s": m["duration_s"],

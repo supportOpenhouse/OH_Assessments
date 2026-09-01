@@ -189,6 +189,11 @@ create table if not exists sales_insight_submissions (
   audio_bytes    bigint,
   duration_s     numeric(8,2),           -- from Scribe, authoritative
 
+  -- The candidate's own notes from the call: who they rang, the asking price,
+  -- what they took away. Written by the candidate, so it is untrusted text —
+  -- it is displayed to admins and is deliberately NOT fed to the scoring model.
+  notes          text,
+
   transcript     text,
   metrics        jsonb,
   scores         jsonb,                  -- per-axis; shape belongs to the rubric

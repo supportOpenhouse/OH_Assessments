@@ -16,6 +16,7 @@ const AXES = [
   ['tone', 'Tone'],
   ['company', 'Company representation'],
   ['sales', 'Sales skills'],
+  ['discovery', 'Discovery & listening'],
 ];
 
 export default function AdminDetail() {
@@ -191,7 +192,21 @@ export default function AdminDetail() {
 
       {s && (
         <>
-          {AXES.map(([k, label], i) => (
+          {/* Two people are on the call and only one is being assessed. Which
+              one the model judged is the first thing an admin has to be able to
+              check — a score against the customer would otherwise read as a
+              perfectly ordinary bad score. */}
+          {s.salesperson && (
+            <p className="muted" style={{ marginTop: 'var(--space-lg)' }}>
+              Scored <strong>{s.salesperson.speaker}</strong> as the salesperson
+              — {s.salesperson.reasoning}
+            </p>
+          )}
+
+          {/* Axes are filtered on presence: rows scored before an axis existed
+              have no key for it, and reading .stars off undefined blanks the
+              whole page. */}
+          {AXES.filter(([k]) => s[k]).map(([k, label], i) => (
             <AxisBlock
               key={k}
               n={i + 1}
@@ -201,13 +216,24 @@ export default function AdminDetail() {
             />
           ))}
           <AxisBlock
-            n={5}
+            n={AXES.filter(([k]) => s[k]).length + 1}
             label="Overall"
             stars={s.overall.stars}
             reasoning={s.overall.reasoning}
             overall
           />
         </>
+      )}
+
+      {/* The candidate's own account of the call — who they rang, the asking
+          price, what they took away. Above the transcript because it is the
+          context you want before reading what was actually said. It is NOT part
+          of scoring: the rubric judges the call, not the write-up. */}
+      {row.notes && (
+        <section style={{ marginTop: 'var(--space-xl)' }}>
+          <h3 className="axis-label">Candidate's notes</h3>
+          <div className="transcript">{row.notes}</div>
+        </section>
       )}
 
       {row.transcript && (

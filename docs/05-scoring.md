@@ -61,14 +61,26 @@ Produces the `metrics` jsonb documented in
 [03-data-model.md §3](03-data-model.md): `wpm`, `speech_ratio`, `pause_count_2s`,
 `longest_pause_s`, `fillers_per_min`, `audio_events`, `speaker_count`.
 
+Plus, since the recordings became two-party calls, a **`by_speaker`** block (the
+same delivery figures per voice, with pauses measured inside that speaker's own
+turns) and a **`conversation`** block (`talk_ratio`, `interruptions`,
+`turn_count`, `longest_monologue_s`).
+
 Two rules that are easy to get wrong:
 
 - **`wpm` is computed over speech time, not wall time.** A candidate who talks
   fast but pauses a lot is a different problem from one who talks slowly, and
   dividing by wall time collapses the two into the same number.
-- **`speaker_count > 1` is a flag, not a failure.** It usually means background
-  audio or a second voice on the recording. It goes to Claude as context and into
-  `scores.flags`; it does not by itself change a star.
+- **Two speakers are now EXPECTED, and one is the anomaly.** These are real
+  sales calls: a candidate and a customer. `speaker_count == 1` means diarisation
+  found a single voice, and a one-sided recording cannot show the interaction —
+  that is what goes in `scores.flags`.
+- **The top-level figures blend both voices, so they are the wrong ones to score
+  a rep on.** Tone reads `by_speaker[<the salesperson>]`. The blended block stays
+  because the admin metrics strip renders it.
+- **A pause while the other person is talking is not hesitation.** Per-speaker
+  pauses are measured within that speaker's own turns; measuring across all words
+  scores a good listener as halting.
 
 ## 3. Stage ③ — Claude
 
@@ -142,40 +154,48 @@ speaker_count    > 1 means another voice is on the recording — note it, don't 
 
 ## 5. Output schema
 
-`strict: true`, `additionalProperties: false`, every field required. Star fields
-are `{"type":"integer","minimum":0,"maximum":5}` — the range is enforced by the
-schema, not by a prompt instruction and a prayer.
+> **Superseded by `backend/app/scoring.py::SCORE_SCHEMA`, which is the live
+> one.** The block below was written against ordinary JSON Schema and every
+> highlighted feature in it is REJECTED by `output_config.format` — `minimum` /
+> `maximum` on an integer return a 400, `minLength` goes the same way, and
+> `$defs`/`$ref` were dropped rather than risk another round-trip. The failure
+> arrives at scoring time, after the candidate's upload has already succeeded.
+> Bound a number with `enum`; enforce lengths in Python.
+
+The live shape, as of the two-party call rework:
 
 ```jsonc
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["pitch","tone","company","sales","overall","flags","summary"],
+  "required": ["pitch","tone","company","sales","discovery","overall",
+               "salesperson","flags","summary"],
   "properties": {
-    "pitch":   { "$ref": "#/$defs/axis" },
-    "tone":    { "$ref": "#/$defs/axis" },
-    "company": { "$ref": "#/$defs/axis" },
-    "sales":   { "$ref": "#/$defs/axis" },
-    "overall": { "$ref": "#/$defs/axis" },
-    "flags":   { "type": "array", "items": { "type": "string" } },
-    "summary": { "type": "string" }
-  },
-  "$defs": {
-    "axis": {
+    // each of the six axes, inlined — no $ref
+    "pitch": {
       "type": "object", "additionalProperties": false,
       "required": ["stars","reasoning"],
       "properties": {
-        "stars":     { "type": "integer", "minimum": 0, "maximum": 5 },
-        "reasoning": { "type": "string", "minLength": 40 }
+        "stars":     { "type": "integer", "enum": [0,1,2,3,4,5] },
+        "reasoning": { "type": "string" }
       }
-    }
+    },
+    // which voice was judged — two people are on the call, one is assessed
+    "salesperson": {
+      "type": "object", "additionalProperties": false,
+      "required": ["speaker","reasoning"],
+      "properties": { "speaker": {"type":"string"}, "reasoning": {"type":"string"} }
+    },
+    "flags":   { "type": "array", "items": { "type": "string" } },
+    "summary": { "type": "string" }
   }
 }
 ```
 
-`reasoning` has a `minLength` on purpose. Without it a model under a strict schema
-will happily emit `"Good pitch."` and the whole point of the tool — a defensible
-verdict — evaporates.
+The no-stub-reasoning rule that `minLength` used to carry now lives in
+`_reject_stub_reasoning()`. Without it a model under a strict schema will happily
+emit `"Good pitch."` and the whole point of the tool — a defensible verdict —
+evaporates.
 
 ## 6. Cost per candidate
 

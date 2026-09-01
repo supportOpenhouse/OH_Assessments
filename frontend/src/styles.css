@@ -1106,6 +1106,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 .picked-meta { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-mute); }
 .picked-actions { display: flex; gap: var(--space-sm); margin-top: var(--space-lg); flex-wrap: wrap; }
 
+/* The notes sit inside the picked-file card, not above the dropzone: they are
+   about the call you just chose, and asking for them before a file exists reads
+   as a form to fill in rather than a step in submitting. */
+.notes-field { display: block; margin-top: var(--space-lg); }
+.notes-label {
+  display: block; margin-bottom: var(--space-xs);
+  font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-mute);
+}
+.notes-input {
+  display: block; width: 100%; min-height: 132px; resize: vertical;
+  padding: var(--space-sm); line-height: 1.5;
+}
+
 /* ───────── Scoring progress ─────────
    The rule fills to an honest ceiling and stops. Neither Scribe nor Claude
    reports progress, so there is no percentage to show.                         */

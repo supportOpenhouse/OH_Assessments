@@ -159,3 +159,41 @@ def test_the_response_carries_an_authoritative_duration():
     from elevenlabs.types.speech_to_text_chunk_response_model import (
         SpeechToTextChunkResponseModel as R)
     assert "audio_duration_secs" in R.model_fields
+
+
+# ── two speakers: the rep and the customer ────────────────────────────────
+
+def test_the_transcript_handed_to_the_model_is_labelled_by_speaker():
+    """Scribe's plain .text is one undivided wall. Scoring one person out of a
+    two-party call is impossible without knowing who said what."""
+    words = [
+        {"type": "word", "text": "Hello?", "start": 0.0, "end": 1.0, "speaker_id": "speaker_1"},
+        {"type": "word", "text": "Hi,", "start": 1.0, "end": 1.5, "speaker_id": "speaker_0"},
+        {"type": "word", "text": "Anil", "start": 1.5, "end": 2.0, "speaker_id": "speaker_0"},
+    ]
+    out = scoring.diarized_transcript(words, "Hello? Hi, Anil")
+    assert out == "[speaker_1] Hello?\n[speaker_0] Hi, Anil"
+
+
+def test_a_single_voice_falls_back_to_the_plain_transcript():
+    """A transcript labelled [speaker_unknown] throughout is worse than none."""
+    words = [{"type": "word", "text": "Hi", "start": 0.0, "end": 1.0, "speaker_id": "speaker_0"}]
+    assert scoring.diarized_transcript(words, "Hi") == "Hi"
+
+
+def test_the_model_must_say_which_speaker_it_judged():
+    """Two people are on the call and only one is assessed. A score against the
+    customer is indistinguishable from a bad score unless this is recorded."""
+    sp = scoring.SCORE_SCHEMA["properties"]["salesperson"]
+    assert "salesperson" in scoring.SCORE_SCHEMA["required"]
+    assert sp["required"] == ["speaker", "reasoning"]
+
+
+def test_discovery_is_a_scored_axis():
+    assert "discovery" in scoring.AXES
+    assert "discovery" in scoring.SCORE_SCHEMA["required"]
+
+
+def test_the_prompt_says_who_is_being_assessed():
+    block = scoring.build_submission_block("[speaker_0] hi", {"wpm": 150})
+    assert "salesperson" in block.lower() and "customer" in block.lower()
