@@ -106,6 +106,17 @@
      against near-black. */
   --legal: #9a6a00;
 
+  /* Rating stars. openhouse's own yellow #ffc338 is 1.60:1 on white, so a flat
+     fill of it would be a shape you can barely see. Filled stars therefore get
+     the brand yellow as the BODY and a deep gold EDGE (3.26:1 on white, which
+     clears the 3:1 floor for a meaningful graphic) — the classic gold-star
+     construction, and the reason it reads as yellow without dissolving.
+     The empty track is neutral, never a pale yellow: filled-vs-empty is what
+     actually carries the score. */
+  --star:       #ffc338;
+  --star-edge:  #c08200;
+  --star-empty: #d4d0cb;
+
   accent-color: var(--accent);
   color-scheme: light;
 }
@@ -145,6 +156,12 @@
   /* Orange and WHITE on the dark ground. */
   --wave-ink:  #ffffff;
   --legal:     #ffc338;   /* openhouse --secondary-light. 11.5:1 here */
+
+  /* 11.5:1 on the near-black ground, so the body needs no darker edge to hold
+     its shape — edge matches fill. */
+  --star:       #ffc338;
+  --star-edge:  #ffc338;
+  --star-empty: #3a3a3a;
 
   color-scheme: dark;
 }
@@ -275,23 +292,13 @@ audio { width: 100%; }
 [data-theme='dark'] .brand-lockup-light { display: none; }
 [data-theme='dark'] .brand-lockup-dark  { display: block; }
 
-/* Indented so the sub-word starts exactly where "Openhouse" does rather than
-   under the circular mark. Measured off the artwork: the mark occupies columns
-   0-128 of 640 and the wordmark begins at column 153 = 23.9%.
+/* The Careers cuts ship as ONE black-on-transparent file each, so dark mode is
+   a filter. invert(1) makes the black artwork white; hue-rotate(180deg) undoes
+   the hue flip invert() causes, which is what keeps CAREERS orange instead of
+   turning it cyan. Rendered against `brightness(0) invert(1)` before choosing —
+   that one is legible but throws the accent away. */
+[data-theme='dark'] .brand-art { filter: invert(1) hue-rotate(180deg) saturate(1.35); }
 
-   A PERCENTAGE, not em — `em` on this element resolves against its own .42em
-   font-size, not the parent's, which is how the first attempt landed the word
-   under the mark. A percentage resolves against the flex container's width,
-   which is the lockup's width, so it tracks every size variant for free. */
-.brand-sub {
-  margin-left: 23.9%;
-  font-family: var(--font-brand);
-  font-weight: 600;
-  font-size: .4em;
-  text-transform: uppercase;
-  letter-spacing: .2em;
-  color: var(--accent);
-}
 
 .brand-sm { font-size: 19px; }
 .brand-lg { font-size: clamp(2.25rem, 5.5vw, 3.75rem); }
@@ -1251,12 +1258,28 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
    3.4 renders as three stars and 40% of a fourth. No gap between glyphs on
    purpose: a gap eats into the clip and the fill stops matching the numeral.
    Lucide's own viewBox padding is what keeps them from touching. */
-.stars-glyphs { display: inline-flex; align-self: center; color: var(--band, currentColor); }
+.stars-glyphs { display: inline-flex; align-self: center; }
 .stars-glyph { position: relative; display: inline-flex; }
-.stars-glyph > svg { opacity: .26; }
+/* The empty track. Neutral rather than a tint of the fill, so the boundary
+   between scored and unscored is the strongest edge in the row. */
+.stars-glyph > svg { color: var(--star-empty); }
 .stars-glyph-fill {
   position: absolute; inset: 0 auto 0 0;
   display: inline-flex; overflow: hidden;
+}
+/* `max-width: none` is LOAD-BEARING and not obvious. The global reset at the top
+   of this file is `img, svg { max-width: 100% }`, and 100% here means 100% of
+   the fill box — which is deliberately narrowed to the score's fraction. So the
+   star was being SCALED DOWN to 40% of its size rather than clipped at 40% of
+   its width, drawing a whole tiny star instead of four tenths of one. That is
+   the "tiny star" bug; measured with CSS.getMatchedStylesForNode, because the
+   culprit rule is nowhere near this block. `flex: none` guards the same failure
+   from the flex side. */
+.stars-glyph-fill svg {
+  max-width: none;
+  flex: none;
+  fill: var(--star);
+  color: var(--star-edge);   /* the glyph's stroke is currentColor */
 }
 .stars-sm .stars-glyphs svg { width: 13px; height: 13px; }
 .stars-md .stars-glyphs svg { width: 17px; height: 17px; }
@@ -1542,28 +1565,34 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 
 @media (max-width: 560px) {
-  /* The strip wraps to two rows instead of scrolling: brand and the session
-     actions on the first, the nav on its own row below. Nothing is reachable
-     only by a horizontal drag. */
+  /* The bar measures 52px; 56 leaves the last row a little air above it. */
+  :root { --tabbar-h: 56px; }
+
+  /* The nav is a FIXED BOTTOM TAB BAR. It was a second row under the brand,
+     which pushed every page down and put the primary navigation at the far end
+     of a thumb's reach. The top strip now carries only the brand and the
+     session actions. */
   .sidebar {
-    flex-wrap: wrap;
-    row-gap: var(--space-sm);
-    column-gap: var(--space-sm);
-    overflow-x: visible;
+    flex-wrap: nowrap;
+    overflow: visible;
     padding: var(--space-sm) var(--space-md);
   }
-  .sidebar-head { order: 1; }
-  .sidebar-foot { order: 2; margin-left: auto; }
+  .sidebar-head { flex: none; }
+  .sidebar-foot { margin-left: auto; }
+  /* Theme and sign-out only on Profile — see the note in Layout.jsx. */
+  .sidebar:not([data-on-profile]) .sidebar-foot { display: none; }
+
   .sidebar-nav {
-    order: 3;
-    flex: 1 0 100%;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 40;
     gap: 0;
-    /* Belt and braces: a future role with more links still scrolls rather than
-       overflowing, but every current role fits. */
-    overflow-x: auto;
-    scrollbar-width: none;
+    background: var(--paper-2);
+    /* A hairline, not a shadow — nothing in this design floats. */
+    border-top: var(--rule-hair);
+    /* The iPhone home indicator sits over the bottom of the viewport. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .sidebar-nav::-webkit-scrollbar { display: none; }
 
   /* Icon over label. Side by side, four links do not fit 375px without
      truncating; stacked they take ~60px each and stay legible. */
@@ -1572,11 +1601,24 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
     flex-direction: column;
     justify-content: center;
     gap: 2px;
-    padding: var(--space-2xs) var(--space-2xs);
+    padding: var(--space-xs) var(--space-2xs);
     font-size: 10px;
     letter-spacing: .04em;
     text-align: center;
+    /* The active marker moves to the TOP edge. An underline along the bottom of
+       a bottom bar sits on the screen edge, half of it behind the home
+       indicator, and reads as nothing at all. */
+    border-bottom: 0;
+    border-top: 2px solid transparent;
   }
+  .side-link[aria-current="page"] {
+    border-bottom-color: transparent;
+    border-top-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Content must clear the bar, or the last row of every page sits under it. */
+  .main { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
 
   .brand { font-size: 15px; }
 

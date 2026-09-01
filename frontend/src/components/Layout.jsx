@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import Brand from './Brand.jsx';
@@ -28,6 +28,11 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  // On a phone the nav is a bottom tab bar, so the top strip is only the brand
+  // plus these two. Carrying a theme toggle and a sign-out on every single page
+  // is chrome for its own sake; Profile is where you go to manage the session,
+  // so that is where they live. Desktop keeps them in the rail throughout.
+  const onProfile = useLocation().pathname === '/profile';
 
   // logout is a server call now (only the server can clear an httpOnly cookie),
   // so wait for it before leaving — otherwise the landing page can race the
@@ -41,7 +46,7 @@ export default function Layout() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      <aside className="sidebar" data-on-profile={onProfile || undefined}>
         <div className="sidebar-head">
           <Brand />
         </div>

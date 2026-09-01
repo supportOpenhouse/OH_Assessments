@@ -1,20 +1,29 @@
 /**
- * The brand lockup: the supplied Openhouse artwork with the product name
- * beneath it in the accent.
+ * The brand lockup: the supplied Openhouse artwork.
  *
- * Two images rather than one filtered image — the artwork is supplied in both
- * a dark and a white cut, and CSS swaps them on `data-theme`. A `filter` on a
- * single file would be guessing at the inversion the designer already made.
- * Both are ~16KB; the cost of loading the pair is not worth a JS theme read.
+ * CAREERS is PART OF THE ARTWORK now — both files set it in the accent — so
+ * there is no sub-word to typeset beneath it and no Poppins needed for one word.
+ * Two different cuts rather than two sizes of one: the header logo sets CAREERS
+ * beside "house", the landing logo stacks it underneath, which is what the
+ * larger lockup has the room for.
+ *
+ * One black-on-transparent file per cut, so dark mode is a filter rather than a
+ * second image: invert(1) turns the black artwork white, hue-rotate(180deg) puts
+ * the hue back where it started, and CAREERS stays orange. `brightness(0)
+ * invert(1)` — what the circular mark uses — would flatten the accent to white.
+ * Measured against both before choosing.
  */
-export default function Brand({ size = 'sm', sub = 'Careers' }) {
+const CUTS = {
+  header:  { src: '/header_logo.png',       w: 3376, h: 676 },
+  landing: { src: '/landing_page_logo.png', w: 3380, h: 820 },
+};
+
+export default function Brand({ size = 'sm', cut = 'header' }) {
+  const { src, w, h } = CUTS[cut];
   return (
-    <span className={`brand brand-${size}`} role="img" aria-label={`Openhouse ${sub}`}>
-      <img className="brand-lockup brand-lockup-light" src="/OH_logo_font.png"
-           alt="" aria-hidden="true" width="640" height="128" />
-      <img className="brand-lockup brand-lockup-dark" src="/OH_logo_font_white.png"
-           alt="" aria-hidden="true" width="640" height="128" />
-      <span className="brand-sub">{sub}</span>
+    <span className={`brand brand-${size}`} role="img" aria-label="Openhouse Careers">
+      <img className="brand-lockup brand-art" src={src} alt="" aria-hidden="true"
+           width={w} height={h} />
     </span>
   );
 }
