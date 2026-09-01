@@ -19,11 +19,19 @@ def test_rubric_version_tracks_rubric_content():
     assert scoring.rubric_version_of("abc") != scoring.rubric_version_of("abd")
 
 
-def test_score_schema_bounds_stars_to_the_six_bands():
+def test_score_schema_bounds_stars_to_one_decimal_place():
+    """0.0-5.0 in tenths. The enum is doing two jobs — the range, which
+    minimum/maximum cannot express here, and the precision, which nothing else
+    would stop the model inventing (4.25, 3.333)."""
     s = scoring.SCORE_SCHEMA
     assert s["additionalProperties"] is False
     for a in scoring.AXES:
-        assert s["properties"][a]["properties"]["stars"]["enum"] == [0, 1, 2, 3, 4, 5]
+        stars = s["properties"][a]["properties"]["stars"]
+        assert stars["type"] == "number"
+        assert stars["enum"][:3] == [0.0, 0.1, 0.2]
+        assert stars["enum"][-1] == 5.0
+        assert len(stars["enum"]) == 51
+        assert 3.4 in stars["enum"] and 4.25 not in stars["enum"]
     for k in (*scoring.AXES, "flags", "summary"):
         assert k in s["required"]
 

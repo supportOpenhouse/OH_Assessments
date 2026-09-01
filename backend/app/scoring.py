@@ -110,12 +110,20 @@ audio_events     non-speech sounds Scribe tagged (laughter, music, applause)
 # object / string / integer+enum / array / required / additionalProperties.
 AXES = ("pitch", "tone", "company", "sales", "overall")
 
+# Scores are one decimal place, 0.0 to 5.0. The bands stay whole numbers and
+# the decimal places a candidate WITHIN a band — a 3.4 is a solid 3, not most of
+# a 4. Expressed as an enum of the 51 legal values because `minimum`/`maximum`
+# are rejected outright by output_config.format (see the note above): the enum
+# is what enforces the range AND the single decimal place, both of which a bare
+# {"type": "number"} would leave the model free to ignore.
+STAR_VALUES = [round(i / 10, 1) for i in range(51)]
+
 _AXIS = {
     "type": "object",
     "additionalProperties": False,
     "required": ["stars", "reasoning"],
     "properties": {
-        "stars": {"type": "integer", "enum": [0, 1, 2, 3, 4, 5]},
+        "stars": {"type": "number", "enum": STAR_VALUES},
         "reasoning": {"type": "string"},
     },
 }

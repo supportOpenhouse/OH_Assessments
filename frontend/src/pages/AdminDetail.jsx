@@ -154,7 +154,7 @@ export default function AdminDetail() {
 
       {s && (
         <div style={{ marginBottom: 'var(--space-xl)' }}>
-          <Stars stars={s.overall.stars} size="lg" />
+          <Stars stars={s.overall.stars} size="lg" glyphs />
           <p className="verdict" style={{ marginTop: 'var(--space-md)' }}>{s.summary}</p>
         </div>
       )}

@@ -143,7 +143,7 @@ export default function AdminList() {
                 <td className="num">{stamp(r.created_at)}</td>
                 <td className="num">{mmss(r.duration_s)}</td>
                 <td><span className={`status status-${r.status}`}>{r.status}</span></td>
-                <td><Stars stars={r.overall} size="sm" showBand={false} /></td>
+                <td><Stars stars={r.overall} size="sm" showBand={false} glyphs /></td>
               </tr>
             ))}
           </tbody>

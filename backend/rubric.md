@@ -7,8 +7,9 @@
 # Sales (Insight) — Assessment Rubric
 
 You are assessing a **recorded sales call** from a candidate applying for a
-Sales (Insight) role at Openhouse. Score each axis 0–5 against the bands below
-and give written reasoning that cites something specific from the call.
+Sales (Insight) role at Openhouse. Score each axis **0.0 to 5.0, to one decimal
+place**, against the bands below, and give written reasoning that cites
+something specific from the call.
 
 ## Who you are scoring
 
@@ -62,6 +63,21 @@ things above when the call gave them room.
 
 **0 is not "very bad".** 0 means the submission does not answer the task — not a
 sales call, no audio, a different language than asked for. Bad-but-on-task is a 1.
+
+### Using the decimal
+
+The six bands above are whole numbers and they are the anchors. The decimal
+places a candidate **within** a band; it does not blur the boundary between two.
+
+- **3.4 is a solid 3, not most of a 4.** Pick the band first, from its written
+  criteria, then place them inside it: `.0-.3` at the bottom of the band, `.4-.6`
+  squarely in it, `.7-.9` at the top and pushing at the one above.
+- Crossing to `4.0` means the candidate meets the *criteria* for 4, not that they
+  were an unusually good 3.
+- Use one decimal place, always — `4.0`, not `4`. `4.25` is not a valid score.
+- The rule about taking the lower band when genuinely torn still holds. The
+  decimal is where that hesitation gets recorded: a 3.8 says "nearly a 4" far
+  more honestly than rounding up to one.
 
 ## Axis: Pitch
 

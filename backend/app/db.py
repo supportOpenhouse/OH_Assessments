@@ -273,12 +273,15 @@ def list_submissions(limit: int, offset: int, status: str | None = None,
     where = (
         "where (%s::text is null or s.assessment_type = %s) "
         "  and (%s::text is null or s.status = %s) "
-        "  and (%s::int  is null or s.overall_stars = %s) "
+        # The filter buttons are whole stars but the scores are not: `stars=3` has to
+        # mean the band 3.0-3.9, or a 3.4 matches no filter at all and vanishes
+        # from every filtered view.
+        "  and (%s::int  is null or (s.overall_stars >= %s and s.overall_stars < %s + 1)) "
         "  and (%s::text is null or c.email ilike %s or c.name ilike %s) "
     )
     like = f"%{q}%" if q else None
     args = (assessment_type, assessment_type, status, status,
-            stars, stars, q, like, like)
+            stars, stars, stars, q, like, like)
     total = _one(
         "select count(*) as n from submissions s "
         "join candidates c on c.id = s.candidate_id "

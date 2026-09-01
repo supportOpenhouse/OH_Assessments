@@ -17,6 +17,7 @@ import {
   LuPlay, LuPause, LuRotateCcw, LuRotateCw, LuRefreshCw,
   // Kept for the audio player's commented-out controls — see AudioPlayer.jsx.
   LuVolume2, LuHeart, LuSkipBack, LuSkipForward,
+  LuStar,
 } from 'react-icons/lu';
 import {
   FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube,
@@ -54,6 +55,11 @@ export const IconHistory = wrap(LuHistory);
 
 // Audio transport. Play/pause are filled — a stroked triangle reads as an
 // outline, not a button you press.
+// Two cuts of one glyph, stacked to fill a star part-way — scores carry a
+// decimal, so 3.4 has to render as three and a bit.
+export const IconStar = wrap(LuStar, { strokeWidth: 1.5 });
+export const IconStarFill = wrap(LuStar, { fill: 'currentColor', strokeWidth: 1.5 });
+
 export const IconPlay = wrap(LuPlay, { fill: 'currentColor', strokeWidth: 1 });
 export const IconPause = wrap(LuPause, { fill: 'currentColor', strokeWidth: 1 });
 export const IconBack10 = wrap(LuRotateCcw);

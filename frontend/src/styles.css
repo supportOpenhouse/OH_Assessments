@@ -1247,6 +1247,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 .stars-md .stars-mark { font-size: var(--text-2xl); }
 .stars-lg .stars-mark { font-size: var(--text-mark); }
 
+/* Two identical rows stacked, the filled one clipped to the score's width, so a
+   3.4 renders as three stars and 40% of a fourth. No gap between glyphs on
+   purpose: a gap eats into the clip and the fill stops matching the numeral.
+   Lucide's own viewBox padding is what keeps them from touching. */
+.stars-glyphs { display: inline-flex; align-self: center; color: var(--band, currentColor); }
+.stars-glyph { position: relative; display: inline-flex; }
+.stars-glyph > svg { opacity: .26; }
+.stars-glyph-fill {
+  position: absolute; inset: 0 auto 0 0;
+  display: inline-flex; overflow: hidden;
+}
+.stars-sm .stars-glyphs svg { width: 13px; height: 13px; }
+.stars-md .stars-glyphs svg { width: 17px; height: 17px; }
+.stars-lg .stars-glyphs svg { width: 21px; height: 21px; }
+
 .stars-of { font-family: var(--font-ui); font-size: var(--text-sm); color: var(--ink-mute); }
 .stars-band {
   font-family: var(--font-ui); font-size: var(--text-xs);

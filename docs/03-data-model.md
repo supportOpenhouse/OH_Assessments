@@ -78,7 +78,7 @@ other one.
 
 ```sql
 after insert or update of scores on sales_insight_submissions
-  → update submissions set overall_stars = (new.scores->'overall'->>'stars')::smallint
+  → update submissions set overall_stars = (new.scores->'overall'->>'stars')::numeric(2,1)
 ```
 
 `overall_stars` is the one genuinely derived value: the cross-assessment board
@@ -209,7 +209,7 @@ create table if not exists submissions (
   candidate_id    uuid        not null references candidates(id) on delete cascade,
   assessment_type text        not null,      -- 'sales_insight'
   status          text        not null default 'queued',
-  overall_stars   smallint,                  -- derived by trigger, 0-5
+  overall_stars   numeric(2,1),              -- derived by trigger, 0.0-5.0
   error           text,
   created_at      timestamptz not null default now(),
   scored_at       timestamptz,

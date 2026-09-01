@@ -176,7 +176,9 @@ The live shape, as of the two-party call rework:
       "type": "object", "additionalProperties": false,
       "required": ["stars","reasoning"],
       "properties": {
-        "stars":     { "type": "integer", "enum": [0,1,2,3,4,5] },
+        // 0.0-5.0 in tenths. enum enforces range AND precision; minimum/
+        // maximum are rejected by output_config.format.
+        "stars":     { "type": "number", "enum": [0.0, 0.1, "…", 5.0] },
         "reasoning": { "type": "string" }
       }
     },

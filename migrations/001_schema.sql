@@ -141,7 +141,7 @@ create table if not exists submissions (
   -- 0-5 on the shared band scale, mirrored up from whichever child table holds
   -- the detailed scores. Maintained by trigger — see sync_overall_stars below.
   -- Lets the cross-assessment board rank without knowing any child's shape.
-  overall_stars   smallint,
+  overall_stars   numeric(2,1),   -- 0.0-5.0, one decimal place
 
   error           text,                   -- populated when status = 'failed'
 
@@ -239,7 +239,7 @@ create or replace function sales_insight_sync_overall() returns trigger
 language plpgsql as $$
 begin
   update submissions
-     set overall_stars = (new.scores -> 'overall' ->> 'stars')::smallint
+     set overall_stars = (new.scores -> 'overall' ->> 'stars')::numeric(2,1)
    where id = new.id;
   return new;
 end;
