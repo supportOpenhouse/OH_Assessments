@@ -14,14 +14,17 @@ price. Have them in front of you before you dial.
 
 ### 3. Make the call
 
-Ask them:
+They are already selling — you are not there to talk them into it. You are there
+to get them to let **Openhouse** handle the sale for them.
 
-- Why are they selling?
+Tell them you are calling from Openhouse, and find out:
+
 - What is their timeline?
 - What condition is the property in?
 
-Then pitch: tell them you are calling from **Openhouse** and that you want to
-help them sell their house.
+**Work towards a visit.** What you want is for them to let Openhouse come and
+evaluate the property. Get them to trust that Openhouse is worth having on their
+side, and take the conversation in that direction — in your own words.
 
 ### 4. Record and submit
 
@@ -33,13 +36,13 @@ took away from the call.
 
 You, not the seller. We listen for:
 
-- What you ask, and whether you listen to the answers
+- Whether you ask for the visit, and how well you build up to it
 - How you handle whatever the seller pushes back with
 - How clearly you explain who you are, and what Openhouse does
-- Whether you ask for a clear next step
+- What you ask, and whether you listen to the answers
 
-A seller who says no is not a failed submission. A difficult call handled well
-tells us more than an easy yes.
+**A seller who says no is not a failed submission.** Most people refuse a cold
+call. We are assessing you, not their decision.
 
 ## Before you upload
 

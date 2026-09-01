@@ -36,19 +36,43 @@ admin can only catch it if you have said which one you judged.
 
 They were told to find a property listed **by its owner** (not a broker) on
 MagicBricks or 99acres, in **Gurugram or Noida**, note the seller's details, and
-cold-call them. On the call they were asked to:
+cold-call them.
 
-1. Ask **why they are selling**
-2. Ask **what their timeline is**
-3. Ask **what condition the property is in**
-4. Say they are calling **from Openhouse**, and that they want to help them sell
+### What the call is actually for
+
+**The owner is already selling.** They have listed the property themselves —
+nobody has to be convinced to sell. Do not credit a candidate for "creating
+urgency to sell", and do not penalise a seller for being unmotivated; that is not
+what is being tested.
+
+What has to be won is that they let **Openhouse handle the sale for them**.
+Openhouse is the middleman that runs the transaction — price discovery, the
+paperwork, registration — instead of the owner running it alone or handing it to
+a broker.
+
+**Where the call is heading is a visit** — letting Openhouse come and evaluate
+the property. That is the direction of travel, not a box to tick. A candidate
+steering there in their own words is doing the right thing; there is no required
+phrasing, and no booked date is needed.
+
+On the call they were asked to find out the **timeline** and the **condition of
+the property** — both feed the valuation a visit is for — and to say they are
+calling **from Openhouse**.
+
+**What is being assessed is the candidate, not the call's outcome.** As long as
+they are working towards the owner trusting Openhouse — and the owner shows signs
+of trusting *them* — that is a good result, whatever the seller decided.
+
+> "Why are you selling?" is **not** required at this stage and carries no credit
+> on its own. It is a question for later in the funnel. A candidate who asks it
+> and gets something useful out of it has done no harm; one who never asks it has
+> missed nothing.
 
 So this is a cold call to a stranger who is already trying to sell — not a warm
 lead, and not a scripted roleplay. Expect suspicion, brush-offs and "who gave you
-my number". Judge how the candidate handled the call they actually got: a seller
-who hangs up in twenty seconds has not given anyone room to close, and that is
-not the candidate's failure. What is their failure is not attempting the four
-things above when the call gave them room.
+my number". Judge how the candidate handled the call they actually got. A seller
+who hangs up in twenty seconds has not given anyone room to build anything, and
+that is not the candidate's failure.
 
 ## The scale
 
@@ -95,7 +119,12 @@ speech; judge the case as it accumulates across the conversation.
 | 5 | An opening you would repeat back to someone. Concrete, tailored, ends on a real ask |
 
 Weight relevance over polish. A well-delivered pitch aimed at nobody in
-particular is a 3; a rougher one built out of what the customer just said is a 4.
+particular is a 3; a rougher one built out of what the owner just said is a 4.
+
+The case being made is **not** "you should sell" — they already are — but "let
+Openhouse run this sale for you", and it has to arrive somewhere concrete: the
+visit. A pitch that never connects what Openhouse does to a reason to let them
+come and look has not closed the loop, whatever else it did well.
 
 ## Axis: Tone
 
@@ -160,34 +189,72 @@ presumably explain if asked.
 
 ## Axis: Sales skills
 
+**This is a hiring assessment, not a sales audit.** You are judging whether this
+person can do the job, not grading a call against a checklist. What you are
+looking for is a candidate moving in the right direction: **building the owner's
+trust in Openhouse, and in themselves.** A call where the owner visibly warms to
+the person on the other end is a good call, whatever shape it took.
+
+The direction of travel is towards a **visit** — letting Openhouse come and
+evaluate the property. A candidate steering there, in their own words, is doing
+the right thing. Do not require a textbook close, a particular phrase, or a
+booked date. Someone who earns real trust and moves the conversation towards a
+visit has shown you more than someone who recites an ask into a wall.
+
 | Stars | Criteria |
 |---|---|
 | 0 | No selling attempted |
-| 1 | Features only. No customer in the picture. No ask |
-| 2 | Some benefit language; no qualification, no urgency, weak or absent close |
-| 3 | Competent: benefits framed, an ask exists, objections acknowledged |
-| 4 | Qualifies, meets the objection with substance, closes for a specific next step |
-| 5 | Reads like a top performer — qualification, framing, urgency, and a close the customer agrees to |
+| 1 | Features only. No relationship formed, no direction, nothing proposed. The owner is more guarded at the end than the start |
+| 2 | Pleasant enough but going nowhere — never builds towards Openhouse handling the sale, and leaves the owner with nothing to say yes to |
+| 3 | Builds some credibility and points the call somewhere. The owner engages. An ask exists, even a loose one |
+| 4 | The owner clearly warms to them. Objections met with substance, Openhouse framed as worth trusting, and the conversation steered towards a visit |
+| 5 | Reads like a top performer. The owner trusts them — asks questions back, volunteers detail, agrees to a visit or comes close — and it lands because of what the rep said |
 
-**Qualification is the first half of this axis.** Three questions were
-explicitly asked for — why they are selling, their timeline, the property's
-condition. Asking all three mechanically and doing nothing with the answers is a
-2; asking two well and following where they lead is a 4. Not asking any of them,
-on a call that had room for them, caps this axis at 2. Read `question_count` and
-`talk_ratio`, but read the transcript over both: questions asked and then talked
-straight over are worse than fewer questions genuinely listened to. A rep above a
-`talk_ratio` of ~.75 is monologuing at a seller rather than qualifying them.
+### Reading trust off the transcript
 
-**Objection handling is the second half, and the sharpest signal on this axis**, and on a real call
-the objections are whatever the customer actually raised — "I already have a
-broker", "not selling right now", "what do you charge", "send me something on
-WhatsApp". Judge the handling, not the objection. Dismissing or steamrolling one
-is weak; acknowledging it and answering with something concrete about Openhouse
-is strong. An objection the rep never lets the customer finish stating has not
-been handled at all.
+Trust is the thing being measured and it is visible in what the *owner* does:
 
-A call that ends without a next step is not automatically below a 3 — some
-customers end calls. A rep who never *attempted* a next step is.
+- Do they start asking questions back, rather than only answering?
+- Do they volunteer detail nobody asked for — the layout, the neighbours, what
+  they actually want for it?
+- Does their tone shift over the call, from brush-off towards conversation?
+- Do they stay on a call they could have ended?
+
+A rising share of `talk_ratio` on the owner's side, over a call with a healthy
+`turn_count`, usually means exactly this. Say what you saw in the reasoning.
+
+### Getting a no is not a failure
+
+Most owners will refuse a cold call, and this axis scores the attempt and its
+quality, not the outcome. A 4 is fully available to a candidate who was turned
+down. Only a 5 asks for the owner to have come round, because that band has to be
+earned rather than argued for.
+
+Equally, a candidate who never gets as far as asking for anything has not shown
+you they can close — that belongs in the reasoning and it costs a band, but it is
+not an automatic failure. The question is always whether this is someone you would
+put in front of a customer.
+
+### Objections
+
+On these calls the objections are whatever the owner actually raised — "I already
+have a broker", "what do you charge", "send me something on WhatsApp", "why do you
+need to come here". Judge the handling, not the objection. Dismissing or
+steamrolling one costs trust; acknowledging it and answering with something
+concrete about what Openhouse does builds it. An objection the rep never lets the
+owner finish stating has not been handled at all.
+
+Note that "I already have a broker" is **not** a reason the owner will not sell —
+they are selling either way. It is an objection to Openhouse being the one to
+handle it, and the answer is what Openhouse does that a broker does not.
+
+### Qualification
+
+Timeline and the property's condition were the two things worth finding out, and
+both serve the visit — what to value, when it matters, what to expect on site.
+Asking them mechanically and doing nothing with the answers is worth little;
+using the answers to make the case to *this* owner is worth a lot. A rep above a
+`talk_ratio` of ~.75 is monologuing rather than building anything.
 
 ## Overall
 
@@ -198,6 +265,10 @@ customers end calls. A rep who never *attempted* a next step is.
   telling you what they want is a deeper problem than any of the delivery numbers.
 - A short call is not automatically a bad one, and a long one is not automatically
   good. Judge what they did with the call they got.
+- **This is a hiring decision, not a sales report.** The question is whether you
+  would put this person in front of a customer. A candidate who earned an owner's
+  trust and moved towards a visit did the job, whatever the owner decided; most
+  cold calls end in no.
 - When genuinely torn between two bands, take the lower one and say so in the
   reasoning. A hiring manager can be talked up from a 3; they cannot un-see a 4.
 

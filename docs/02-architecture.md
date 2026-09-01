@@ -70,7 +70,7 @@ OH_Assessments/
 │   │   ├── logs.py              # audit trail: action verbs + record()
 │   │   └── tasks.py             # background scoring + the stale sweep
 │   ├── tests/{test_metrics,test_auth,test_scoring}.py
-│   ├── rubric.md                # THE rubric. Hashed into rubric_version
+│   ├── sales_insight_rubric.md  # THE rubric, per assessment type. Hashed into rubric_version
 │   ├── instructions.md          # candidate-facing brief
 │   ├── requirements.txt
 │   └── render.yaml

@@ -135,7 +135,7 @@ Each of these is deferred on purpose. None is forgotten.
 
 ## 9. Open items
 
-- **Rubric calibration.** The rubric itself is live in `backend/rubric.md` and
+- **Rubric calibration.** The rubric itself is live in `backend/sales_insight_rubric.md` and
   scoring runs against it unconditionally. It has not been calibrated — nobody
   has checked the model against recordings a human already scored, so the
   numbers are directional until that happens ([06-rubric.md §8](06-rubric.md)).

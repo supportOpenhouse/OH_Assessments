@@ -112,7 +112,7 @@ def test_glossary_has_no_per_candidate_content():
 # ── the placeholder guard ─────────────────────────────────────────────────
 
 def test_the_shipped_rubric_is_live():
-    """rubric.md is the real rubric now — scoring must not refuse it, and no
+    """sales_insight_rubric.md is the real rubric now — scoring must not refuse it, and no
     deploy may need ALLOW_PLACEHOLDER_RUBRIC to score. The guard below stays
     armed for the day someone drops a stub back in."""
     assert not scoring.RUBRIC_IS_PLACEHOLDER

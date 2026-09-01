@@ -34,7 +34,7 @@ landing page → Google popup sign-in → instructions → upload (one attempt)
         ↓
   metrics.py             wpm, pauses, fillers, speech ratio  (pure Python)
         ↓
-  Claude Opus 5          rubric.md as cached prefix, effort=max, strict JSON
+  Claude Opus 5          sales_insight_rubric.md as cached prefix, effort=max, strict JSON
         ↓
   Neon Postgres          admin-only results
   ───────────────────────────────────────────────────────────
@@ -68,13 +68,13 @@ reference, on [openhouse.in](https://openhouse.in)'s exact palette. See
 | [migrations/README.md](migrations/README.md) | Run order, and which files are tools rather than migrations |
 | [04-api.md](docs/04-api.md) | Every endpoint, every status code |
 | [05-scoring.md](docs/05-scoring.md) | Scribe → metrics → Claude, cost, Phase 2 vocal pitch |
-| [06-rubric.md](docs/06-rubric.md) | How the rubric is used and versioned. The rubric itself is [backend/rubric.md](backend/rubric.md) |
+| [06-rubric.md](docs/06-rubric.md) | How the rubric is used and versioned. The rubric itself is [backend/sales_insight_rubric.md](backend/sales_insight_rubric.md) |
 | [07-frontend.md](docs/07-frontend.md) | Hallmark design system on the openhouse.in palette |
 | [08-plan.md](docs/08-plan.md) | Implementation plan |
 
 ## Before building
 
-- [x] **The rubric.** [backend/rubric.md](backend/rubric.md) is live — scoring
+- [x] **The rubric.** [backend/sales_insight_rubric.md](backend/sales_insight_rubric.md) is live — scoring
       runs against it with no override. Still uncalibrated: score a few
       recordings you already have a human opinion on and check the model lands
       within ±1 star ([06-rubric.md §8](docs/06-rubric.md)).
@@ -159,7 +159,7 @@ are right on localhost and wrong in production:
 | | local (`run.sh`) | production (`render.yaml`) |
 |---|---|---|
 | `COOKIE_SECURE` | `false` — a `Secure` cookie is never sent over http, so `true` makes sign-in fail silently | `true` |
-| `ALLOW_PLACEHOLDER_RUBRIC` | unset — `rubric.md` is live, so nothing to override | unset. It only matters if a stub rubric is ever shipped again, and then a deployed service must refuse rather than override |
+| `ALLOW_PLACEHOLDER_RUBRIC` | unset — `sales_insight_rubric.md` is live, so nothing to override | unset. It only matters if a stub rubric is ever shipped again, and then a deployed service must refuse rather than override |
 | `JWT_SECRET` | generated once into `backend/.dev-secret` (gitignored), so a restart does not sign you out | a real secret |
 
 Render runs `uvicorn` directly and never calls `run.sh`, so none of that reaches

@@ -5,7 +5,7 @@ tested without a network call, are.
 
 ```
 R2 object ─▶ ① ElevenLabs Scribe v2 ──▶ ② metrics.py ──▶ ③ Claude Opus 5 ──▶ scores
-              transcript + word            pure Python        rubric.md as
+              transcript + word            pure Python        the rubric as
               timestamps + events          no I/O             cached prefix
 ```
 
@@ -119,7 +119,7 @@ defined bands rewards reasoning depth more than almost any other task type.
 `budget_tokens` does not exist on Opus 5 — it returns a 400. Do not carry that
 pattern in from older code.
 
-**The rubric is the cached prefix.** `rubric.md` and the metrics glossary are byte-identical
+**The rubric is the cached prefix.** `sales_insight_rubric.md` and the metrics glossary are byte-identical
 across every candidate, so they cache; the transcript is volatile and goes after
 the last breakpoint, in `messages`. Verify it's working by checking
 `usage.cache_read_input_tokens` is non-zero on the second and later submissions —

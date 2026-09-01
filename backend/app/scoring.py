@@ -34,10 +34,14 @@ def rubric_version_of(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:12]
 
 
-RUBRIC_MD = (_ROOT / "rubric.md").read_text()
+# Named for the assessment type, like the child table it belongs to. A second
+# assessment gets its own <type>_rubric.md rather than a shared one — the axes
+# and the scale are properties of the assessment, not of the product.
+RUBRIC_FILE = "sales_insight_rubric.md"
+RUBRIC_MD = (_ROOT / RUBRIC_FILE).read_text()
 RUBRIC_VERSION = rubric_version_of(RUBRIC_MD)
 
-# rubric.md is the live rubric, so this guard is inert — it stays armed for the
+# sales_insight_rubric.md is the live rubric, so this guard is inert — it stays armed for the
 # day someone drops a stub back in. Scoring a candidate against placeholder
 # criteria produces a plausible-looking number that means nothing, which is
 # worse than not scoring at all, because a number gets acted on. So a rubric
@@ -49,8 +53,9 @@ ALLOW_PLACEHOLDER = os.environ.get("ALLOW_PLACEHOLDER_RUBRIC", "").lower() == "t
 
 if RUBRIC_IS_PLACEHOLDER:
     log.warning(
-        "rubric.md is still the PLACEHOLDER. Scoring %s. "
-        "Replace backend/rubric.md before assessing real candidates.",
+        "%s is still the PLACEHOLDER. Scoring %s. "
+        "Replace it before assessing real candidates.",
+        RUBRIC_FILE,
         "is ALLOWED (ALLOW_PLACEHOLDER_RUBRIC=true)" if ALLOW_PLACEHOLDER else "will REFUSE",
     )
 
@@ -297,9 +302,9 @@ def judge(transcript: str, m: dict) -> dict:
 def score(audio: bytes) -> dict:
     if RUBRIC_IS_PLACEHOLDER and not ALLOW_PLACEHOLDER:
         raise ScoringError(
-            "rubric.md is still the placeholder — refusing to score. Replace "
-            "backend/rubric.md, or set ALLOW_PLACEHOLDER_RUBRIC=true to test "
-            "the pipeline."
+            f"{RUBRIC_FILE} is still the placeholder — refusing to score. "
+            f"Replace backend/{RUBRIC_FILE}, or set ALLOW_PLACEHOLDER_RUBRIC=true "
+            "to test the pipeline."
         )
     t = transcribe(audio)
     m = metrics.derive(t["words"], t.get("audio_duration_s"))
