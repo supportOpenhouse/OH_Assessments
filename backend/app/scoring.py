@@ -37,12 +37,12 @@ def rubric_version_of(text: str) -> str:
 RUBRIC_MD = (_ROOT / "rubric.md").read_text()
 RUBRIC_VERSION = rubric_version_of(RUBRIC_MD)
 
-# The shipped rubric is a placeholder until someone replaces it. Scoring a real
-# candidate against it produces a plausible-looking number that means nothing —
-# which is worse than not scoring at all, because a number gets acted on.
-#
-# So scoring REFUSES by default. Set ALLOW_PLACEHOLDER_RUBRIC=true to exercise
-# the pipeline end to end before the real rubric lands.
+# rubric.md is the live rubric, so this guard is inert — it stays armed for the
+# day someone drops a stub back in. Scoring a candidate against placeholder
+# criteria produces a plausible-looking number that means nothing, which is
+# worse than not scoring at all, because a number gets acted on. So a rubric
+# carrying the marker REFUSES by default; ALLOW_PLACEHOLDER_RUBRIC=true is the
+# escape hatch for exercising the pipeline against a stub.
 PLACEHOLDER_MARKER = "PLACEHOLDER RUBRIC"
 RUBRIC_IS_PLACEHOLDER = PLACEHOLDER_MARKER in RUBRIC_MD
 ALLOW_PLACEHOLDER = os.environ.get("ALLOW_PLACEHOLDER_RUBRIC", "").lower() == "true"

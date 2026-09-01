@@ -68,14 +68,16 @@ reference, on [openhouse.in](https://openhouse.in)'s exact palette. See
 | [migrations/README.md](migrations/README.md) | Run order, and which files are tools rather than migrations |
 | [04-api.md](docs/04-api.md) | Every endpoint, every status code |
 | [05-scoring.md](docs/05-scoring.md) | Scribe → metrics → Claude, cost, Phase 2 vocal pitch |
-| [06-rubric.md](docs/06-rubric.md) | **Template — awaiting real content** |
+| [06-rubric.md](docs/06-rubric.md) | How the rubric is used and versioned. The rubric itself is [backend/rubric.md](backend/rubric.md) |
 | [07-frontend.md](docs/07-frontend.md) | Hallmark design system on the openhouse.in palette |
 | [08-plan.md](docs/08-plan.md) | Implementation plan |
 
 ## Before building
 
-- [ ] **The real rubric.** [06-rubric.md](docs/06-rubric.md) is a placeholder.
-      Scores against it are uncalibrated and must not drive a hiring decision.
+- [x] **The rubric.** [backend/rubric.md](backend/rubric.md) is live — scoring
+      runs against it with no override. Still uncalibrated: score a few
+      recordings you already have a human opinion on and check the model lands
+      within ±1 star ([06-rubric.md §8](docs/06-rubric.md)).
 - [ ] **Candidate instructions copy** — scenario, target length, the objection to handle.
 - [ ] Neon project + `DATABASE_URL`
 - [ ] Cloudflare R2 bucket + access key pair
@@ -157,7 +159,7 @@ are right on localhost and wrong in production:
 | | local (`run.sh`) | production (`render.yaml`) |
 |---|---|---|
 | `COOKIE_SECURE` | `false` — a `Secure` cookie is never sent over http, so `true` makes sign-in fail silently | `true` |
-| `ALLOW_PLACEHOLDER_RUBRIC` | `true`, so you can exercise the pipeline | unset — scoring refuses while `rubric.md` is the placeholder, because a score from placeholder criteria looks real and gets acted on |
+| `ALLOW_PLACEHOLDER_RUBRIC` | unset — `rubric.md` is live, so nothing to override | unset. It only matters if a stub rubric is ever shipped again, and then a deployed service must refuse rather than override |
 | `JWT_SECRET` | generated once into `backend/.dev-secret` (gitignored), so a restart does not sign you out | a real secret |
 
 Render runs `uvicorn` directly and never calls `run.sh`, so none of that reaches

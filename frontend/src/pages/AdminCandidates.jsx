@@ -51,14 +51,13 @@ export default function AdminCandidates() {
               <th>Candidate</th>
               <th>Attempts</th>
               <th>Assessments</th>
-              <th>Sign-ins</th>
               <th>First seen</th>
               <th>Last seen</th>
             </tr>
           </thead>
           <tbody>
-            {rows === null && <SkeletonRows rows={5} cols={6} stacked={[0]}
-              widths={['65%', '25%', '70%', '25%', '75%', '75%']} />}
+            {rows === null && <SkeletonRows rows={5} cols={5} stacked={[0]}
+              widths={['65%', '25%', '70%', '75%', '75%']} />}
             {(rows || []).map((c) => (
               <tr key={c.id} style={{ cursor: 'default' }}>
                 <td className="cand">
@@ -76,7 +75,6 @@ export default function AdminCandidates() {
                         <span className="chip" key={a.key}>{a.name}</span>
                       ))}
                 </td>
-                <td className="num">{c.login_count}</td>
                 <td className="num">{stamp(c.first_seen_at)}</td>
                 <td className="num">{stamp(c.last_seen_at)}</td>
               </tr>

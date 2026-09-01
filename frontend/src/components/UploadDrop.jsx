@@ -72,7 +72,8 @@ export default function UploadDrop({ onPick, disabled }) {
         }}
       >
         <IconUpload width={22} height={22} style={{ margin: '0 auto var(--space-sm)' }} />
-        <div>Drop your recording here, or click to choose a file</div>
+        <div className="drop-cta-pointer">Drop your recording here, or click to choose a file</div>
+        <div className="drop-cta-touch">Tap to choose your recording</div>
         <div className="drop-hint">MP3 · M4A · WAV · WEBM · OGG — max 25 MB, 10:00</div>
       </div>
       <input

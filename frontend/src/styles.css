@@ -226,6 +226,7 @@ audio { width: 100%; }
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
   min-height: 100vh;
+  min-height: 100svh;   /* phones: 100vh is the URL-bar-hidden height */
 }
 
 .sidebar {
@@ -545,6 +546,7 @@ audio { width: 100%; }
   display: grid;
   grid-template-columns: 1fr 35%;
   min-height: 100vh;
+  min-height: 100svh;   /* phones: 100vh is the URL-bar-hidden height */
   background: var(--paper-3);
   overflow: hidden;
 }
@@ -594,7 +596,9 @@ audio { width: 100%; }
 .legal-links a:hover { color: var(--accent); }
 
 @media (max-width: 860px) {
-  .landing { grid-template-columns: 1fr; min-height: auto; }
+  /* Stacks, but still fills the screen — `auto` left the design stopping
+     short with a band of bare page background under it. */
+  .landing { grid-template-columns: 1fr; min-height: 100vh; min-height: 100svh; }
   .landing-mark { padding: var(--space-2xl); min-height: 46vh; }
   .landing-panel { padding: var(--space-2xl); }
   .landing-card { max-width: none; }
@@ -1458,11 +1462,120 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 
 /* ───────── Loading ───────── */
-.splash { display: grid; place-items: center; min-height: 100vh; }
+.splash { display: grid; place-items: center; min-height: 100vh; min-height: 100svh; }
 .rows { display: flex; flex-direction: column; gap: var(--space-xs); }
 .empty {
   padding: var(--space-3xl) var(--space-lg);
   text-align: center; color: var(--ink-mute);
   font-family: var(--font-ui); font-size: var(--text-sm);
   border-bottom: var(--rule-hair);
+}
+
+
+/* ───────── Mobile ─────────
+   Everything here is measured, not assumed: each rule below fixes something the
+   375px audit actually caught. Two problems dominated — the nav strip held
+   552px of links in a 375px viewport, so Profile and sign-out sat off-screen
+   behind a scroll with no affordance; and the status filter clipped its own
+   last option, making "voided" unreachable.                                   */
+
+/* Touch pointers get proper targets. Keyed on (hover: none) rather than a width
+   so a small window on a laptop keeps the compact desktop sizes. */
+@media (hover: none) {
+  .icon-btn { width: 44px; height: 44px; }
+  .player-btn { width: 44px; height: 44px; }
+  .player-play { width: 48px; height: 48px; }
+  .seg button { min-height: 44px; }
+  .side-link { min-height: 44px; }
+  .btn-sm { min-height: 44px; }
+
+  /* The seek bar is a 6px rule — fine to aim at with a mouse, impossible with a
+     thumb. Padding grows the hit area to 34px while background-clip keeps the
+     painted track 6px, so it looks identical and can actually be used. */
+  .player .time {
+    box-sizing: content-box;
+    padding-block: 14px;
+    background-clip: content-box;
+  }
+
+  /* Footer links are 17px of text in a list. Padding, not a font-size bump —
+     the type is right, the target was not. */
+  .site-footer-nav a { display: inline-block; padding-block: 8px; }
+  .site-footer-social a { display: inline-flex; align-items: center;
+                          justify-content: center; width: 44px; height: 44px; margin: -10px; }
+}
+
+/* A segmented control must never clip its own options — the base rule uses
+   overflow: hidden to round the corners, which silently swallowed "voided". */
+@media (max-width: 700px) {
+  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { flex: none; white-space: nowrap; }
+}
+
+@media (max-width: 560px) {
+  /* The strip wraps to two rows instead of scrolling: brand and the session
+     actions on the first, the nav on its own row below. Nothing is reachable
+     only by a horizontal drag. */
+  .sidebar {
+    flex-wrap: wrap;
+    row-gap: var(--space-sm);
+    column-gap: var(--space-sm);
+    overflow-x: visible;
+    padding: var(--space-sm) var(--space-md);
+  }
+  .sidebar-head { order: 1; }
+  .sidebar-foot { order: 2; margin-left: auto; }
+  .sidebar-nav {
+    order: 3;
+    flex: 1 0 100%;
+    gap: 0;
+    /* Belt and braces: a future role with more links still scrolls rather than
+       overflowing, but every current role fits. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+
+  /* Icon over label. Side by side, four links do not fit 375px without
+     truncating; stacked they take ~60px each and stay legible. */
+  .side-link {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--space-2xs) var(--space-2xs);
+    font-size: 10px;
+    letter-spacing: .04em;
+    text-align: center;
+  }
+
+  .brand { font-size: 15px; }
+
+  /* Two 142px date fields plus their label and the word "to" do not fit 375px
+     on one line. Let the group wrap and let the fields size themselves. */
+  .filterbar-dates { flex-wrap: wrap; }
+  .filterbar-dates .field-date { width: auto; flex: 1 1 130px; min-width: 0; }
+
+  /* The record's audio row: player first, its two red actions under it rather
+     than squeezing the progress bar to nothing. */
+  .record-audio > .player { min-width: 100%; }
+  .record-audio-acts { margin-left: auto; }
+
+  /* Left to itself the row wraps wherever it runs out of space, which stranded
+     the two timestamps side by side reading "0:00 0:00". Wrap it deliberately:
+     transport and times on one line, the bar full width beneath. */
+  .player .controls { flex-wrap: wrap; row-gap: var(--space-sm); }
+  .player .time_now { margin-left: auto; }
+  .player .time_now::after { content: " /"; color: var(--ink-mute); }
+  .player .time { order: 1; flex: 1 0 100%; }
+}
+
+/* Drag and drop does not exist on a touch screen, so the copy must not be the
+   only instruction. Two spans, one shown per pointer type — no JS, and the
+   desktop wording is untouched. */
+.drop-cta-touch { display: none; }
+@media (hover: none) {
+  .drop-cta-pointer { display: none; }
+  .drop-cta-touch { display: block; }
 }

@@ -19,10 +19,6 @@ set -a; . ./.env; set +a
 # localhost. Production sets COOKIE_SECURE=true in render.yaml.
 export COOKIE_SECURE="${COOKIE_SECURE:-false}"
 
-# Scoring refuses a placeholder rubric. That guard is for real candidates, not
-# for you trying the pipeline on your laptop.
-export ALLOW_PLACEHOLDER_RUBRIC="${ALLOW_PLACEHOLDER_RUBRIC:-true}"
-
 # ── say what is missing, rather than failing three layers down ────────────
 missing=()
 [ -z "${DATABASE_URL:-}" ]           && missing+=("DATABASE_URL            (Neon pooled connection string)")
@@ -45,5 +41,5 @@ for v in ELEVENLABS_API_KEY ANTHROPIC_API_KEY R2_BUCKET; do
   [ -z "${!v:-}" ] && echo "⚠  $v is unset — uploads will fail at that step"
 done
 
-echo "→ http://localhost:5060   (COOKIE_SECURE=$COOKIE_SECURE, ALLOW_PLACEHOLDER_RUBRIC=$ALLOW_PLACEHOLDER_RUBRIC)"
+echo "→ http://localhost:5060   (COOKIE_SECURE=$COOKIE_SECURE)"
 exec .venv/bin/uvicorn app.main:app --reload --port 5060

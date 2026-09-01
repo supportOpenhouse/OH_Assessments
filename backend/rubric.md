@@ -1,10 +1,8 @@
-> **TEST RUBRIC — PLACEHOLDER RUBRIC.** Written to exercise the scoring pipeline
-> end to end, not calibrated against real hires. The company facts in §Company
-> are verbatim from openhouse.in; the *misconception list* under it is invented
-> for testing. Scores produced against this file must not drive a hiring
-> decision. Keeping the words "PLACEHOLDER RUBRIC" above is deliberate — it is
-> what makes `scoring.score()` refuse unless `ALLOW_PLACEHOLDER_RUBRIC=true`.
-> Replace before real candidates are assessed; checklist in `docs/06-rubric.md §8`.
+> **LIVE RUBRIC.** Every score is produced against this file. Its sha256 prefix
+> is stored on each submission as `rubric_version`, so any edit here makes later
+> scores distinguishable from earlier ones — two candidates are only comparable
+> when their `rubric_version` matches. Not yet calibrated against recordings a
+> human has already scored (`docs/06-rubric.md §8`).
 
 # Sales (Insight) — Assessment Rubric
 
@@ -86,7 +84,7 @@ Read that as four claims a candidate can get right or wrong:
 4. **End-to-end transaction support** — legal documentation and property
    registration included, not just a buyer introduction.
 
-### Misconceptions that should cost a candidate (invented for this test rubric)
+### Misconceptions that should cost a candidate
 
 - "Openhouse is a listing portal / like 99acres or Housing.com." Listing sites
   end at the enquiry; Openhouse runs the transaction through registration.

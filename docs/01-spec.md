@@ -135,10 +135,10 @@ Each of these is deferred on purpose. None is forgotten.
 
 ## 9. Open items
 
-- **The rubric itself.** [06-rubric.md](06-rubric.md) is a template with the
-  structure the scoring prompt expects. The real content is coming from the user.
-  Until it lands, scoring runs against the placeholder and produces plausible but
-  uncalibrated numbers.
+- **Rubric calibration.** The rubric itself is live in `backend/rubric.md` and
+  scoring runs against it unconditionally. It has not been calibrated — nobody
+  has checked the model against recordings a human already scored, so the
+  numbers are directional until that happens ([06-rubric.md §8](06-rubric.md)).
 - **Instructions copy.** The exact text the candidate reads before recording —
   scenario, target length, what they are pitching to whom. Placeholder in
   [06-rubric.md §5](06-rubric.md).

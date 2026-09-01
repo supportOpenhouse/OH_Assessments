@@ -1,11 +1,14 @@
-# 06 — Rubric (TEMPLATE — awaiting real content)
+# 06 — Rubric (how it is used)
 
-> **This file is a placeholder.** The real rubric is coming from the user. What
-> follows is the *structure* the scoring prompt expects, with illustrative
-> content so the pipeline is runnable end-to-end before the real thing lands.
+> **The live rubric is [`backend/rubric.md`](../backend/rubric.md).** That file
+> is what Claude is given and what `rubric_version` hashes. This doc is the
+> *shape* it must keep — the fixed 0–5 scale, the five axis names the schema
+> depends on, and how versioning works. The per-axis tables below are the
+> original illustrative draft, kept for reference; `backend/rubric.md` supersedes
+> them and is the one to edit.
 >
-> **Scores produced against this placeholder are uncalibrated.** Do not use them
-> to make a hiring decision.
+> Still outstanding: **calibration** (§8). Nothing has been scored against a
+> human opinion yet, so treat early numbers as directional.
 
 ---
 

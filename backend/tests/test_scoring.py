@@ -46,21 +46,24 @@ def test_glossary_has_no_per_candidate_content():
 
 # ── the placeholder guard ─────────────────────────────────────────────────
 
-def test_the_shipped_rubric_is_still_the_placeholder():
-    """A canary. When someone replaces rubric.md this test fails, which is the
-    prompt to delete it and the guard along with it."""
-    assert scoring.RUBRIC_IS_PLACEHOLDER
+def test_the_shipped_rubric_is_live():
+    """rubric.md is the real rubric now — scoring must not refuse it, and no
+    deploy may need ALLOW_PLACEHOLDER_RUBRIC to score. The guard below stays
+    armed for the day someone drops a stub back in."""
+    assert not scoring.RUBRIC_IS_PLACEHOLDER
 
 
 def test_scoring_refuses_a_placeholder_rubric_by_default(monkeypatch):
     """A number produced against a placeholder gets acted on. Refusing is the
     safer failure."""
+    monkeypatch.setattr(scoring, "RUBRIC_IS_PLACEHOLDER", True)
     monkeypatch.setattr(scoring, "ALLOW_PLACEHOLDER", False)
     with pytest.raises(scoring.ScoringError, match="placeholder"):
         scoring.score(b"anything")
 
 
 def test_the_placeholder_can_be_allowed_for_pipeline_testing(monkeypatch):
+    monkeypatch.setattr(scoring, "RUBRIC_IS_PLACEHOLDER", True)
     monkeypatch.setattr(scoring, "ALLOW_PLACEHOLDER", True)
     called = {}
     monkeypatch.setattr(scoring, "transcribe",
