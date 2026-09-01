@@ -74,33 +74,56 @@ speaker_count    > 1 means another voice is on the recording. Note it in flags;
 audio_events     non-speech sounds Scribe tagged (laughter, music, applause)
 """
 
+# The structured-output schema subset is NARROW. `minimum`/`maximum` on an
+# integer are rejected outright ("For 'integer' type, properties maximum,
+# minimum are not supported" — a 400 at scoring time, after the upload has
+# already succeeded). `enum` is how you bound a number. Length constraints
+# (`minLength`) are out for the same reason, so the "no one-line reasoning"
+# rule moved to _reject_stub_reasoning() below. Keep this schema to:
+# object / string / integer+enum / array / required / additionalProperties.
+AXES = ("pitch", "tone", "company", "sales", "overall")
+
 _AXIS = {
     "type": "object",
     "additionalProperties": False,
     "required": ["stars", "reasoning"],
     "properties": {
-        "stars": {"type": "integer", "minimum": 0, "maximum": 5},
-        # minLength is load-bearing: under a strict schema a model will happily
-        # emit "Good pitch." and the whole point of the tool evaporates.
-        "reasoning": {"type": "string", "minLength": 40},
+        "stars": {"type": "integer", "enum": [0, 1, 2, 3, 4, 5]},
+        "reasoning": {"type": "string"},
     },
 }
 
+# _AXIS is repeated inline rather than referenced through $defs/$ref — one less
+# JSON Schema feature for the validator to reject mid-run. It is the same dict
+# object five times, so they cannot drift.
 SCORE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["pitch", "tone", "company", "sales", "overall", "flags", "summary"],
+    "required": [*AXES, "flags", "summary"],
     "properties": {
-        "pitch": {"$ref": "#/$defs/axis"},
-        "tone": {"$ref": "#/$defs/axis"},
-        "company": {"$ref": "#/$defs/axis"},
-        "sales": {"$ref": "#/$defs/axis"},
-        "overall": {"$ref": "#/$defs/axis"},
+        **{a: _AXIS for a in AXES},
         "flags": {"type": "array", "items": {"type": "string"}},
-        "summary": {"type": "string", "minLength": 20},
+        "summary": {"type": "string"},
     },
-    "$defs": {"axis": _AXIS},
 }
+
+MIN_REASONING = 40
+MIN_SUMMARY = 20
+
+
+def _reject_stub_reasoning(parsed: dict) -> None:
+    """What `minLength` used to do, now that the schema cannot express it.
+
+    Without it a model will happily emit "Good pitch." against a strict schema
+    and the whole point of the assessment evaporates. Raising means the row
+    lands as `failed` and an admin can re-score — better than filing a stub.
+    """
+    short = [a for a in AXES
+             if len(parsed.get(a, {}).get("reasoning", "").strip()) < MIN_REASONING]
+    if len(parsed.get("summary", "").strip()) < MIN_SUMMARY:
+        short.append("summary")
+    if short:
+        raise ScoringError(f"model returned stub reasoning for: {', '.join(short)}")
 
 
 def build_submission_block(transcript: str, m: dict) -> str:
@@ -168,7 +191,9 @@ def judge(transcript: str, m: dict) -> dict:
             getattr(usage, "cache_read_input_tokens", "?"),
             getattr(usage, "output_tokens", "?"),
         )
-    return msg.parsed_output
+    parsed = msg.parsed_output
+    _reject_stub_reasoning(parsed)
+    return parsed
 
 
 def score(audio: bytes) -> dict:

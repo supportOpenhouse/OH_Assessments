@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
-import { stamp } from '../utils/format.js';
 import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
 
 // Everyone who has ever signed in. Attempts and which assessments come from one
@@ -45,19 +44,17 @@ export default function AdminCandidates() {
       />
 
       <div className="board-wrap" style={{ marginTop: 'var(--space-lg)' }}>
-        <table className="board">
+        <table className="board board-narrow">
           <thead>
             <tr>
               <th>Candidate</th>
               <th>Attempts</th>
               <th>Assessments</th>
-              <th>First seen</th>
-              <th>Last seen</th>
             </tr>
           </thead>
           <tbody>
-            {rows === null && <SkeletonRows rows={5} cols={5} stacked={[0]}
-              widths={['65%', '25%', '70%', '75%', '75%']} />}
+            {rows === null && <SkeletonRows rows={5} cols={3} stacked={[0]}
+              widths={['65%', '25%', '70%']} />}
             {(rows || []).map((c) => (
               <tr key={c.id} style={{ cursor: 'default' }}>
                 <td className="cand">
@@ -75,8 +72,6 @@ export default function AdminCandidates() {
                         <span className="chip" key={a.key}>{a.name}</span>
                       ))}
                 </td>
-                <td className="num">{stamp(c.first_seen_at)}</td>
-                <td className="num">{stamp(c.last_seen_at)}</td>
               </tr>
             ))}
           </tbody>

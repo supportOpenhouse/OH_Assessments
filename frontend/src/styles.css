@@ -1554,6 +1554,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 
   /* Two 142px date fields plus their label and the word "to" do not fit 375px
      on one line. Let the group wrap and let the fields size themselves. */
+  /* .board carries min-width: 640px so five or six columns stay readable and
+     scroll. Candidates is down to three, which fits a phone outright — without
+     this it would scroll sideways for no reason. */
+  .board-narrow { min-width: 0; }
+  /* An email is one unbreakable word, so it sets the column's intrinsic width
+     and put the table back over the viewport. Breaking it is scoped to this
+     board on phones — NOT the facts list, where a mid-word email is the thing
+     the vertical <dl> exists to avoid. */
+  .board-narrow .cand small { overflow-wrap: anywhere; }
+  /* 12px each side across three columns was the last 10px of overflow. */
+  .board-narrow th, .board-narrow td { padding-inline: 8px; }
+
   .filterbar-dates { flex-wrap: wrap; }
   .filterbar-dates .field-date { width: auto; flex: 1 1 130px; min-width: 0; }
 

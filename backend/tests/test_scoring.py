@@ -19,14 +19,47 @@ def test_rubric_version_tracks_rubric_content():
     assert scoring.rubric_version_of("abc") != scoring.rubric_version_of("abd")
 
 
-def test_score_schema_bounds_stars_and_requires_real_reasoning():
+def test_score_schema_bounds_stars_to_the_six_bands():
     s = scoring.SCORE_SCHEMA
     assert s["additionalProperties"] is False
-    axis = s["$defs"]["axis"]["properties"]
-    assert axis["stars"] == {"type": "integer", "minimum": 0, "maximum": 5}
-    assert axis["reasoning"]["minLength"] >= 40
-    for k in ("pitch", "tone", "company", "sales", "overall", "flags", "summary"):
+    for a in scoring.AXES:
+        assert s["properties"][a]["properties"]["stars"]["enum"] == [0, 1, 2, 3, 4, 5]
+    for k in (*scoring.AXES, "flags", "summary"):
         assert k in s["required"]
+
+
+def test_score_schema_uses_only_keywords_the_api_accepts():
+    """The API rejects most of JSON Schema in output_config.format — and it does
+    so with a 400 at scoring time, long after the candidate's upload succeeded.
+    minimum/maximum on an integer cost one such round. Anything outside this set
+    has to be proven supported before it goes in."""
+    allowed = {"type", "properties", "required", "additionalProperties", "items", "enum"}
+    seen = set()
+
+    def walk(node):
+        if isinstance(node, dict):
+            seen.update(node.keys())
+            for k, v in node.items():
+                # under "properties" the keys are OUR field names, not schema
+                # keywords — descend to the subschemas without collecting them
+                walk(list(v.values()) if k == "properties" else v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(scoring.SCORE_SCHEMA)
+    assert seen <= allowed, f"unproven schema keywords: {sorted(seen - allowed)}"
+
+
+def test_stub_reasoning_is_rejected():
+    """minLength used to do this in the schema; the schema can no longer say it."""
+    good = {a: {"stars": 3, "reasoning": "x" * 60} for a in scoring.AXES}
+    good["summary"] = "y" * 40
+    scoring._reject_stub_reasoning(good)          # does not raise
+
+    stub = {**good, "pitch": {"stars": 5, "reasoning": "Good pitch."}}
+    with pytest.raises(scoring.ScoringError, match="pitch"):
+        scoring._reject_stub_reasoning(stub)
 
 
 def test_submission_block_keeps_the_rubric_out_of_the_user_message():

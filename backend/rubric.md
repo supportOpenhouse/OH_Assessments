@@ -135,7 +135,8 @@ Openhouse adds on top (documentation, registration, price discovery) is strong.
 
 - `reasoning` on every axis must cite something specific from this recording —
   a phrase used, a number from the metrics, a moment. Generic praise or criticism
-  that could apply to any submission is a failure of the assessment.
+  that could apply to any submission is a failure of the assessment. One clause
+  ("Good pitch.") is rejected outright; write at least a full sentence.
 - `summary` is two lines an admin reads first: the verdict and the reason for it.
 - `flags` is for observations that are not scores: `multiple_speakers`,
   `very_short`, `read_from_script`, `wrong_language`, `audio_quality`.
