@@ -111,6 +111,26 @@ MIN_REASONING = 40
 MIN_SUMMARY = 20
 
 
+def _output_json(msg) -> dict:
+    """The scores, out of the response's text block.
+
+    `output_config.format` guarantees the text block is valid JSON matching
+    SCORE_SCHEMA, but nothing hands it back as a dict — see the note in judge().
+    Every failure here names `stop_reason`, because "no text block" and "not
+    JSON" have completely different causes (a refusal or a max_tokens cut-off
+    versus a schema the API did not actually enforce).
+    """
+    text = next((b.text for b in msg.content if b.type == "text"), None)
+    if not text:
+        raise ScoringError(f"model returned no text block (stop_reason={msg.stop_reason})")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ScoringError(
+            f"model output was not JSON (stop_reason={msg.stop_reason}): {e}"
+        ) from e
+
+
 def _reject_stub_reasoning(parsed: dict) -> None:
     """What `minLength` used to do, now that the schema cannot express it.
 
@@ -166,7 +186,15 @@ def judge(transcript: str, m: dict) -> dict:
     # background job with nobody waiting on it, so trade latency for delivery:
     # 8 attempts with the SDK's own exponential backoff and jitter.
     client = anthropic.Anthropic(max_retries=8)
-    msg = client.messages.parse(
+    # create(), NOT parse(). The SDK only fills `parsed_output` when parse() is
+    # handed a pydantic TYPE via `output_format=` (lib/_parse/_response.py:
+    # parse_text returns None otherwise) — so parse() with a hand-written schema
+    # in `output_config` silently returned a message whose parsed_output was
+    # always None. Going the other way, output_format=<pydantic model> makes the
+    # SDK generate the schema, and a nested model generates $defs/$ref, which is
+    # exactly the shape the API rejected earlier. Hand-written schema + read the
+    # text block ourselves is the combination that actually works here.
+    msg = client.messages.create(
         model=MODEL,
         max_tokens=16000,
         thinking={"type": "adaptive"},
@@ -196,7 +224,7 @@ def judge(transcript: str, m: dict) -> dict:
             getattr(usage, "cache_read_input_tokens", "?"),
             getattr(usage, "output_tokens", "?"),
         )
-    parsed = msg.parsed_output
+    parsed = _output_json(msg)
     _reject_stub_reasoning(parsed)
     return parsed
 

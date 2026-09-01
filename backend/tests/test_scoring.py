@@ -51,6 +51,30 @@ def test_score_schema_uses_only_keywords_the_api_accepts():
     assert seen <= allowed, f"unproven schema keywords: {sorted(seen - allowed)}"
 
 
+class _Block:
+    def __init__(self, type, text=None):
+        self.type, self.text = type, text
+
+
+class _Msg:
+    def __init__(self, content, stop_reason="end_turn"):
+        self.content, self.stop_reason = content, stop_reason
+
+
+def test_output_json_reads_the_text_block_past_the_thinking_block():
+    """parse()'s parsed_output is None unless it is given a pydantic type, so we
+    read the JSON ourselves. Thinking is on, so the text block is not content[0]."""
+    msg = _Msg([_Block("thinking"), _Block("text", '{"pitch": {"stars": 4}}')])
+    assert scoring._output_json(msg) == {"pitch": {"stars": 4}}
+
+
+def test_output_json_names_the_stop_reason_when_there_is_nothing_to_read():
+    with pytest.raises(scoring.ScoringError, match="max_tokens"):
+        scoring._output_json(_Msg([_Block("thinking")], stop_reason="max_tokens"))
+    with pytest.raises(scoring.ScoringError, match="not JSON"):
+        scoring._output_json(_Msg([_Block("text", "Sure! Here you go:")]))
+
+
 def test_stub_reasoning_is_rejected():
     """minLength used to do this in the schema; the schema can no longer say it."""
     good = {a: {"stars": 3, "reasoning": "x" * 60} for a in scoring.AXES}
