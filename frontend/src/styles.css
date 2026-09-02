@@ -95,6 +95,8 @@
   --dur-curtain: 420ms;
   /* Theme reveal. Paired with the duration in ThemeContext.jsx. */
   --dur-theme: 520ms;
+  /* One page sliding out while the next slides in. */
+  --dur-nav: 380ms;
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
@@ -1537,6 +1539,235 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 
 
+/* ───────── Curtain ─────────
+   Sign-in and sign-out wipe. Transform only — no layout property is animated,
+   so it cannot reflow the page it is covering. It sits above everything
+   including the dialog scrim (200), because during a sign-out there is nothing
+   the person should be able to reach.                                         */
+.curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.curtain-line {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  text-align: center;
+  opacity: 0;
+  animation: curtain-line var(--dur-curtain) var(--ease-out) var(--dur-curtain) forwards;
+}
+
+.curtain-cover  { animation: curtain-cover  var(--dur-curtain) var(--ease-in-out) forwards; }
+.curtain-reveal { animation: curtain-reveal var(--dur-curtain) var(--ease-in-out) forwards; }
+
+@keyframes curtain-cover  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes curtain-reveal { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes curtain-line   { from { opacity: 0; } to { opacity: 1; } }
+
+/* Reduced motion keeps the SEQUENCE — the JS orchestration depends on the
+   phases taking the same time, and a sign-out that uncovers early is a bug, not
+   a preference. Only the travel goes; it cross-fades instead. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes curtain-cover  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes curtain-reveal { from { opacity: 1; } to { opacity: 0; } }
+}
+
+
+/* ───────── Theme reveal ─────────
+   The circle is animated from JS (it needs the pressed button's coordinates),
+   so all this does is get the browser's default cross-fade out of the way and
+   put the new snapshot on top — otherwise the old one paints over the circle
+   and nothing appears to happen.                                              */
+/* SCOPED to .theme-vt — both this and the route transition below animate
+   ::view-transition(root), and there is only one of those per navigation.
+
+   The circle is declared HERE rather than attached from JS after `t.ready`.
+   That hop was a race: the browser had already begun the transition with the
+   new snapshot fully painted, so the reveal started late and from stale
+   geometry. ThemeContext sets --vt-x/--vt-y/--vt-r on :root before starting the
+   transition and they inherit into the pseudo tree. */
+.theme-vt::view-transition-old(root) { animation: none; z-index: 0; }
+.theme-vt::view-transition-new(root) {
+  animation: theme-reveal var(--dur-theme) var(--ease-in-out) both;
+  mix-blend-mode: normal;
+  z-index: 1;
+}
+@keyframes theme-reveal {
+  from { clip-path: circle(0 at var(--vt-x) var(--vt-y)); }
+  to   { clip-path: circle(var(--vt-r) at var(--vt-x) var(--vt-y)); }
+}
+
+/* Home → sign-in. A cut between two full-bleed pages reads as a page reload;
+   the new one rises into place instead. */
+.route-vt::view-transition-old(root) {
+  animation: route-out var(--dur-base) var(--ease-in-out) both;
+}
+.route-vt::view-transition-new(root) {
+  animation: route-in var(--dur-slow) var(--ease-out) both;
+}
+@keyframes route-out { to { opacity: 0; } }
+@keyframes route-in  { from { opacity: 0; transform: translateY(14px); } }
+
+
+/* ───────── Page slide ─────────
+   Moving between the signed-in pages runs the content like a reel. Only the
+   content region moves: `.main` gets its own view-transition name, so the
+   sidebar you just clicked stays put instead of flying off with the page.
+
+   Direction comes from the nav order — see Layout.jsx. `nav-up` means the
+   target sits ABOVE the current page in the list, so it enters from the left.  */
+/* The name is applied ONLY while a nav slide is running. Left on permanently it
+   gives every OTHER view transition a second group: the theme toggle's circle
+   clips the root snapshot, but a named .main paints above it and would flip the
+   content area instantly while the chrome circled. Layout adds the class before
+   startViewTransition, so the name is in place when the snapshot is taken. */
+.nav-up .main,
+.nav-down .main { view-transition-name: main-content; }
+
+/* The root group would cross-fade underneath and muddy the slide. */
+.nav-up::view-transition-old(root),   .nav-up::view-transition-new(root),
+.nav-down::view-transition-old(root), .nav-down::view-transition-new(root) { animation: none; }
+
+/* Both snapshots are laid over each other inside the group; without this the
+   outgoing page paints across the sidebar on its way out. */
+.nav-up::view-transition-image-pair(main-content),
+.nav-down::view-transition-image-pair(main-content) { overflow: hidden; }
+
+/* A FULL slide — 100%, all the way off — not a nudge. */
+.nav-down::view-transition-old(main-content) { animation: slide-out-left  var(--dur-nav) var(--ease-in-out) both; }
+.nav-down::view-transition-new(main-content) { animation: slide-in-right  var(--dur-nav) var(--ease-in-out) both; }
+.nav-up::view-transition-old(main-content)   { animation: slide-out-right var(--dur-nav) var(--ease-in-out) both; }
+.nav-up::view-transition-new(main-content)   { animation: slide-in-left   var(--dur-nav) var(--ease-in-out) both; }
+
+@keyframes slide-out-left  { to   { transform: translateX(-100%); } }
+@keyframes slide-in-right  { from { transform: translateX(100%); } }
+@keyframes slide-out-right { to   { transform: translateX(100%); } }
+@keyframes slide-in-left   { from { transform: translateX(-100%); } }
+
+/* ───────── Home ─────────
+   The public front door at `/`. The wave field is the hero's ground — the same
+   material as the sign-in page, so the two read as one product — and everything
+   below it is plain editorial on paper.                                       */
+.home { background: var(--paper); }
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper-3);
+  border-bottom: var(--rule-hair);
+}
+/* The `:not` is load-bearing, exactly as on the landing: a blanket
+   `position: relative` on hero children overrides the field's `absolute` and
+   drops it back into flow as a block. */
+.home-hero > *:not(.waves) { position: relative; z-index: 1; }
+
+.home-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-block: var(--space-lg);
+}
+.home-nav a { text-decoration: none; }
+
+.home-hero-body {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 44%);
+  gap: var(--space-3xl);
+  align-items: center;
+  padding-block: var(--space-2xl) var(--space-3xl);
+}
+.home-hero-text { min-width: 0; }
+
+/* Their own photograph. 3:2, so the box is given the ratio rather than a height
+   — the image then cannot shift the layout as it loads. */
+.home-hero-art { margin: 0; }
+.home-hero-art img {
+  display: block;
+  width: 100%;
+  /* `height: auto` is LOAD-BEARING. The <img> carries width/height attributes
+     (they reserve the box before it loads), and with a CSS width but no CSS
+     height the ATTRIBUTE sets the used height — 1280px — and aspect-ratio is
+     ignored, because it only governs when one dimension is auto. It rendered
+     459x1280 and made the hero 1637px tall. */
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: var(--r-lg);
+}
+
+.home-hero-body h1 {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  letter-spacing: -.03em;
+  line-height: 1.02;
+  margin: 0;
+}
+
+/* A measure, not the full column: 75ch of 18px is a wall. */
+.home-lede {
+  max-width: 60ch;
+  margin: var(--space-lg) 0 0;
+  font-size: var(--text-lg);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.home-cta { margin-top: var(--space-2xl); }
+
+.home-section { padding-block: var(--space-3xl); border-top: var(--rule-hair); }
+.home-section:first-of-type { border-top: 0; }
+.home-section h2 { font-size: var(--text-3xl); margin: 0 0 var(--space-lg); }
+/* The section marks are the same Lucide glyphs openhouse.in/about uses. All in
+   the accent: theirs sets the Vision one in --oh-purple, which this project
+   does not use — one accent, and a second hue here would earn nothing. */
+.home-h { display: flex; align-items: center; gap: var(--space-sm); }
+.home-h svg { flex: none; color: var(--accent); }
+.home-section h3 { font-size: var(--text-xl); margin: 0 0 var(--space-sm); }
+
+.home-copy { max-width: 68ch; margin: 0 0 var(--space-md); line-height: 1.65; color: var(--ink-2); }
+
+.home-aims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-2xl);
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-2xl);
+  border-top: var(--rule-hair);
+}
+
+.home-footer { border-top: var(--rule-hair); margin-top: var(--space-3xl); }
+.home-footer .site-footer { margin-top: 0; border-top: 0; }
+
+/* min-width: 0 so a long word cannot push a grid column past its track. */
+.home-aim { min-width: 0; }
+
+.home-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-2xl);
+  margin-top: var(--space-2xl);
+}
+/* Numbered like the assessment steps — the same counting device, so a value
+   reads as one of a set rather than as a card. */
+.home-value { border-top: 2px solid var(--ink); padding-top: var(--space-md); }
+.home-value-n {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ───────── Mobile ─────────
    Everything here is measured, not assumed: each rule below fixes something the
    375px audit actually caught. Two problems dominated — the nav strip held
@@ -1576,6 +1807,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
   .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .seg::-webkit-scrollbar { display: none; }
   .seg button { flex: none; white-space: nowrap; }
+}
+
+@media (max-width: 860px) {
+  /* The photograph goes under the copy rather than fighting it for width. */
+  .home-hero-body { grid-template-columns: 1fr; gap: var(--space-2xl); }
 }
 
 @media (max-width: 560px) {
@@ -1682,148 +1918,4 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 @media (hover: none) {
   .drop-cta-pointer { display: none; }
   .drop-cta-touch { display: block; }
-}
-
-
-/* ───────── Curtain ─────────
-   Sign-in and sign-out wipe. Transform only — no layout property is animated,
-   so it cannot reflow the page it is covering. It sits above everything
-   including the dialog scrim (200), because during a sign-out there is nothing
-   the person should be able to reach.                                         */
-.curtain {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  display: grid;
-  place-items: center;
-  padding: var(--space-lg);
-  background: var(--accent);
-  pointer-events: none;
-}
-
-.curtain-line {
-  margin: 0;
-  color: #fff;
-  font-family: var(--font-display);
-  font-size: clamp(1.75rem, 5vw, 3rem);
-  font-weight: 700;
-  letter-spacing: -.02em;
-  text-align: center;
-  opacity: 0;
-  animation: curtain-line var(--dur-curtain) var(--ease-out) var(--dur-curtain) forwards;
-}
-
-.curtain-cover  { animation: curtain-cover  var(--dur-curtain) var(--ease-in-out) forwards; }
-.curtain-reveal { animation: curtain-reveal var(--dur-curtain) var(--ease-in-out) forwards; }
-
-@keyframes curtain-cover  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-@keyframes curtain-reveal { from { transform: translateX(0); } to { transform: translateX(100%); } }
-@keyframes curtain-line   { from { opacity: 0; } to { opacity: 1; } }
-
-/* Reduced motion keeps the SEQUENCE — the JS orchestration depends on the
-   phases taking the same time, and a sign-out that uncovers early is a bug, not
-   a preference. Only the travel goes; it cross-fades instead. */
-@media (prefers-reduced-motion: reduce) {
-  @keyframes curtain-cover  { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes curtain-reveal { from { opacity: 1; } to { opacity: 0; } }
-}
-
-
-/* ───────── Theme reveal ─────────
-   The circle is animated from JS (it needs the pressed button's coordinates),
-   so all this does is get the browser's default cross-fade out of the way and
-   put the new snapshot on top — otherwise the old one paints over the circle
-   and nothing appears to happen.                                              */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-::view-transition-old(root) { z-index: 0; }
-::view-transition-new(root) { z-index: 1; }
-
-
-/* ───────── Home ─────────
-   The public front door at `/`. The wave field is the hero's ground — the same
-   material as the sign-in page, so the two read as one product — and everything
-   below it is plain editorial on paper.                                       */
-.home { background: var(--paper); }
-
-.home-hero {
-  position: relative;
-  overflow: hidden;
-  background: var(--paper-3);
-  border-bottom: var(--rule-hair);
-  padding-bottom: var(--space-3xl);
-}
-/* The `:not` is load-bearing, exactly as on the landing: a blanket
-   `position: relative` on hero children overrides the field's `absolute` and
-   drops it back into flow as a block. */
-.home-hero > *:not(.waves) { position: relative; z-index: 1; }
-
-.home-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding-block: var(--space-lg);
-}
-.home-nav a { text-decoration: none; }
-
-.home-hero-body { padding-block: var(--space-3xl) 0; }
-.home-hero-body h1 {
-  font-size: clamp(2.5rem, 7vw, 4.5rem);
-  letter-spacing: -.03em;
-  line-height: 1.02;
-  margin: 0;
-}
-
-/* A measure, not the full column: 75ch of 18px is a wall. */
-.home-lede {
-  max-width: 60ch;
-  margin: var(--space-lg) 0 0;
-  font-size: var(--text-lg);
-  line-height: 1.55;
-  color: var(--ink-2);
-}
-
-.home-cta { margin-top: var(--space-2xl); }
-
-.home-section { padding-block: var(--space-3xl); border-top: var(--rule-hair); }
-.home-section:first-of-type { border-top: 0; }
-.home-section h2 { font-size: var(--text-3xl); margin: 0 0 var(--space-lg); }
-.home-section h3 { font-size: var(--text-xl); margin: 0 0 var(--space-sm); }
-
-.home-copy { max-width: 68ch; margin: 0 0 var(--space-md); line-height: 1.65; color: var(--ink-2); }
-
-.home-aims {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-2xl);
-  margin-top: var(--space-2xl);
-  padding-top: var(--space-2xl);
-  border-top: var(--rule-hair);
-}
-
-.home-footer { border-top: var(--rule-hair); margin-top: var(--space-3xl); }
-.home-footer .site-footer { margin-top: 0; border-top: 0; }
-
-/* min-width: 0 so a long word cannot push a grid column past its track. */
-.home-aim { min-width: 0; }
-
-.home-values {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-2xl);
-  margin-top: var(--space-2xl);
-}
-/* Numbered like the assessment steps — the same counting device, so a value
-   reads as one of a set rather than as a card. */
-.home-value { border-top: 2px solid var(--ink); padding-top: var(--space-md); }
-.home-value-n {
-  display: block;
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
 }

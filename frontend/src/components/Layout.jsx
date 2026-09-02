@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import Brand from './Brand.jsx';
@@ -32,7 +33,8 @@ export default function Layout() {
   // plus these two. Carrying a theme toggle and a sign-out on every single page
   // is chrome for its own sake; Profile is where you go to manage the session,
   // so that is where they live. Desktop keeps them in the rail throughout.
-  const onProfile = useLocation().pathname === '/profile';
+  const { pathname } = useLocation();
+  const onProfile = pathname === '/profile';
 
   // logout is a server call now (only the server can clear an httpOnly cookie),
   // so wait for it before leaving — otherwise the landing page can race the
@@ -44,6 +46,31 @@ export default function Layout() {
 
   const links = NAV[user?.role === 'admin' ? 'admin' : 'user'];
 
+  // Moving between pages slides the content like a reel, and the DIRECTION
+  // comes from the nav order: go UP the list and the page arrives from the
+  // left, go DOWN and it arrives from the right — so the motion matches where
+  // you just pointed. Only the sidebar links do this; a row click into a
+  // submission has no position in the list to take a direction from.
+  //
+  // Longest prefix wins, so /admin/<id> counts as "Submissions" rather than
+  // matching nothing — otherwise leaving a detail page had no direction.
+  const currentIndex = links.reduce(
+    (best, l, i) => (pathname.startsWith(l.to)
+      && (best < 0 || l.to.length > links[best].to.length) ? i : best),
+    -1,
+  );
+
+  function onNavigate(e, to, index) {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!document.startViewTransition || reduce) return;   // let NavLink navigate
+    if (currentIndex < 0 || index === currentIndex) return; // nowhere to slide from
+    e.preventDefault();
+    const root = document.documentElement;
+    root.classList.add(index < currentIndex ? 'nav-up' : 'nav-down');
+    document.startViewTransition(() => flushSync(() => navigate(to)))
+      .finished.finally(() => root.classList.remove('nav-up', 'nav-down'));
+  }
+
   return (
     <div className="app">
       <aside className="sidebar" data-on-profile={onProfile || undefined}>
@@ -52,8 +79,14 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Main">
-          {links.map(({ to, label, Icon, end }) => (
-            <NavLink key={to} className="side-link" to={to} end={end}>
+          {links.map(({ to, label, Icon, end }, i) => (
+            <NavLink
+              key={to}
+              className="side-link"
+              to={to}
+              end={end}
+              onClick={(e) => onNavigate(e, to, i)}
+            >
               <Icon />
               {label}
             </NavLink>

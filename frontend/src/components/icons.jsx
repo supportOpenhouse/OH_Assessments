@@ -15,6 +15,8 @@ import {
   LuArrowRight, LuArrowLeft, LuPencil, LuX,
   LuInbox, LuUsers, LuActivity, LuUser, LuClipboardList, LuHistory,
   LuPlay, LuPause, LuRotateCcw, LuRotateCw, LuRefreshCw,
+  // openhouse.in/about uses these exact Lucide marks on its sections.
+  LuBuilding2, LuTarget, LuRocket, LuAward,
   // Kept for the audio player's commented-out controls — see AudioPlayer.jsx.
   LuVolume2, LuHeart, LuSkipBack, LuSkipForward,
   LuStar,
@@ -67,6 +69,12 @@ export const IconForward10 = wrap(LuRotateCw);
 // Distinct from IconForward10 (also a circular arrow) on purpose: this one is a
 // two-arrow refresh, so a destructive re-run never reads as a seek control.
 export const IconRescore = wrap(LuRefreshCw);
+
+// About-page section marks, matched to openhouse.in/about.
+export const IconOverview = wrap(LuBuilding2);
+export const IconVision = wrap(LuTarget);
+export const IconMission = wrap(LuRocket);
+export const IconValues = wrap(LuAward);
 
 // Parked for the player's commented-out controls.
 export const IconVolume = wrap(LuVolume2);

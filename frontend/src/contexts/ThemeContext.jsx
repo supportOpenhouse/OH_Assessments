@@ -27,10 +27,15 @@ export function ThemeProvider({ children }) {
   // The new theme is revealed by a circle growing out of the button that was
   // pressed, rather than the whole page flipping at once.
   //
-  // View Transitions do the heavy lifting: the browser snapshots the old and new
-  // states, and we animate a clip-path on ::view-transition-new(root) so the new
-  // one is wiped in. Everything degrades to a plain swap — an older browser, or
-  // a toggle fired from a keyboard shortcut with no element to grow from.
+  // The circle is a CSS animation, not a JS one. Driving it from
+  // `t.ready.then(() => el.animate(...))` meant two races: the geometry was read
+  // AFTER the DOM had already swapped, and the animation was attached a hop
+  // after the browser had begun the transition — during which
+  // `animation: none` left the new snapshot fully painted. That is what showed
+  // as a circle in the wrong place, a pause, then the theme arriving at once.
+  // Declaring it up front hands the whole thing to the browser: the geometry is
+  // measured from the live button BEFORE anything moves, and the animation is
+  // already in the stylesheet when the transition starts.
   const toggle = (e) => {
     const next = theme === 'dark' ? 'light' : 'dark';
     const el = e?.currentTarget;
@@ -38,29 +43,34 @@ export function ThemeProvider({ children }) {
 
     if (!document.startViewTransition || !el || reduce) { setTheme(next); return; }
 
+    const root = document.documentElement;
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    // Reach the furthest corner, or the circle stops short of the far edge.
+    // clientWidth/Height, not innerWidth/Height: the latter include the
+    // scrollbar, which is not part of the area being revealed.
+    const w = root.clientWidth;
+    const h = root.clientHeight;
+    const end = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
+
+    root.style.setProperty('--vt-x', `${x}px`);
+    root.style.setProperty('--vt-y', `${y}px`);
+    root.style.setProperty('--vt-r', `${end}px`);
+    // Scopes the reveal to THIS transition, so the home page's route transition
+    // keeps its own animation — there is only one ::view-transition(root).
+    root.classList.add('theme-vt');
+
     const t = document.startViewTransition(() => {
       // Set the attribute HERE, not only in the effect below. The snapshot is
       // taken when this callback returns, and a passive effect is not guaranteed
       // to have run by then — the transition would capture the OLD theme twice
       // and animate nothing. The effect still runs and is idempotent.
-      document.documentElement.setAttribute('data-theme', next);
+      root.setAttribute('data-theme', next);
       flushSync(() => setTheme(next));
     });
 
-    t.ready.then(() => {
-      const r = el.getBoundingClientRect();
-      const x = r.left + r.width / 2;
-      const y = r.top + r.height / 2;
-      // Reach the furthest corner, or the circle stops short of the far edge.
-      const end = Math.hypot(Math.max(x, window.innerWidth - x),
-                             Math.max(y, window.innerHeight - y));
-      document.documentElement.animate(
-        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${end}px at ${x}px ${y}px)`] },
-        // Paired with --dur-theme in styles.css.
-        { duration: 520, easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
-          pseudoElement: '::view-transition-new(root)' },
-      );
-    }).catch(() => { /* a transition can be skipped; the theme still changed */ });
+    t.finished.finally(() => root.classList.remove('theme-vt'));
   };
 
   return (

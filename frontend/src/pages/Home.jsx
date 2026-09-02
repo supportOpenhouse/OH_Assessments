@@ -1,9 +1,12 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import Brand from '../components/Brand.jsx';
-import Waves from '../components/Waves.jsx';
 import SiteFooter from '../components/SiteFooter.jsx';
-import { IconArrow, IconSun, IconMoon } from '../components/icons.jsx';
+import {
+  IconArrow, IconSun, IconMoon,
+  IconOverview, IconVision, IconMission, IconValues,
+} from '../components/icons.jsx';
 
 // The public front door. `/` is marketing; the assessment sign-in moved to
 // /assessmentlogin, which is where "Take Assessment" leads — and which bounces
@@ -34,11 +37,11 @@ const OVERVIEW = [
 ];
 
 const AIMS = [
-  ['Our Vision',
+  [IconVision, 'Our Vision',
    'To transform the way India buys and sells pre-owned homes by making '
    + 'homeownership more transparent, efficient, and trusted—enabling every '
    + 'Indian family to find a home they truly belong to.'],
-  ['Our Mission',
+  [IconMission, 'Our Mission',
    'We simplify the resale home journey through data-backed pricing, trustworthy '
    + 'brokers, quality-assured properties, and a customer-first experience—'
    + 'delivering value to buyers, sellers, and ecosystem partners alike.'],
@@ -58,13 +61,25 @@ const VALUES = [
 
 export default function Home() {
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
+
+  // Cross-fade into the sign-in page instead of a hard cut. The browser
+  // snapshots both states; `.route-vt` is what picks the route animation, and
+  // it is scoped so the theme toggle's own circular reveal is unaffected —
+  // both use ::view-transition(root) and would otherwise fight.
+  function toSignIn(e) {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!document.startViewTransition || reduce) return;   // let <Link> just navigate
+    e.preventDefault();
+    const root = document.documentElement;
+    root.classList.add('route-vt');
+    document.startViewTransition(() => flushSync(() => navigate('/assessmentlogin')))
+      .finished.finally(() => root.classList.remove('route-vt'));
+  }
 
   return (
     <div className="home">
       <section className="home-hero">
-        {/* Same field as the sign-in page — it is the brand's one moving thing. */}
-        <Waves />
-
         <div className="home-nav shell">
           <Link to="/" aria-label="Openhouse Careers"><Brand /></Link>
           <button
@@ -78,22 +93,34 @@ export default function Home() {
         </div>
 
         <div className="home-hero-body shell">
-          <h1>About Openhouse</h1>
-          <p className="home-lede">{LEDE}</p>
-          <Link to="/assessmentlogin" className="btn btn-primary btn-lg home-cta">
-            Take Assessment <IconArrow />
-          </Link>
+          <div className="home-hero-text">
+            <h1>About Openhouse</h1>
+            <p className="home-lede">{LEDE}</p>
+            <Link
+              to="/assessmentlogin"
+              className="btn btn-primary btn-lg home-cta"
+              onClick={toSignIn}
+            >
+              Take Assessment <IconArrow />
+            </Link>
+          </div>
+
+          {/* Their own photograph, served from our public/ — hotlinking their
+              CDN is a URL that silently 404s one day. Decorative, so alt="". */}
+          <figure className="home-hero-art">
+            <img src="/about.jpg" alt="" width="1920" height="1280" loading="eager" />
+          </figure>
         </div>
       </section>
 
       <section className="shell home-section">
-        <h2>Company Overview</h2>
+        <h2 className="home-h"><IconOverview size={26} /> Company Overview</h2>
         {OVERVIEW.map((t) => <p className="home-copy" key={t.slice(0, 24)}>{t}</p>)}
 
         <div className="home-aims">
-          {AIMS.map(([h, t]) => (
+          {AIMS.map(([Icon, h, t]) => (
             <div className="home-aim" key={h}>
-              <h3>{h}</h3>
+              <h3 className="home-h"><Icon size={22} /> {h}</h3>
               <p className="home-copy">{t}</p>
             </div>
           ))}
@@ -101,7 +128,7 @@ export default function Home() {
       </section>
 
       <section className="shell home-section">
-        <h2>Our Core Values</h2>
+        <h2 className="home-h"><IconValues size={26} /> Our Core Values</h2>
         <p className="home-copy muted">
           These principles guide every decision we make and every interaction we have.
         </p>
