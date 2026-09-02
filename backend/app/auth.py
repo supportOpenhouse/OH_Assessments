@@ -14,7 +14,7 @@ import time
 import uuid
 
 import jwt
-from fastapi import Cookie, Header, HTTPException
+from fastapi import Cookie, Header, HTTPException, Response
 from google.auth.transport import requests as g_requests
 from google.oauth2 import id_token as g_id_token
 
@@ -26,6 +26,16 @@ ALG = "HS256"
 # Candidates submit once and are done; a week means they are not signed out
 # mid-flow. Admin privilege does NOT ride on this window — see current_user.
 TTL_S = 7 * 24 * 3600
+
+# Re-issue the session once it is past halfway. Without this the 7-day window
+# starts at sign-in and NEVER extends, so an admin using the tool every day is
+# still thrown out every seventh day — which is exactly what it felt like.
+# Sliding makes the 7 days an IDLE timeout instead of an absolute one: keep
+# using it and you stay in, stop for a week and you are signed out.
+#
+# Halfway rather than every request: a Set-Cookie on every response is pure
+# noise, and re-signing a token that has six days left buys nothing.
+RENEW_AFTER_S = TTL_S // 2
 
 # The session cookie. httpOnly so no script can read it — that is the whole
 # reason for moving off localStorage, where any XSS could exfiltrate the token.
@@ -67,12 +77,16 @@ def verify_google(token: str) -> dict:
     return {"email": info["email"].lower(), "name": info.get("name") or ""}
 
 
-def mint(email: str, name: str, role: str, ttl_s: int = TTL_S) -> str:
+def mint(email: str, name: str, role: str, ttl_s: int = TTL_S,
+         jti: str | None = None) -> str:
     """One token per person per sign-in.
 
     `jti` identifies this specific session so a sign-in can be traced through
-    activity_logs. `role` is a convenience for the client's own routing — the
-    server re-checks it, see current_user.
+    activity_logs. A RENEWAL passes the existing one back in: sliding the window
+    continues the same session, and minting a fresh id would break the thread
+    between a sign-in row and everything that session went on to do.
+    `role` is a convenience for the client's own routing — the server re-checks
+    it, see current_user.
     """
     now = int(time.time())
     return jwt.encode(
@@ -80,7 +94,7 @@ def mint(email: str, name: str, role: str, ttl_s: int = TTL_S) -> str:
             "email": email,
             "name": name,
             "role": role,
-            "jti": uuid.uuid4().hex,
+            "jti": jti or uuid.uuid4().hex,
             "iat": now,
             "exp": now + ttl_s,
         },
@@ -132,6 +146,7 @@ def _claims(authorization: str, cookie: str | None) -> dict:
 
 
 async def current_user(
+    response: Response,
     authorization: str = Header(default=""),
     oha_session: str | None = Cookie(default=None),
 ) -> dict:
@@ -149,19 +164,33 @@ async def current_user(
     """
     c = _claims(authorization, oha_session)
     oh = db.get_oh_user(c["email"])
+    role = oh["role"] if oh else "user"
+
+    # Slide the window. Cookie sessions only: a caller using the Authorization
+    # header holds its own token and has nowhere to put a new one, so handing it
+    # a Set-Cookie would be a header nobody reads.
+    if oha_session and c.get("exp", 0) - time.time() < TTL_S - RENEW_AFTER_S:
+        set_session_cookie(
+            response,
+            # The freshly-read role, not the old claim — a renewal must not
+            # carry a stale privilege forward for another week.
+            mint(c["email"], c.get("name", ""), role, jti=c.get("jti")),
+        )
+
     return {
         "email": c["email"],
         "name": c.get("name", ""),
-        "role": oh["role"] if oh else "user",
+        "role": role,
         "jti": c.get("jti"),
     }
 
 
 async def require_admin(
+    response: Response,
     authorization: str = Header(default=""),
     oha_session: str | None = Cookie(default=None),
 ) -> dict:
-    u = await current_user(authorization, oha_session)
+    u = await current_user(response, authorization, oha_session)
     if u["role"] != "admin":
         raise HTTPException(403, "admin only")
     return u

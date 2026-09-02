@@ -189,6 +189,13 @@ faster than they score. Then the background task becomes a real queue. Not befor
 7. `POST /api/auth/logout` clears it — only the server can, which is the point.
 8. Any `401` fires an `auth:expired` window event → toast → back to the landing.
 
+   The 7 days is an **idle** timeout, not an absolute one. `current_user`
+   re-issues the cookie once a token is past halfway (`RENEW_AFTER_S`), so
+   continued use keeps the session alive and seven days without a request
+   ends it. A renewal keeps the original `jti` — it is the same session
+   continuing — and re-signs the role read fresh from `oh_users`, so it can
+   never launder a revoked admin claim into another week.
+
 > **Why not localStorage.** A token in `localStorage` is readable by any script
 > that runs on the page, so a single XSS is a full session theft. httpOnly puts
 > it out of reach. `SameSite=Lax` covers the CSRF exposure that cookie auth

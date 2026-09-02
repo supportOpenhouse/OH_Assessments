@@ -699,3 +699,89 @@ def test_notes_never_reach_the_scoring_prompt(client, monkeypatch):
     from app import scoring
     src = inspect.getsource(scoring)
     assert "notes" not in src, "scoring.py must not read the candidate's notes"
+
+
+# ── the sliding session ───────────────────────────────────────────────────
+#
+# The 7 days is an IDLE timeout, not an absolute one. Before this, the window
+# started at sign-in and never extended, so an admin using the tool daily was
+# still signed out every seventh day.
+
+def _renewed(response):
+    """The token in this response's Set-Cookie, or None if it did not renew."""
+    raw = response.headers.get("set-cookie", "")
+    if auth.COOKIE_NAME not in raw:
+        return None
+    tok = raw.split(f"{auth.COOKIE_NAME}=", 1)[1].split(";", 1)[0]
+    return auth.verify(tok)
+
+
+def test_a_fresh_session_is_not_re_minted_on_every_request(client):
+    """A Set-Cookie on every response is noise, and re-signing a token with six
+    days left buys nothing."""
+    client.cookies.set(auth.COOKIE_NAME, auth.mint(CANDIDATE, "C", "user"))
+    try:
+        r = client.get("/api/me")
+        assert r.status_code == 200
+        assert _renewed(r) is None
+    finally:
+        client.cookies.clear()
+
+
+def test_a_session_past_halfway_slides(client):
+    old = auth.mint(CANDIDATE, "C", "user", ttl_s=60)   # nearly expired
+    before = auth.verify(old)
+    client.cookies.set(auth.COOKIE_NAME, old)
+    try:
+        r = client.get("/api/me")
+        assert r.status_code == 200
+        fresh = _renewed(r)
+        assert fresh is not None, "an old session must be re-issued, not left to expire"
+        assert fresh["exp"] > before["exp"]
+        # A renewal continues the SAME session — a new jti would break the
+        # thread between the sign-in audit row and everything that followed.
+        assert fresh["jti"] == before["jti"]
+    finally:
+        client.cookies.clear()
+
+
+def test_a_renewal_carries_the_CURRENT_role_not_the_old_claim(client):
+    """Privilege comes from oh_users on every request. Sliding the window must
+    not launder a revoked admin claim into another seven days of access.
+
+    The token claims admin for an address the fixture's oh_users has no row for
+    — the shape of someone removed from the team while still holding a cookie.
+    """
+    stale = auth.mint(CANDIDATE, "C", "admin", ttl_s=60)
+    client.cookies.set(auth.COOKIE_NAME, stale)
+    try:
+        r = client.get("/api/me")
+        assert r.status_code == 200
+        assert r.json()["role"] == "user"
+        assert _renewed(r)["role"] == "user", "a renewal re-signed the revoked claim"
+        # and the revocation actually bites
+        assert client.get("/api/submissions").status_code == 403
+    finally:
+        client.cookies.clear()
+
+
+def test_a_header_session_is_never_handed_a_cookie(client):
+    """curl and the tests hold their own token and have nowhere to put a new
+    one, so a Set-Cookie there is a header nobody reads."""
+    h = {"Authorization": f"Bearer {auth.mint(CANDIDATE, 'C', 'user', ttl_s=60)}"}
+    r = client.get("/api/me", headers=h)
+    assert r.status_code == 200
+    assert _renewed(r) is None
+
+
+def test_seven_days_idle_still_signs_you_out(client):
+    """Sliding must not become immortal: a window that has actually elapsed is
+    refused rather than renewed."""
+    dead = auth.mint(CANDIDATE, "C", "user", ttl_s=-1)
+    client.cookies.set(auth.COOKIE_NAME, dead)
+    try:
+        r = client.get("/api/me")
+        assert r.status_code == 401
+        assert _renewed(r) is None, "an expired session must not be re-issued"
+    finally:
+        client.cookies.clear()

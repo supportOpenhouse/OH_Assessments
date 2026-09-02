@@ -90,6 +90,9 @@
   --dur-fast: 140ms;
   --dur-base: 240ms;
   --dur-slow: 480ms;
+  /* One sweep of the sign-in/sign-out curtain. Paired with CURTAIN_SWEEP_MS
+     in Curtain.jsx — change both together. */
+  --dur-curtain: 420ms;
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
@@ -1677,4 +1680,48 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 @media (hover: none) {
   .drop-cta-pointer { display: none; }
   .drop-cta-touch { display: block; }
+}
+
+
+/* ───────── Curtain ─────────
+   Sign-in and sign-out wipe. Transform only — no layout property is animated,
+   so it cannot reflow the page it is covering. It sits above everything
+   including the dialog scrim (200), because during a sign-out there is nothing
+   the person should be able to reach.                                         */
+.curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.curtain-line {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -.02em;
+  text-align: center;
+  opacity: 0;
+  animation: curtain-line var(--dur-curtain) var(--ease-out) var(--dur-curtain) forwards;
+}
+
+.curtain-cover  { animation: curtain-cover  var(--dur-curtain) var(--ease-in-out) forwards; }
+.curtain-reveal { animation: curtain-reveal var(--dur-curtain) var(--ease-in-out) forwards; }
+
+@keyframes curtain-cover  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes curtain-reveal { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes curtain-line   { from { opacity: 0; } to { opacity: 1; } }
+
+/* Reduced motion keeps the SEQUENCE — the JS orchestration depends on the
+   phases taking the same time, and a sign-out that uncovers early is a bug, not
+   a preference. Only the travel goes; it cross-fades instead. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes curtain-cover  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes curtain-reveal { from { opacity: 1; } to { opacity: 0; } }
 }

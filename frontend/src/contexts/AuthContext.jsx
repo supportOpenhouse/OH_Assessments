@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api, resetExpiryNotice } from '../api/client.js';
+import Curtain, { CURTAIN_SWEEP_MS, CURTAIN_HOLD_MS } from '../components/Curtain.jsx';
 
 // The session lives in an httpOnly cookie set by the server. Nothing is stored
 // in JS or localStorage — there is no token here for an injected script to read,
@@ -10,6 +11,26 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [curtain, setCurtain] = useState(null);   // null | 'cover' | 'reveal'
+  const [line, setLine] = useState('');
+
+  // Cover the screen, and hand back control once it actually is covered — the
+  // work behind it (a route swap, the sign-out round trip) must not be visible.
+  const cover = useCallback(async (text) => {
+    setLine(text);
+    setCurtain('cover');
+    await new Promise((r) => setTimeout(r, CURTAIN_SWEEP_MS));
+  }, []);
+
+  // Deliberately NOT awaited by the caller: sign-out has to navigate while the
+  // screen is still covered, so the reveal runs on its own and uncovers onto
+  // wherever the caller went.
+  const reveal = useCallback(() => {
+    setTimeout(() => {
+      setCurtain('reveal');
+      setTimeout(() => setCurtain(null), CURTAIN_SWEEP_MS);
+    }, CURTAIN_HOLD_MS);
+  }, []);
 
   // Boot: ask the server who the cookie belongs to.
   useEffect(() => {
@@ -42,9 +63,14 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = useCallback(async (idToken) => {
     const r = await api.post('/api/auth/google', { id_token: idToken });
     resetExpiryNotice();
+    // Cover BEFORE setUser: setting it makes `/` redirect to the dashboard, and
+    // that swap is the thing worth hiding.
+    const first = (r.user.name || '').trim().split(/\s+/)[0];
+    await cover(first ? `Welcome, ${first}` : 'Welcome');
     setUser(r.user);
+    reveal();
     return r.user;
-  }, []);
+  }, [cover, reveal]);
 
   // Called after an upload lands, so submission_count is current.
   const refresh = useCallback(async () => {
@@ -61,13 +87,19 @@ export function AuthProvider({ children }) {
 
   // Only the server can clear an httpOnly cookie, so signing out is a request.
   const logout = useCallback(async () => {
+    await cover('Signed out');
+    // The whole round trip happens behind the curtain, however slow the backend
+    // is. Resolving here — still covered — is what lets the caller navigate
+    // before anything is visible.
     try { await api.post('/api/auth/logout'); } catch { /* clear locally anyway */ }
     setUser(null);
-  }, []);
+    reveal();
+  }, [cover, reveal]);
 
   return (
     <AuthContext.Provider value={{ user, loading, loginWithGoogle, refresh, rename, logout }}>
       {children}
+      <Curtain phase={curtain} line={line} />
     </AuthContext.Provider>
   );
 }
