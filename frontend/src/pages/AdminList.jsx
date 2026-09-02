@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { useSlideNavigate } from '../utils/pageTransition.js';
 import { toast } from '../utils/toast.js';
 import { mmss, stamp } from '../utils/format.js';
 import Stars from '../components/Stars.jsx';
@@ -24,7 +24,7 @@ export default function AdminList() {
   const [type, setType] = useState('all');
   const [stars, setStars] = useState('all');
   const [q, setQ] = useState('');
-  const navigate = useNavigate();
+  const slide = useSlideNavigate();
 
   // Filtering happens server-side: with a growing table the client cannot hold
   // every row, and 'processing' has to include 'queued', which a naive client
@@ -54,7 +54,8 @@ export default function AdminList() {
     return vs.size > 1;
   }, [shown]);
 
-  function open(id) { navigate(`/admin/${id}`); }
+  // Deeper into the record, so the page arrives from the right.
+  function open(id) { slide(`/admin/${id}`); }
 
   return (
     <>

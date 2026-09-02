@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { useSlideNavigate, BACK } from '../utils/pageTransition.js';
 import { toast } from '../utils/toast.js';
 import { kb, stamp } from '../utils/format.js';
 import Stars from '../components/Stars.jsx';
@@ -24,7 +25,7 @@ export default function AdminDetail() {
   const [voiding, setVoiding] = useState(false);
   const [rescoring, setRescoring] = useState(false);
   const [busy, setBusy] = useState(false);
-  const navigate = useNavigate();
+  const slide = useSlideNavigate();
 
   const load = useCallback(() => {
     api.get(`/api/submissions/${id}`)
@@ -126,7 +127,7 @@ export default function AdminDetail() {
       <button
         type="button"
         className="btn btn-ghost btn-sm"
-        onClick={() => navigate('/admin')}
+        onClick={() => slide('/admin', BACK)}
         style={{ marginBottom: 'var(--space-lg)' }}
       >
         <IconBack /> All submissions

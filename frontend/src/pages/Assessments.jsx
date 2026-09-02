@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSlideNavigate } from '../utils/pageTransition.js';
 import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
@@ -15,6 +16,7 @@ const STATE_COPY = {
 };
 
 export default function Assessments() {
+  const slide = useSlideNavigate();
   const [items, setItems] = useState(null);
 
   useEffect(() => {
@@ -74,7 +76,14 @@ export default function Assessments() {
           );
 
           return open ? (
-            <Link key={a.key} className="step step-link" to={`/assessments/${a.slug}`}>
+            <Link
+              key={a.key}
+              className="step step-link"
+              to={`/assessments/${a.slug}`}
+              // Kept a real <Link> so it still opens in a new tab and shows a
+              // URL on hover; the slide just replaces the default navigation.
+              onClick={(e) => { e.preventDefault(); slide(`/assessments/${a.slug}`); }}
+            >
               {Row}
             </Link>
           ) : (

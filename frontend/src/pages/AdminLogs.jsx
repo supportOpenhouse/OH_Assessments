@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { useSlideNavigate } from '../utils/pageTransition.js';
 import { toast } from '../utils/toast.js';
 import { stamp } from '../utils/format.js';
 import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
@@ -39,7 +39,7 @@ export default function AdminLogs() {
   // are separate so editing a field does not fire a request per keystroke.
   const [draft, setDraft] = useState(EMPTY);
   const [applied, setApplied] = useState(EMPTY);
-  const navigate = useNavigate();
+  const slide = useSlideNavigate();
 
   const load = useCallback((f) => {
     setLoading(true);
@@ -168,10 +168,10 @@ export default function AdminLogs() {
               <tr
                 key={r.id}
                 tabIndex={r.entity === 'submission' ? 0 : -1}
-                onClick={() => r.entity === 'submission' && navigate(`/admin/${r.entity_id}`)}
+                onClick={() => r.entity === 'submission' && slide(`/admin/${r.entity_id}`)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && r.entity === 'submission') {
-                    navigate(`/admin/${r.entity_id}`);
+                    slide(`/admin/${r.entity_id}`);
                   }
                 }}
                 style={r.entity === 'submission' ? undefined : { cursor: 'default' }}

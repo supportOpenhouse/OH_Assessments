@@ -1,8 +1,8 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { flushSync } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import Brand from './Brand.jsx';
+import { useSlideNavigate, FORWARD, BACK } from '../utils/pageTransition.js';
 import {
   IconSun, IconMoon, IconSignOut,
   IconSubmissions, IconCandidates, IconActivity, IconProfile,
@@ -29,6 +29,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  const slide = useSlideNavigate();
   // On a phone the nav is a bottom tab bar, so the top strip is only the brand
   // plus these two. Carrying a theme toggle and a sign-out on every single page
   // is chrome for its own sake; Profile is where you go to manage the session,
@@ -61,14 +62,9 @@ export default function Layout() {
   );
 
   function onNavigate(e, to, index) {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (!document.startViewTransition || reduce) return;   // let NavLink navigate
-    if (currentIndex < 0 || index === currentIndex) return; // nowhere to slide from
+    if (currentIndex < 0 || index === currentIndex) return;   // already here
     e.preventDefault();
-    const root = document.documentElement;
-    root.classList.add(index < currentIndex ? 'nav-up' : 'nav-down');
-    document.startViewTransition(() => flushSync(() => navigate(to)))
-      .finished.finally(() => root.classList.remove('nav-up', 'nav-down'));
+    slide(to, index < currentIndex ? BACK : FORWARD);
   }
 
   return (
