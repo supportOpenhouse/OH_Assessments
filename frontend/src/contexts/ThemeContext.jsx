@@ -24,41 +24,31 @@ export function ThemeProvider({ children }) {
     try { localStorage.setItem(KEY, theme); } catch { /* nothing to do */ }
   }, [theme]);
 
-  // The new theme is revealed by a circle growing out of the button that was
-  // pressed, rather than the whole page flipping at once.
+  // The new theme is wiped in like a curtain, left-to-right or right-to-left,
+  // picked at random each time.
   //
-  // The circle is a CSS animation, not a JS one. Driving it from
-  // `t.ready.then(() => el.animate(...))` meant two races: the geometry was read
-  // AFTER the DOM had already swapped, and the animation was attached a hop
-  // after the browser had begun the transition — during which
-  // `animation: none` left the new snapshot fully painted. That is what showed
-  // as a circle in the wrong place, a pause, then the theme arriving at once.
-  // Declaring it up front hands the whole thing to the browser: the geometry is
-  // measured from the live button BEFORE anything moves, and the animation is
-  // already in the stylesheet when the transition starts.
-  const toggle = (e) => {
+  // A wipe rather than the old circle-from-the-button: coverage is then LINEAR
+  // in progress, where a circle's went as r² and made the reveal crawl then
+  // lurch however it was eased. It also needs no origin, so a toggle fired from
+  // the keyboard animates the same as one fired from a click.
+  //
+  // The animation is declared in CSS, not attached from JS after `t.ready` —
+  // that hop was a race against a transition the browser had already begun.
+  // Here JS only sets which edge it starts from.
+  const toggle = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
-    const el = e?.currentTarget;
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-    if (!document.startViewTransition || !el || reduce) { setTheme(next); return; }
+    if (!document.startViewTransition || reduce) { setTheme(next); return; }
 
     const root = document.documentElement;
-    const r = el.getBoundingClientRect();
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
-    // Reach the furthest corner, or the circle stops short of the far edge.
-    // clientWidth/Height, not innerWidth/Height: the latter include the
-    // scrollbar, which is not part of the area being revealed.
-    const w = root.clientWidth;
-    const h = root.clientHeight;
-    const end = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
-
-    root.style.setProperty('--vt-x', `${x}px`);
-    root.style.setProperty('--vt-y', `${y}px`);
-    root.style.setProperty('--vt-r', `${end}px`);
-    // Scopes the reveal to THIS transition, so the home page's route transition
-    // keeps its own animation — there is only one ::view-transition(root).
+    // inset(top right bottom left): shrink the RIGHT inset and the new theme is
+    // uncovered from the left edge; shrink the LEFT and it comes from the right.
+    const leftToRight = Math.random() < 0.5;
+    root.style.setProperty('--vt-from-right', leftToRight ? '100%' : '0%');
+    root.style.setProperty('--vt-from-left', leftToRight ? '0%' : '100%');
+    // Scopes the wipe to THIS transition — the nav reel and the home page's
+    // route transition also animate ::view-transition(root).
     root.classList.add('theme-vt');
 
     const t = document.startViewTransition(() => {

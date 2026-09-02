@@ -1594,32 +1594,32 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
    so all this does is get the browser's default cross-fade out of the way and
    put the new snapshot on top — otherwise the old one paints over the circle
    and nothing appears to happen.                                              */
-/* SCOPED to .theme-vt — both this and the route transition below animate
-   ::view-transition(root), and there is only one of those per navigation.
+/* SCOPED to .theme-vt — the nav reel and the home page's route transition also
+   animate ::view-transition(root), and there is only one of those per
+   navigation. An unscoped rule silently breaks the others.
 
-   The circle is declared HERE rather than attached from JS after `t.ready`.
-   That hop was a race: the browser had already begun the transition with the
-   new snapshot fully painted, so the reveal started late and from stale
-   geometry. ThemeContext sets --vt-x/--vt-y/--vt-r on :root before starting the
-   transition and they inherit into the pseudo tree. */
+   Declared HERE rather than attached from JS after `t.ready`: that hop was a
+   race against a transition the browser had already begun, so the reveal
+   started late and from stale state. ThemeContext sets --vt-from-left /
+   --vt-from-right before starting the transition; they inherit into the pseudo
+   tree. */
 .theme-vt::view-transition-old(root) { animation: none; z-index: 0; }
 .theme-vt::view-transition-new(root) {
-  /* LINEAR, and not by accident. What the eye reads is the AREA covered, which
-     goes as r² — so an ease-in-out on the RADIUS crawls for ~180ms (3% of the
-     screen), then throws 11%→93% across in 150ms, then sits at 99% for another
-     150ms. That is the "circle, pause, then instant" this had. Measured
-     coverage at 100/180/260/340/420/500ms:
-       ease-in-out   0   3  17  75  98 100   biggest step 58%
-       linear        6  21  45  67  87  99   biggest step 24%   ← this
-       ease-out     46  89  99 100 100 100   biggest step 46%   (stall at the end)
-     Don't "improve" this to an ease. */
-  animation: theme-reveal var(--dur-theme) linear both;
+  /* Linear. Coverage of a wipe IS its progress, so an ease here would be an
+     ease on the effect — but the reveal is short enough that even and
+     mechanical beats slow-in/slow-out at the edges. */
+  animation: theme-wipe var(--dur-theme) linear both;
   mix-blend-mode: normal;
   z-index: 1;
 }
-@keyframes theme-reveal {
-  from { clip-path: circle(0 at var(--vt-x) var(--vt-y)); }
-  to   { clip-path: circle(var(--vt-r) at var(--vt-x) var(--vt-y)); }
+
+/* inset(top right bottom left). Shrinking the RIGHT inset to zero uncovers the
+   new theme from the left edge; shrinking the LEFT uncovers it from the right.
+   One keyframe set, direction chosen by the variables. */
+@keyframes theme-wipe {
+  from { clip-path: inset(0 var(--vt-from-right, 100%) 0 var(--vt-from-left, 0%)); }
+  to   { clip-path: inset(0 0 0 0); }
+}
 }
 
 /* Home → sign-in. A cut between two full-bleed pages reads as a page reload;
