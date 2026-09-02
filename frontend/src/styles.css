@@ -93,6 +93,8 @@
   /* One sweep of the sign-in/sign-out curtain. Paired with CURTAIN_SWEEP_MS
      in Curtain.jsx — change both together. */
   --dur-curtain: 420ms;
+  /* Theme reveal. Paired with the duration in ThemeContext.jsx. */
+  --dur-theme: 520ms;
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
@@ -1724,4 +1726,104 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   @keyframes curtain-cover  { from { opacity: 0; } to { opacity: 1; } }
   @keyframes curtain-reveal { from { opacity: 1; } to { opacity: 0; } }
+}
+
+
+/* ───────── Theme reveal ─────────
+   The circle is animated from JS (it needs the pressed button's coordinates),
+   so all this does is get the browser's default cross-fade out of the way and
+   put the new snapshot on top — otherwise the old one paints over the circle
+   and nothing appears to happen.                                              */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 0; }
+::view-transition-new(root) { z-index: 1; }
+
+
+/* ───────── Home ─────────
+   The public front door at `/`. The wave field is the hero's ground — the same
+   material as the sign-in page, so the two read as one product — and everything
+   below it is plain editorial on paper.                                       */
+.home { background: var(--paper); }
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper-3);
+  border-bottom: var(--rule-hair);
+  padding-bottom: var(--space-3xl);
+}
+/* The `:not` is load-bearing, exactly as on the landing: a blanket
+   `position: relative` on hero children overrides the field's `absolute` and
+   drops it back into flow as a block. */
+.home-hero > *:not(.waves) { position: relative; z-index: 1; }
+
+.home-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-block: var(--space-lg);
+}
+.home-nav a { text-decoration: none; }
+
+.home-hero-body { padding-block: var(--space-3xl) 0; }
+.home-hero-body h1 {
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  letter-spacing: -.03em;
+  line-height: 1.02;
+  margin: 0;
+}
+
+/* A measure, not the full column: 75ch of 18px is a wall. */
+.home-lede {
+  max-width: 60ch;
+  margin: var(--space-lg) 0 0;
+  font-size: var(--text-lg);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.home-cta { margin-top: var(--space-2xl); }
+
+.home-section { padding-block: var(--space-3xl); border-top: var(--rule-hair); }
+.home-section:first-of-type { border-top: 0; }
+.home-section h2 { font-size: var(--text-3xl); margin: 0 0 var(--space-lg); }
+.home-section h3 { font-size: var(--text-xl); margin: 0 0 var(--space-sm); }
+
+.home-copy { max-width: 68ch; margin: 0 0 var(--space-md); line-height: 1.65; color: var(--ink-2); }
+
+.home-aims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-2xl);
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-2xl);
+  border-top: var(--rule-hair);
+}
+
+.home-footer { border-top: var(--rule-hair); margin-top: var(--space-3xl); }
+.home-footer .site-footer { margin-top: 0; border-top: 0; }
+
+/* min-width: 0 so a long word cannot push a grid column past its track. */
+.home-aim { min-width: 0; }
+
+.home-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-2xl);
+  margin-top: var(--space-2xl);
+}
+/* Numbered like the assessment steps — the same counting device, so a value
+   reads as one of a set rather than as a card. */
+.home-value { border-top: 2px solid var(--ink); padding-top: var(--space-md); }
+.home-value-n {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
 }

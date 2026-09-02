@@ -244,7 +244,8 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 
 | Route | Surface | Structure |
 |---|---|---|
-| `/` | **Landing** | **Off-axis.** The wave field fills the left 65%; the lockup sits on it bottom-left. The sign-in is a **full-height card occupying the right 35%**, flush to the viewport edge — so it takes a border rather than a radius and a shadow. Terms & Privacy sit under the button in `--legal`. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
+| `/` | **Home** | Public front door. Wave-field hero carrying the brand lockup, the About Openhouse lede and one CTA — **Take Assessment**, which goes to `/assessmentlogin` and, for someone already signed in, straight on to their dashboard. Below it: Company Overview, Vision/Mission, and the three Core Values numbered like the assessment steps. Copy is verbatim from openhouse.in/about; leadership is deliberately omitted. Ends in `<SiteFooter />` |
+| `/assessmentlogin` | **Sign-in** | **Off-axis.** The wave field fills the left 65%; the lockup sits on it bottom-left. The sign-in is a **full-height card occupying the right 35%**, flush to the viewport edge — so it takes a border rather than a radius and a shadow. Terms & Privacy sit under the button in `--legal`. Sign-in is a **Google popup opened in place** — no route change, no redirect, no `/login` page. Nothing on a shared centre line (gate 6) |
 | `/assessments` | **Choose** | Numbered ruled rows, one per assessment. An available one is a whole-row link; a used one is inert with its state on the right. **Not** a card grid — with one assessment that would be a single lonely tile, and with four it would be the icon-tile pattern this design exists to avoid |
 | `/assessments/:slug` | **Take it** | Numbered `01–04` instruction steps, numerals in the **left margin** in mono — then the dropzone below, full measure |
 | `/history` | **Previous** | One ruled row per attempt. In-flight ones carry the staged progress inline; finished ones a **stamp** — rotated 1.5°, mono `RECEIVED`. Diegetic, not a toast |
@@ -254,7 +255,7 @@ Not hero → 3 cards → CTA → footer. Five surfaces, each with a distinct rhy
 | `/admin/activity` | **Activity** | The audit trail, behind a submitted filter bar — search · action · category · actor · date range · Apply |
 | `/admin/:id` | **The record** | Verdict → ruled metrics strip → axes `01–05` as ruled blocks → transcript |
 
-**Where the candidate lands.** `/` is public. On sign-in: an admin goes to
+**Where the candidate lands.** `/` and `/assessmentlogin` are both public. On sign-in: an admin goes to
 `/admin`; a candidate who has attempted anything goes to **`/history`** — their
 record, not a list of things to start — and one who hasn't goes to
 `/assessments`. One redirect on sign-in, none afterwards.
@@ -588,7 +589,7 @@ Design is the only thing this document replaces. Still true:
 - Plain CSS in one file. No CSS-in-JS.
 - `VITE_USE_MOCKS=true` mock layer so the whole UI is buildable before the backend.
 - Google ID token → our own JWT ([02-architecture.md §5](02-architecture.md)).
-- Routes: `/` (public) · `/assessments` · `/assessments/:slug` · `/history` ·
+- Routes: `/` (public home) · `/assessmentlogin` (public sign-in) · `/assessments` · `/assessments/:slug` · `/history` ·
   `/profile` · `/admin` · `/admin/candidates` · `/admin/activity` · `/admin/:id`.
   The two literal `/admin/*` segments must be declared **before** `/admin/:id`.
 - Backend is on Render; Vercel rewrites `/api/*` across, so the client sees one

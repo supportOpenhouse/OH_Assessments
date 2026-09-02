@@ -57,7 +57,7 @@ OH_Assessments/
 │       ├── contexts/{AuthContext.jsx,ThemeContext.jsx}
 │       ├── components/{Layout,Toaster,Stars,AxisBlock,MetricsStrip,
 │       │               UploadDrop,ScoringProgress,icons}.jsx
-│       └── pages/{Landing,Assessment,Dashboard,AdminList,AdminDetail}.jsx
+│       └── pages/{Home,Landing,Assessment,Dashboard,AdminList,AdminDetail}.jsx
 │
 ├── backend/                     →  Render
 │   ├── app/

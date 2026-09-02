@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext.jsx';
 import Layout from './components/Layout.jsx';
 import Toaster from './components/Toaster.jsx';
 import Loader from './components/Loader.jsx';
+import Home from './pages/Home.jsx';
 import Landing from './pages/Landing.jsx';
 import Assessments from './pages/Assessments.jsx';
 import Assessment from './pages/Assessment.jsx';
@@ -28,7 +29,7 @@ function Splash() {
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <Splash />;
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/assessmentlogin" replace />;
   return children;
 }
 
@@ -44,9 +45,14 @@ export default function App() {
     <>
       <Toaster />
       <Routes>
-        {/* Public. Sign-in is a Google popup on this page — no route change. */}
+        {/* The public front door. Marketing, always — a signed-in visitor sees it
+            too; "Take Assessment" is how they get back to the app. */}
+        <Route path="/" element={<Home />} />
+
+        {/* Sign-in. A Google popup on this page — no route change. Already
+            signed in, and it hands you straight to where you belong. */}
         <Route
-          path="/"
+          path="/assessmentlogin"
           element={loading ? <Splash /> : user ? <Navigate to={homeFor(user)} replace /> : <Landing />}
         />
 

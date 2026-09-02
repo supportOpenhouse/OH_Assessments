@@ -47,6 +47,13 @@ export default function Landing() {
           <div className="landing-signin">
             {hasClientId ? (
               <GoogleLogin
+                // Google renders the button in an iframe we cannot style, so it
+                // has to be told the theme — left on the default `outline` it
+                // paints a white slab on the near-black card.
+                // `key` forces a remount: GSI draws the button once and does not
+                // repaint it when the theme prop changes underneath.
+                key={theme}
+                theme={theme === 'dark' ? 'filled_black' : 'outline'}
                 onSuccess={onSuccess}
                 onError={() => toast('Sign-in failed. Please try again.', 'error')}
                 shape="rectangular"
