@@ -56,7 +56,14 @@ export default function Landing() {
                 theme={theme === 'dark' ? 'filled_black' : 'outline'}
                 onSuccess={onSuccess}
                 onError={() => toast('Sign-in failed. Please try again.', 'error')}
-                shape="rectangular"
+                // PILL, not rectangular. On the filled themes Google draws its
+                // G on a white tile — that is their design, not our bug, and it
+                // is in filled_black and filled_blue alike. Rectangular makes it
+                // a white SQUARE butted against the dark button, which reads as
+                // a clipping artifact; pill makes it a circle, which reads as
+                // intentional. Compared against Google's own renderer before
+                // choosing. It also matches our own .btn-lg, which is a pill.
+                shape="pill"
                 text="signin_with"
                 width="300"
               />

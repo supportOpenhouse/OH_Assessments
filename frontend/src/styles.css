@@ -1598,7 +1598,16 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
    transition and they inherit into the pseudo tree. */
 .theme-vt::view-transition-old(root) { animation: none; z-index: 0; }
 .theme-vt::view-transition-new(root) {
-  animation: theme-reveal var(--dur-theme) var(--ease-in-out) both;
+  /* LINEAR, and not by accident. What the eye reads is the AREA covered, which
+     goes as r² — so an ease-in-out on the RADIUS crawls for ~180ms (3% of the
+     screen), then throws 11%→93% across in 150ms, then sits at 99% for another
+     150ms. That is the "circle, pause, then instant" this had. Measured
+     coverage at 100/180/260/340/420/500ms:
+       ease-in-out   0   3  17  75  98 100   biggest step 58%
+       linear        6  21  45  67  87  99   biggest step 24%   ← this
+       ease-out     46  89  99 100 100 100   biggest step 46%   (stall at the end)
+     Don't "improve" this to an ease. */
+  animation: theme-reveal var(--dur-theme) linear both;
   mix-blend-mode: normal;
   z-index: 1;
 }
