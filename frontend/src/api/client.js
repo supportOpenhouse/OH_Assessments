@@ -42,6 +42,37 @@ const CREDS = 'same-origin';
 
 let expiredFired = false; // guards the notice: parallel 401s must not stack toasts
 
+// A dropped connection, a backend restart, a Neon connection the pool had not
+// yet replaced — these are SINGLE-REQUEST blips, and a toast for something that
+// would have worked on a second attempt is noise. Two quiet retries fix almost
+// all of them without the reader seeing anything.
+//
+// GET ONLY. A retried POST is a second submission: /api/submissions would burn
+// a candidate's one attempt twice over, and a re-score would schedule two runs
+// racing the same row. Safe methods only, no exceptions.
+const RETRIES = 2;
+const BACKOFF_MS = [250, 750];
+const isTransient = (status) => status === 0 || status === 429 || status >= 500;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The backstop the retries do not cover. Deliberately at most ONE per minute:
+// a reload cannot fix a backend that is genuinely down, and reloading on every
+// failure would trap the reader in a refresh loop they cannot get out of.
+const RELOAD_KEY = 'oha_reloaded_at';
+const RELOAD_COOLDOWN_MS = 60_000;
+
+function reloadOnce() {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+    if (Date.now() - last < RELOAD_COOLDOWN_MS) return false;
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch {
+    return false;   // no storage to remember with, so no way to stop a loop
+  }
+  window.location.reload();
+  return true;
+}
+
 export function resetExpiryNotice() {
   expiredFired = false;
 }
@@ -69,7 +100,7 @@ async function unwrap(res, { quiet = false } = {}) {
   return data;
 }
 
-async function request(method, path, body, opts) {
+async function once(method, path, body, opts) {
   let res;
   try {
     res = await fetch(BASE + path, {
@@ -85,6 +116,25 @@ async function request(method, path, body, opts) {
     throw e;
   }
   return unwrap(res, opts);
+}
+
+async function request(method, path, body, opts) {
+  const safe = method === 'GET';
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await once(method, path, body, opts);
+    } catch (e) {
+      if (!safe || !isTransient(e.status)) throw e;
+      if (attempt < RETRIES) { await sleep(BACKOFF_MS[attempt]); continue; }
+      // Retries exhausted. `quiet` is the boot probe — reloading on that is how
+      // a refresh loop starts, and a failed boot probe is already handled.
+      if (!opts?.quiet && reloadOnce()) {
+        // Navigating away; keep the promise pending so no toast flashes first.
+        return new Promise(() => {});
+      }
+      throw e;
+    }
+  }
 }
 
 // multipart — deliberately NO Content-Type header. Setting it by hand breaks the

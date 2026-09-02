@@ -154,3 +154,37 @@ def test_a_rename_touches_only_the_candidate_row(pool):
     stmts = [s for txn in pool.txns for s, _ in txn]
     assert len(stmts) == 1
     assert stmts[0].startswith("update candidates set")
+
+
+# ── the pool must validate a connection before handing it out ─────────────
+
+def test_the_pool_checks_a_connection_before_handing_it_out(monkeypatch):
+    """Neon closes idle connections from its side. psycopg_pool's `check`
+    defaults to None, so without this the pool returns a dead socket, the query
+    raises, and the dashboard shows "Could not load ..." at random.
+    """
+    from psycopg_pool import ConnectionPool
+
+    seen = {}
+
+    class FakePool:
+        # db.pool() resolves the check off the module global, so the stand-in
+        # has to carry the real one for the identity assert below to mean
+        # anything.
+        check_connection = ConnectionPool.check_connection
+
+        def __init__(self, conninfo, **kw):
+            seen.update(kw)
+            seen["conninfo"] = conninfo
+
+    monkeypatch.setattr(db, "_pool", None)
+    monkeypatch.setattr(db, "ConnectionPool", FakePool)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://example/db")
+    db.pool()
+
+    assert seen.get("check") is ConnectionPool.check_connection, (
+        "the pool must be given a check, or it hands out dead connections"
+    )
+    # Recycled by us before Neon finds it stale. The library default is 600s.
+    assert seen.get("max_idle", 600.0) < 600.0
+    monkeypatch.setattr(db, "_pool", None)

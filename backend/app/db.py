@@ -47,6 +47,18 @@ def pool() -> ConnectionPool:
             min_size=1,
             max_size=5,
             kwargs={"row_factory": dict_row},
+            # LOAD-BEARING. psycopg_pool's `check` defaults to None, so the pool
+            # hands out whatever connection it is holding WITHOUT testing it —
+            # and Neon closes idle connections from its side. The pool then
+            # returns a dead socket, the query raises, the route 500s, and the
+            # dashboard shows "Could not load ...". Intermittent, and worst
+            # after a quiet spell, which is exactly how it presented.
+            # check_connection pings first and transparently replaces a dead one.
+            check=ConnectionPool.check_connection,
+            # Below Neon's own idle timeout, so a connection is recycled by us
+            # rather than found dead by us. The default is 600s, which is longer
+            # than Neon will hold one open.
+            max_idle=120.0,
             open=True,
         )
     return _pool

@@ -93,8 +93,14 @@
   /* One sweep of the sign-in/sign-out curtain. Paired with CURTAIN_SWEEP_MS
      in Curtain.jsx — change both together. */
   --dur-curtain: 420ms;
-  /* Theme reveal. Paired with the duration in ThemeContext.jsx. */
-  --dur-theme: 520ms;
+  /* Theme reveal.
+     260ms, and there is a FLOOR here — faster is not better. Measured longest
+     stretch where under 8% of the screen changes ("the stall"):
+       520ms → 104ms · 320ms → 66ms · 260ms → 49ms · 200ms → 67ms · 160ms → 99ms
+     There is ~90ms of fixed setup (click, snapshot, first animated frame) that
+     does not shrink, so below ~260ms the overhead dominates and the pause comes
+     straight back. 260ms is the shortest that still ends soonest. */
+  --dur-theme: 260ms;
   /* One page sliding out while the next slides in. */
   --dur-nav: 380ms;
   --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
