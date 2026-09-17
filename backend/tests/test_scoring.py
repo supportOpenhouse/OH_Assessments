@@ -89,8 +89,8 @@ def test_stub_reasoning_is_rejected():
     good["summary"] = "y" * 40
     scoring._reject_stub_reasoning(good)          # does not raise
 
-    stub = {**good, "pitch": {"stars": 5, "reasoning": "Good pitch."}}
-    with pytest.raises(scoring.ScoringError, match="pitch"):
+    stub = {**good, "energy": {"stars": 5, "reasoning": "Good energy."}}
+    with pytest.raises(scoring.ScoringError, match="energy"):
         scoring._reject_stub_reasoning(stub)
 
 

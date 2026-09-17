@@ -24,10 +24,10 @@ ADMIN = "admin@openhouse.in"
 SUB_ID = "9f1c0a3e-0000-4000-8000-000000000001"
 
 SCORES = {
-    "pitch": {"stars": 4, "reasoning": "x" * 50},
-    "tone": {"stars": 3, "reasoning": "x" * 50},
-    "company": {"stars": 2, "reasoning": "x" * 50},
-    "sales": {"stars": 4, "reasoning": "x" * 50},
+    "energy": {"stars": 4, "reasoning": "x" * 50},
+    "vocabulary": {"stars": 3, "reasoning": "x" * 50},
+    "rebuttals": {"stars": 2, "reasoning": "x" * 50},
+    "clarity": {"stars": 4, "reasoning": "x" * 50},
     "overall": {"stars": 3, "reasoning": "x" * 50},
     "flags": [],
     "summary": "y" * 30,

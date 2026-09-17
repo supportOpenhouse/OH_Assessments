@@ -168,11 +168,11 @@ The live shape, as of the two-party call rework:
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["pitch","tone","company","sales","overall",
+  "required": ["energy","vocabulary","rebuttals","clarity","overall",
                "salesperson","flags","summary"],
   "properties": {
     // each of the five axes, inlined — no $ref
-    "pitch": {
+    "energy": {
       "type": "object", "additionalProperties": false,
       "required": ["stars","reasoning"],
       "properties": {

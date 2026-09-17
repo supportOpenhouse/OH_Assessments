@@ -1,6 +1,6 @@
 ## Your task
 
-Find someone selling their own home, call them, and record the call.
+Find someone selling their own home or a buyer planning to buy a house, call them, and record the call.
 
 ### 1. Find a seller
 
@@ -10,11 +10,11 @@ On **MagicBricks** or **99acres**, find a property for sale in **Gurugram** or
 ### 2. Log the details
 
 Note down the address, the seller's name, their phone number, and the asking
-price. Have them in front of you before you dial.
+price. Have them in front of you before you dial. In case of seller , ask for the location, price, area, amenities, timeline to sell. In case of buyer, ask for budget location, area, amenities.
 
 ### 3. Make the call
 
-They are already selling — you are not there to talk them into it. You are there
+They are already selling/buying — you are not there to talk them into it. You are there
 to get them to let **Openhouse** handle the sale for them.
 
 Tell them you are calling from Openhouse, and find out:
@@ -22,8 +22,7 @@ Tell them you are calling from Openhouse, and find out:
 - What is their timeline?
 - What condition is the property in?
 
-**Work towards a visit.** What you want is for them to let Openhouse come and
-evaluate the property. Get them to trust that Openhouse is worth having on their
+**Work towards a visit.** What you want is for them to let Openhouse come and evaluate the property. Or you can let the buyer know about openhouse listed propeties from the website openhouse.in.  Get them to trust that Openhouse is worth having on their
 side, and take the conversation in that direction — in your own words.
 
 ### 4. Record and submit

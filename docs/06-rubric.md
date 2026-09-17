@@ -1,10 +1,10 @@
 # 06 — Rubric (how it is used)
 
-> **The live rubric is [`backend/rubric.md`](../backend/rubric.md).** That file
+> **The live rubric is [`backend/sales_insight_rubric.md`](../backend/sales_insight_rubric.md).** That file
 > is what Claude is given and what `rubric_version` hashes. This doc is the
 > *shape* it must keep — the fixed 0–5 scale, the five axis names the schema
 > depends on, and how versioning works. The per-axis tables below are the
-> original illustrative draft, kept for reference; `backend/rubric.md` supersedes
+> original illustrative draft, kept for reference; `backend/sales_insight_rubric.md` supersedes
 > them and is the one to edit.
 >
 > Still outstanding: **calibration** (§8). Nothing has been scored against a
@@ -14,7 +14,7 @@
 
 ## How this file is used
 
-At build time the contents of `rubric.md` (repo root — this doc describes its
+At build time the contents of `sales_insight_rubric.md` (this doc describes its
 shape) become the **cached system prefix** of every Claude call. It is hashed:
 
 ```python
@@ -30,8 +30,8 @@ and that hash is stored on every `submissions` row. So:
 - Editing the rubric requires **no code change and no redeploy of logic** — just
   a new deploy of the file.
 
-Rewrite the rubric freely. Do not rename the five axes (`pitch`, `tone`,
-`company`, `sales`, `overall`) without also editing `AXES` in
+Rewrite the rubric freely. Do not rename the five axes (`energy`,
+`vocabulary`, `rebuttals`, `clarity`, `overall`) without also editing `AXES` in
 `backend/app/scoring.py` and the `AXES` list in
 `frontend/src/pages/AdminDetail.jsx` — the schema, the stub-reasoning check and
 the admin display all read that one tuple.
@@ -39,9 +39,8 @@ the admin display all read that one tuple.
 **The recordings are two-party sales calls**, a candidate and a real customer,
 and only the candidate is scored. The model identifies which speaker is the
 salesperson and returns it as `salesperson`; the delivery metrics carry a
-`by_speaker` block so Tone is measured on the rep alone, and a `conversation`
-block (talk ratio, interruptions, questions) that the `sales` axis reads for
-qualification.
+`by_speaker` block so Energy and Clarity are measured on the candidate alone, and a `conversation`
+block (talk ratio, interruptions, questions) that the `rebuttals` axis reads.
 
 ---
 

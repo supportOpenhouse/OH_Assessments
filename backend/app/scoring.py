@@ -69,7 +69,8 @@ the transcript.
 
 The top-level block is the WHOLE recording, both voices blended. Do not score
 delivery from it on a two-party call — it is the average of two people. Read
-`by_speaker[<the salesperson>]` for Tone, and `conversation` for Sales skills.
+`by_speaker[<the candidate>]` for Energy and Clarity, and `conversation` for
+Rebuttals.
 
 ## by_speaker — one block per voice, keyed by the speaker id in the transcript
 
@@ -113,7 +114,7 @@ audio_events     non-speech sounds Scribe tagged (laughter, music, applause)
 # (`minLength`) are out for the same reason, so the "no one-line reasoning"
 # rule moved to _reject_stub_reasoning() below. Keep this schema to:
 # object / string / integer+enum / array / required / additionalProperties.
-AXES = ("pitch", "tone", "company", "sales", "overall")
+AXES = ("energy", "vocabulary", "rebuttals", "clarity", "overall")
 
 # Scores are one decimal place, 0.0 to 5.0. The bands stay whole numbers and
 # the decimal places a candidate WITHIN a band — a 3.4 is a solid 3, not most of
@@ -184,7 +185,7 @@ def _output_json(msg) -> dict:
 def _reject_stub_reasoning(parsed: dict) -> None:
     """What `minLength` used to do, now that the schema cannot express it.
 
-    Without it a model will happily emit "Good pitch." against a strict schema
+    Without it a model will happily emit "Good energy." against a strict schema
     and the whole point of the assessment evaporates. Raising means the row
     lands as `failed` and an admin can re-score — better than filing a stub.
     """

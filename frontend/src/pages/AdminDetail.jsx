@@ -13,10 +13,10 @@ import { Skeleton, SkeletonLines, LoadingNote } from '../components/Skeleton.jsx
 import { IconBack, IconAlert, IconClose, IconRescore } from '../components/icons.jsx';
 
 const AXES = [
-  ['pitch', 'Pitch'],
-  ['tone', 'Tone'],
-  ['company', 'Company representation'],
-  ['sales', 'Sales skills'],
+  ['energy', 'Energy & confidence'],
+  ['vocabulary', 'Vocabulary & choice of words'],
+  ['rebuttals', 'Rebuttals & handling the situation'],
+  ['clarity', 'Clarity, pauses & sentences'],
 ];
 
 export default function AdminDetail() {
