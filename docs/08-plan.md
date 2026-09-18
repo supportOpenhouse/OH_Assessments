@@ -613,7 +613,7 @@ export function mockApi(method, path, body) {
   if (method === 'POST' && path === '/api/auth/google') return { token: 'mock', user: me_ };
   if (method === 'GET'  && path === '/api/me') return me_;
   if (method === 'GET'  && path === '/api/instructions')
-    return { markdown: '## Your task\n\nRecord a **2-3 minute** sales pitch for OpenHouse.\n\n- Speak naturally. Do not read a script.\n- Record somewhere quiet, on any device.\n- You get one attempt.', version: 'mock' };
+    return { markdown: '## Your task\n\nCall a lead as a broker and record the call.\n\n- Speak naturally. Do not read a script.\n- Record somewhere quiet, on any device.\n- You get one attempt.', version: 'mock' };
 
   if (method === 'POST' && path === '/api/submissions') {
     pollCount = 0;

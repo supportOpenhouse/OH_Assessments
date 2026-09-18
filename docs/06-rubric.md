@@ -95,27 +95,12 @@ Judged from the transcript **and** the delivery metrics. The glossary in
 
 ---
 
-## 4. Axis: **Company representation (OpenHouse)** *(placeholder)*
+## 4. ~~Axis: Company representation~~ — REMOVED
 
-> **Needs the most real content.** Claude does not know what OpenHouse does. This
-> section must carry enough factual grounding for the model to tell an accurate
-> description from a confident-sounding wrong one.
->
-> Supply at minimum:
-> - What OpenHouse actually is, in two or three sentences
-> - The value proposition, in the company's own words
-> - Who the customer is
-> - **Common misconceptions** — the specific wrong things a candidate might say.
->   This is what separates a 2 from a 4, and the model cannot infer it
-
-| Stars | Placeholder criteria |
-|---|---|
-| 0 | Describes a different company, or never mentions OpenHouse |
-| 1 | Materially wrong about what OpenHouse does |
-| 2 | Roughly right but generic — could be any competitor |
-| 3 | Accurate. Flat |
-| 4 | Accurate and differentiated; names what makes OpenHouse different |
-| 5 | Speaks like someone who already works here. Accurate, specific, genuinely persuasive |
+Candidates call as **brokers** — property sales agents working on their own
+account — **not on behalf of Openhouse**, so there is nothing to represent and
+no axis for it. The live rubric tells the judge not to expect, credit or fault
+any mention of Openhouse. See `backend/sales_insight_rubric.md`.
 
 ---
 
@@ -138,7 +123,6 @@ Not an average. A holistic verdict against the six bands in §1.
 
 Guidance for the model (rewrite to taste):
 
-- A candidate can be a 5 on Pitch and a 2 overall if they misrepresent the company.
 - Weight **coachability**. Weak tone is trainable; being fundamentally uninterested
   in the customer is not.
 - When genuinely torn between two bands, take the lower one and say so in the
@@ -151,24 +135,8 @@ Guidance for the model (rewrite to taste):
 > **Also placeholder.** Served by `GET /api/instructions`
 > ([04-api.md](04-api.md)) so the copy can change without a frontend deploy.
 
-```markdown
-## Your task
-
-Record a **2–3 minute** sales pitch for OpenHouse, as if you were speaking to
-[TARGET CUSTOMER] on a first call.
-
-Cover:
-- Who you are and why you're calling
-- What OpenHouse is and why it matters to them
-- Handle this objection: "[OBJECTION]"
-- Close for a next step
-
-**Guidelines**
-- Speak naturally. Do not read a script.
-- Record somewhere quiet, on any device.
-- Upload as MP3, M4A, WAV or WEBM. Under 25 MB.
-- **You get one attempt.** Listen back before you upload.
-```
+The live copy is **`backend/instructions.md`** — edit that, not a copy here.
+It asks the candidate to call a lead **as a broker**, not on behalf of Openhouse.
 
 Whatever goes here must match the rubric — if the instructions don't ask for
 objection handling, the Sales axis must not penalise its absence.
@@ -178,7 +146,6 @@ objection handling, the Sales axis must not penalise its absence.
 ## 8. Checklist before this file goes live
 
 - [ ] Real criteria for all five axes, at every band 0–5
-- [ ] §4 carries real OpenHouse facts **and** the common misconceptions list
 - [ ] §7 instructions match what the rubric rewards
 - [ ] Calibrated: score 3–5 real recordings you already have a human opinion on,
       and check the model lands within ±1 star

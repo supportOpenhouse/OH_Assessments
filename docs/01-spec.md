@@ -66,14 +66,18 @@ Each is scored 0–5 independently, each with written reasoning.
 
 | Axis | What it measures | Signal source |
 |---|---|---|
-| **Pitch** | The sales pitch itself — hook, structure, value proposition, objection handling, close | Transcript |
-| **Tone** | Delivery — pace, confidence, warmth, energy, filler density, hesitation | Transcript + timing metrics from Scribe |
-| **Company representation** | How accurately and compellingly the candidate represents OpenHouse | Transcript |
-| **Sales skills** | Discovery, listening cues, qualifying, urgency, handling of a "no" | Transcript |
+| **Energy** | Confidence, warmth and drive on the call | Transcript + timing metrics from Scribe |
+| **Vocabulary** | Professional wording, in Hindi, English or Hinglish | Transcript |
+| **Rebuttals & handling** | The opening, getting the property details, answering the lead's objections and questions | Transcript |
+| **Clarity** | Articulation, sentence construction, pauses | Transcript + per-speaker timing metrics |
 
 Plus an **overall** score, which is a holistic judgement — deliberately *not* an
-average of the four. A candidate can be a 5 on pitch and a 1 overall if they
-misrepresent the company.
+average of the four — and weights rebuttals most heavily.
+
+**The candidate calls as a broker**, a property sales agent working on their own
+account — **not on behalf of Openhouse.** There is no company-representation
+axis, and mentioning Openhouse or not is neither credit nor fault. The live
+criteria are in `backend/sales_insight_rubric.md`.
 
 > **"Pitch" means the sales pitch, not vocal frequency.** Vocal pitch (F0 contour,
 > intonation range, monotone detection) is a real and separate signal that is

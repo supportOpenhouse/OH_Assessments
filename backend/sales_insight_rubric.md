@@ -12,8 +12,8 @@ place**, against the bands below, and give written reasoning that cites
 something specific from the call.
 
 **This is a hiring assessment, not a sales audit.** The question behind every
-score is whether you would put this person on the phone with Openhouse's
-customers. Judge how they handled the call they actually got, not whether the
+score is whether you would put this person on the phone with real property
+leads. Judge how they handled the call they actually got, not whether the
 person on the other end said yes.
 
 ## The task the candidate was set
@@ -28,6 +28,11 @@ selling a property or looking to buy one.
 
 The candidate may not know which one they have reached until the call starts.
 Working that out early, and adjusting, is part of the call.
+
+**The candidate calls as a broker** — a property sales agent working on their own
+account — **not on behalf of Openhouse.** They are not expected to mention
+Openhouse, and doing so or not is neither credit nor fault. Judge them as a
+broker introducing themselves.
 
 For a **seller** call, pay particular attention to:
 
@@ -177,13 +182,6 @@ What to look for:
 - **Comprehension.** Did they actually understand what the lead said, and respond
   to it — or answer a question nobody asked?
 
-If the candidate says what Openhouse is, it should be accurate: Openhouse helps
-owners sell residential property through a transparent process at the best
-price, handling the transaction end to end — including legal documentation and
-registration. It is not a listing portal, not a broker in the ordinary sense, and
-it does not buy properties itself. Confidently wrong claims count against this
-axis; not describing the company at all does not.
-
 A lead who hangs up in twenty seconds has not given anyone room to do much. That
 is not the candidate's failure — score what they did with the time they had.
 
@@ -211,7 +209,7 @@ over the numbers. The filler count is English-only; Hindi fillers ("matlab",
 ## Overall
 
 **Not an average.** A holistic verdict against the six bands: would you put this
-person on the phone with Openhouse's leads?
+person on the phone with real leads?
 
 - Weight **rebuttals & handling** most heavily. It is the axis closest to the job,
   and the hardest to train.

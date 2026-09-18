@@ -14,16 +14,19 @@ price. Have them in front of you before you dial. In case of a seller, ask for t
 
 ### 3. Make the call
 
-They are already selling/buying — you are not there to talk them into it. You are there
-to get them to let **Openhouse** handle the sale for them.
+You are calling as a **broker** — a property sales agent working on your own
+account. They are already selling or buying; you are not there to talk them
+into it. You are there to get them to work with you on it.
 
-Tell them you are calling from Openhouse, and find out:
+Introduce yourself as a broker, say why you are calling, and find out:
 
 - What is their timeline?
 - What condition is the property in?
 
-**Work towards a visit.** What you want is for them to let Openhouse come and evaluate the property. Or you can let the buyer know about Openhouse-listed properties on the website, openhouse.in. Get them to trust that Openhouse is worth having on their
-side, and take the conversation in that direction — in your own words.
+**Work towards a visit.** With a seller, what you want is for them to let you
+come and see the property. With a buyer, offer to show them properties that
+match what they are looking for. Get them to trust that you are worth having on
+their side, and take the conversation in that direction — in your own words.
 
 ### 4. Record and submit
 
@@ -37,7 +40,7 @@ You, not the seller. We listen for:
 
 - Whether you ask for the visit, and how well you build up to it
 - How you handle whatever the seller pushes back with
-- How clearly you explain who you are, and what Openhouse does
+- How clearly you explain who you are and why you are calling
 - What you ask, and whether you listen to the answers
 
 **A seller who says no is not a failed submission.** Most people refuse a cold
