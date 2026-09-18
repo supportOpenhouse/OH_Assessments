@@ -157,6 +157,19 @@ export default function AdminDetail() {
         <div style={{ marginBottom: 'var(--space-xl)' }}>
           <Stars stars={s.overall.stars} size="lg" glyphs />
           <p className="verdict" style={{ marginTop: 'var(--space-md)' }}>{s.summary}</p>
+          {/* Rows scored before these fields existed have neither — re-score. */}
+          {s.strengths && (
+            <div className="kw-rows">
+              <span className="kw-head">Strengths</span>
+              <span className="kw-list">
+                {s.strengths.map((k) => <span className="kw kw-good" key={k}>{k}</span>)}
+              </span>
+              <span className="kw-head">Weaknesses</span>
+              <span className="kw-list">
+                {s.weaknesses.map((k) => <span className="kw kw-bad" key={k}>{k}</span>)}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -188,7 +201,7 @@ export default function AdminDetail() {
         </div>
       )}
 
-      <MetricsStrip metrics={row.metrics} />
+      <MetricsStrip metrics={row.metrics} salesperson={s?.salesperson} />
 
       {s && (
         <>

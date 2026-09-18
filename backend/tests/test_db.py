@@ -156,6 +156,30 @@ def test_a_rename_touches_only_the_candidate_row(pool):
     assert stmts[0].startswith("update candidates set")
 
 
+
+def test_candidate_ratings_count_voided_attempts(pool):
+    """Highest and average rating span EVERY attempt, voided ones included — a
+    void resets the slot, it does not un-happen the call. The natural "cleanup"
+    is to add `filter (where s.status = 'scored')` to these two aggregates, which
+    would silently drop voided sessions; this pins that they carry no filter."""
+    db.list_candidates(50, 0)
+    sql = next(stmt for txn in pool.txns for stmt, _ in txn if "highest_rating" in stmt)
+
+    # Each select item, cut out by its neighbours — `round(avg(..), 1)` has a
+    # comma inside it, so splitting the select list on commas would not work.
+    items = {
+        "highest_rating": sql.split("as last_submission_at,")[1].split(" as highest_rating")[0],
+        "avg_rating": sql.split("as highest_rating,")[1].split(" as avg_rating")[0],
+    }
+    for alias, fn in (("highest_rating", "max"), ("avg_rating", "avg")):
+        expr = items[alias]
+        assert f"{fn}(s.overall_stars)" in expr, expr
+        assert "filter" not in expr and "status" not in expr, (
+            f"{alias} must not be filtered by status — voided attempts count: {expr}")
+    # and nothing narrows the join itself to non-voided rows
+    join = sql[sql.index("left join submissions"):sql.index("group by")]
+    assert "voided" not in join and "status" not in join
+
 # ── the pool must validate a connection before handing it out ─────────────
 
 def test_the_pool_checks_a_connection_before_handing_it_out(monkeypatch):

@@ -210,6 +210,41 @@ def test_upload_rejects_unreadable_audio(client, monkeypatch):
     assert calls == [], "nothing may be written to storage before validation passes"
 
 
+
+def _upload_of(client, monkeypatch, seconds):
+    """An upload whose probed length is `seconds`, with storage and the DB stubbed
+    so a file that passes validation runs all the way to the 202."""
+    class Info:
+        length = seconds
+    class Probe:
+        info = Info()
+    monkeypatch.setattr(main, "MutagenFile", lambda f: Probe())
+    monkeypatch.setattr(storage, "put", lambda *a: None)
+    monkeypatch.setattr(db, "create_submission", lambda *a, **k: None)
+    return client.post("/api/submissions", headers=CAND(),
+                       files={"file": ("call.mp3", b"ID3fake", "audio/mpeg")})
+
+
+def test_a_call_over_the_advertised_5_minutes_is_still_accepted(client, monkeypatch):
+    """Told 5 minutes, allowed 7: a call that ran a little over is not worth
+    rejecting after the candidate has already made it."""
+    r = _upload_of(client, monkeypatch, 6 * 60 + 30)
+    assert r.status_code == 202, r.text
+
+
+def test_the_hard_limit_is_7_minutes(client, monkeypatch):
+    assert _upload_of(client, monkeypatch, 7 * 60).status_code == 202
+    r = _upload_of(client, monkeypatch, 7 * 60 + 1)
+    assert r.status_code == 422
+
+
+def test_the_rejection_states_the_advertised_limit_not_the_real_one(client, monkeypatch):
+    """The message is shown to the candidate. It must say 5, never 7 — the
+    buffer is not something to advertise."""
+    detail = _upload_of(client, monkeypatch, 9 * 60).json()["detail"]
+    assert "5 minutes" in detail
+    assert "7" not in detail
+
 # ── audit trail ───────────────────────────────────────────────────────────
 
 def test_voiding_writes_an_audit_row_naming_the_actor(client):

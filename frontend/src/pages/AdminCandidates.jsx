@@ -3,6 +3,7 @@ import { api } from '../api/client.js';
 import { toast } from '../utils/toast.js';
 import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
 import { BoardLoader } from '../components/Loader.jsx';
+import Stars from '../components/Stars.jsx';
 
 // Everyone who has ever signed in. Attempts and which assessments come from one
 // grouped query, not a round trip per row.
@@ -50,18 +51,26 @@ export default function AdminCandidates() {
       />
 
       <div className="board-wrap" style={{ marginTop: 'var(--space-lg)' }}>
-        <table className="board board-narrow">
+        <table className="board">
           <thead>
             <tr>
               <th>Candidate</th>
               <th>Attempts</th>
+              {/* Both span EVERY attempt, voided ones included — a reset frees
+                  the slot, it does not un-happen the call. Said in the header
+                  because it is the one thing here an admin would not assume.
+                  Ahead of Assessments so a phone's first screen shows them —
+                  while there is one assessment type that column says the same
+                  thing on every row. */}
+              <th title="Best overall score across every attempt, voided included">Highest rating</th>
+              <th title="Mean overall score across every attempt, voided included">Avg rating</th>
               <th>Assessments</th>
             </tr>
           </thead>
           <tbody>
-            {rows === null && <SkeletonRows rows={5} cols={3} stacked={[0]}
-              widths={['65%', '25%', '70%']} />}
-            {rows !== null && loading && <BoardLoader cols={3} label="Loading candidates" />}
+            {rows === null && <SkeletonRows rows={5} cols={5} stacked={[0]}
+              widths={['65%', '25%', '45%', '45%', '70%']} />}
+            {rows !== null && loading && <BoardLoader cols={5} label="Loading candidates" />}
             {!loading && (rows || []).map((c) => (
               <tr key={c.id} style={{ cursor: 'default' }}>
                 <td className="cand">
@@ -72,6 +81,9 @@ export default function AdminCandidates() {
                   {c.attempts}
                   {c.voided > 0 && <small className="muted"> ({c.voided} reset)</small>}
                 </td>
+                {/* null until something has been scored — Stars renders a dash */}
+                <td><Stars stars={c.highest_rating} size="sm" showBand={false} /></td>
+                <td><Stars stars={c.avg_rating} size="sm" showBand={false} /></td>
                 <td>
                   {c.assessments.length === 0
                     ? <span className="mono muted">—</span>

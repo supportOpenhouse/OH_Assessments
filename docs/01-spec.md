@@ -86,7 +86,7 @@ misrepresent the company.
         ↓
   Instructions        ← fixed copy, same for every candidate
         ↓
-  Upload audio        ← one file, mp3/m4a/wav/webm, ≤ 25 MB, ≤ 10 min
+  Upload audio        ← one file, mp3/m4a/wav/webm, ≤ 25 MB, told ≤ 5 min (accepted ≤ 7 min)
         ↓             ← accepted in ~3s
   Dashboard           ← polls status every 2s while scoring runs in the background
         ↓

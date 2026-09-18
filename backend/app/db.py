@@ -363,7 +363,14 @@ def list_candidates(limit: int, offset: int, q: str | None = None) -> tuple[int,
         "       count(s.id) filter (where s.status = 'voided') as voided, "
         "       coalesce(array_agg(distinct s.assessment_type) "
         "                filter (where s.id is not null), '{}') as assessments, "
-        "       max(s.created_at) as last_submission_at "
+        "       max(s.created_at) as last_submission_at, "
+        # Ratings across EVERY attempt, voided ones included — by request. A
+        # void resets the candidate's slot; it does not un-happen the call, and
+        # void_submission() only flips status, so the score is still on the row.
+        # No status filter here on purpose. Rows that never got a score
+        # (queued / processing / failed) carry NULL, which max/avg skip.
+        "       max(s.overall_stars) as highest_rating, "
+        "       round(avg(s.overall_stars), 1) as avg_rating "
         "from candidates c "
         "left join submissions s on s.candidate_id = c.id "
         f"{where}"

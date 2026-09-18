@@ -134,7 +134,7 @@ scoring happens afterwards, in the background.
 | `409` | Candidate already has a live submission (the partial unique index fired) |
 | `413` | File over 25 MB |
 | `415` | Content type not in the allowed audio list |
-| `422` | Audio longer than 10 minutes, or unreadable |
+| `422` | Audio longer than 7 minutes (message states the advertised 5), or unreadable |
 
 Handler order, which is not arbitrary:
 

@@ -30,7 +30,12 @@ _ROOT = pathlib.Path(__file__).resolve().parent.parent
 STAFF_DOMAIN = "@openhouse.in"
 
 MAX_BYTES = 25 * 1024 * 1024
-MAX_SECONDS = 600
+# Candidates are told 5 minutes everywhere; the server accepts up to 7. The gap
+# is DELIBERATE (user, 2026-09-18): a call that runs a little over is not worth
+# rejecting after the candidate has already made it. Don't "fix" the two into
+# agreement — and keep UploadDrop.jsx's copy of both numbers in step with these.
+MAX_SECONDS = 7 * 60
+SHOWN_MAX_MINUTES = 5
 
 # The candidate's notes from the call. Generous enough for the seller's details
 # and a few paragraphs, bounded because it is free text from an applicant that
@@ -308,7 +313,10 @@ async def create_submission(
     if probe is None or getattr(probe, "info", None) is None:
         raise reject(422, "unreadable", "could not read that audio file")
     if probe.info.length > MAX_SECONDS:
-        raise reject(422, "too_long", "recording is longer than 10 minutes")
+        # Shown to the candidate as a toast, so it states the ADVERTISED limit,
+        # not the enforced one — this only fires past 7:00 anyway.
+        raise reject(422, "too_long",
+                     f"recording is too long — keep it under {SHOWN_MAX_MINUTES} minutes")
 
     # Everything validated. Only now does anything get written.
     candidate_id, _ = db.upsert_candidate(u["email"], u["name"])

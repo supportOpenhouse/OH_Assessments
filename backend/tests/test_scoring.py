@@ -32,7 +32,7 @@ def test_score_schema_bounds_stars_to_one_decimal_place():
         assert stars["enum"][-1] == 5.0
         assert len(stars["enum"]) == 51
         assert 3.4 in stars["enum"] and 4.25 not in stars["enum"]
-    for k in (*scoring.AXES, "flags", "summary"):
+    for k in (*scoring.AXES, "strengths", "weaknesses", "flags", "summary"):
         assert k in s["required"]
 
 
@@ -83,10 +83,18 @@ def test_output_json_names_the_stop_reason_when_there_is_nothing_to_read():
         scoring._output_json(_Msg([_Block("text", "Sure! Here you go:")]))
 
 
-def test_stub_reasoning_is_rejected():
-    """minLength used to do this in the schema; the schema can no longer say it."""
+def _complete(**over):
+    """A parsed response that passes every check — tests change one thing."""
     good = {a: {"stars": 3, "reasoning": "x" * 60} for a in scoring.AXES}
     good["summary"] = "y" * 40
+    good["strengths"] = ["confident opening", "clear pricing"]
+    good["weaknesses"] = ["missed buyer location", "weak close"]
+    return {**good, **over}
+
+
+def test_stub_reasoning_is_rejected():
+    """minLength used to do this in the schema; the schema can no longer say it."""
+    good = _complete()
     scoring._reject_stub_reasoning(good)          # does not raise
 
     stub = {**good, "energy": {"stars": 5, "reasoning": "Good energy."}}
@@ -200,3 +208,39 @@ def test_the_model_must_say_which_speaker_it_judged():
 def test_the_prompt_says_who_is_being_assessed():
     block = scoring.build_submission_block("[speaker_0] hi", {"wpm": 150})
     assert "salesperson" in block.lower() and "customer" in block.lower()
+
+
+# ── strengths / weaknesses keywords ───────────────────────────────────────
+
+@pytest.mark.parametrize("field", ["strengths", "weaknesses"])
+@pytest.mark.parametrize("items", [[], ["one"], ["a", "b", "c", "d"]])
+def test_keywords_must_number_two_or_three(field, items):
+    """The schema cannot say minItems/maxItems, so Python has to."""
+    with pytest.raises(scoring.ScoringError, match=field):
+        scoring._reject_stub_reasoning(_complete(**{field: items}))
+
+
+@pytest.mark.parametrize("field", ["strengths", "weaknesses"])
+def test_a_keyword_is_not_a_sentence(field):
+    long = "the salesperson opened the call with real confidence"
+    with pytest.raises(scoring.ScoringError, match="1-4 words"):
+        scoring._reject_stub_reasoning(_complete(**{field: ["clear pricing", long]}))
+
+
+def test_a_blank_keyword_is_rejected():
+    with pytest.raises(scoring.ScoringError, match="weaknesses"):
+        scoring._reject_stub_reasoning(_complete(weaknesses=["weak close", "  "]))
+
+
+def test_three_short_keywords_pass():
+    scoring._reject_stub_reasoning(_complete(
+        strengths=["warm", "confident opening", "clear pricing"],
+        weaknesses=["rushed", "no follow-up"]))
+
+
+def test_the_prompt_asks_for_keywords_without_touching_the_rubric():
+    """The instruction lives in the submission block. Putting it in the rubric
+    file would change rubric_version and make every existing score look
+    incomparable."""
+    block = scoring.build_submission_block("hello", {"wpm": 150})
+    assert "strengths" in block and "weaknesses" in block

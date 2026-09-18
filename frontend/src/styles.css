@@ -130,6 +130,16 @@
   --star-edge:  #c08200;
   --star-empty: #d4d0cb;
 
+  /* Metric grades: good / above avg / below avg / bad. These colour a 3px rule
+     and a dot — graphics, so the bar is 3:1, not the 4.5:1 text needs. Yellow
+     is the deep gold --star-edge already uses: the brand yellow is 1.60:1 on
+     white and would read as no grade at all. The grade WORD is always printed
+     too, in ink, so nothing rests on telling red from green. */
+  --grade-good: #2e9d4f;
+  --grade-high: #c08200;
+  --grade-low:  #e8590c;
+  --grade-bad:  #c62828;
+
   accent-color: var(--accent);
   color-scheme: light;
 }
@@ -175,6 +185,11 @@
   --star:       #ffc338;
   --star-edge:  #ffc338;
   --star-empty: #3a3a3a;
+
+  --grade-good: #4ade80;
+  --grade-high: #facc15;
+  --grade-low:  #fb923c;
+  --grade-bad:  #f87171;
 
   color-scheme: dark;
 }
@@ -1783,6 +1798,60 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
   font-variant-numeric: tabular-nums;
 }
 
+/* ───────── Metric grades + keywords ─────────
+   The strip's figures graded good → bad (thresholds in MetricsStrip.jsx), and
+   the judge's strength / weakness keywords under the summary.                */
+.metrics-who {
+  margin: var(--space-xl) 0 calc(-1 * var(--space-lg));
+  font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-mute);
+}
+
+.metric[data-grade="good"] { --grade: var(--grade-good); }
+.metric[data-grade="high"] { --grade: var(--grade-high); }
+.metric[data-grade="low"]  { --grade: var(--grade-low); }
+.metric[data-grade="bad"]  { --grade: var(--grade-bad); }
+/* An inset shadow, not a border: a border would add 3px of height to graded
+   cells only and knock the strip's baselines out of line. */
+.metric[data-grade] { box-shadow: inset 0 3px 0 var(--grade); }
+
+.metric-sub { font-size: var(--text-xs); color: var(--ink-mute); margin-top: 2px; }
+.metric-grade {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: var(--space-2xs);
+  font-size: var(--text-xs); color: var(--ink-2);
+}
+.metric-grade::before {
+  content: ''; flex: none;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--grade);
+}
+
+/* ONE grid for both rows, so the chips align whatever the label widths — a
+   fixed min-width on the label measured 7px short for "Weaknesses". */
+.kw-rows {
+  display: grid; grid-template-columns: max-content 1fr;
+  align-items: center; gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-md);
+}
+.kw-list { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.kw-head {
+  font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-mute);
+}
+/* Tinted, with the TEXT in ink: coloured text on a tint of itself is exactly
+   the low-contrast pair the yellow grade already taught us to avoid. */
+.kw {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--text-sm); color: var(--ink);
+  border: 1px solid var(--kw);
+  background: color-mix(in oklch, var(--kw) 12%, transparent);
+}
+.kw-good { --kw: var(--grade-good); }
+.kw-bad  { --kw: var(--grade-bad); }
+
 /* ───────── Mobile ─────────
    Everything here is measured, not assumed: each rule below fixes something the
    375px audit actually caught. Two problems dominated — the nav strip held
@@ -1897,17 +1966,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 
   /* Two 142px date fields plus their label and the word "to" do not fit 375px
      on one line. Let the group wrap and let the fields size themselves. */
-  /* .board carries min-width: 640px so five or six columns stay readable and
-     scroll. Candidates is down to three, which fits a phone outright — without
-     this it would scroll sideways for no reason. */
-  .board-narrow { min-width: 0; }
-  /* An email is one unbreakable word, so it sets the column's intrinsic width
-     and put the table back over the viewport. Breaking it is scoped to this
-     board on phones — NOT the facts list, where a mid-word email is the thing
-     the vertical <dl> exists to avoid. */
-  .board-narrow .cand small { overflow-wrap: anywhere; }
-  /* 12px each side across three columns was the last 10px of overflow. */
-  .board-narrow th, .board-narrow td { padding-inline: 8px; }
 
   .filterbar-dates { flex-wrap: wrap; }
   .filterbar-dates .field-date { width: auto; flex: 1 1 130px; min-width: 0; }

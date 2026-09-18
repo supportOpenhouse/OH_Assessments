@@ -8,7 +8,11 @@ const ALLOWED = new Set([
   'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/ogg',
 ]);
 const MAX_BYTES = 25 * 1024 * 1024;
-const MAX_SECONDS = 600;
+// Told 5:00, accepted up to 7:00 — a DELIBERATE gap, mirrored from
+// backend/app/main.py (MAX_SECONDS / SHOWN_MAX_MINUTES). Enforcing the shown
+// number here would reject a 6-minute call the server would have taken.
+const MAX_SECONDS = 7 * 60;
+const SHOWN_MAX = '5:00';
 
 // Reads duration without decoding the whole file.
 function probeDuration(file) {
@@ -45,7 +49,7 @@ export default function UploadDrop({ onPick, disabled }) {
       return;
     }
     if (duration > MAX_SECONDS) {
-      toast(`That recording is ${mmss(duration)}. The limit is 10:00.`, 'error');
+      toast(`That recording is ${mmss(duration)}. Keep it under ${SHOWN_MAX}.`, 'error');
       return;
     }
     onPick({ file, duration, url: URL.createObjectURL(file) });
@@ -74,7 +78,7 @@ export default function UploadDrop({ onPick, disabled }) {
         <IconUpload width={22} height={22} style={{ margin: '0 auto var(--space-sm)' }} />
         <div className="drop-cta-pointer">Drop your recording here, or click to choose a file</div>
         <div className="drop-cta-touch">Tap to choose your recording</div>
-        <div className="drop-hint">MP3 · M4A · WAV · WEBM · OGG — max 25 MB, 10:00</div>
+        <div className="drop-hint">MP3 · M4A · WAV · WEBM · OGG — max 25 MB, {SHOWN_MAX}</div>
       </div>
       <input
         ref={inputRef}

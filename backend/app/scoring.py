@@ -140,7 +140,7 @@ _AXIS = {
 SCORE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": [*AXES, "salesperson", "flags", "summary"],
+    "required": [*AXES, "salesperson", "strengths", "weaknesses", "flags", "summary"],
     "properties": {
         **{a: _AXIS for a in AXES},
         # Which voice was judged. Nothing tells us which speaker id is the rep —
@@ -153,6 +153,12 @@ SCORE_SCHEMA = {
                         "required": ["speaker", "reasoning"],
                         "properties": {"speaker": {"type": "string"},
                                        "reasoning": {"type": "string"}}},
+        # A few words each, so an admin can scan a board of candidates without
+        # opening every record. The COUNT (2-3) and brevity cannot be expressed
+        # here — minItems/maxItems are outside the subset this API has been
+        # proven to accept — so _reject_stub_reasoning() enforces them.
+        "strengths": {"type": "array", "items": {"type": "string"}},
+        "weaknesses": {"type": "array", "items": {"type": "string"}},
         "flags": {"type": "array", "items": {"type": "string"}},
         "summary": {"type": "string"},
     },
@@ -160,6 +166,10 @@ SCORE_SCHEMA = {
 
 MIN_REASONING = 40
 MIN_SUMMARY = 20
+KEYWORDS_MIN, KEYWORDS_MAX = 2, 3
+# "Weak rebuttals", "confident opening" — a keyword, not a sentence. Longer than
+# this and it is reasoning in the wrong field, which the axes already carry.
+KEYWORD_MAX_WORDS = 4
 
 
 def _output_json(msg) -> dict:
@@ -196,6 +206,16 @@ def _reject_stub_reasoning(parsed: dict) -> None:
     if short:
         raise ScoringError(f"model returned stub reasoning for: {', '.join(short)}")
 
+    for field in ("strengths", "weaknesses"):
+        items = parsed[field]
+        if not KEYWORDS_MIN <= len(items) <= KEYWORDS_MAX:
+            raise ScoringError(
+                f"{field}: expected {KEYWORDS_MIN}-{KEYWORDS_MAX} keywords, got {len(items)}")
+        bad = [k for k in items if not k.strip() or len(k.split()) > KEYWORD_MAX_WORDS]
+        if bad:
+            raise ScoringError(
+                f"{field}: keywords must be 1-{KEYWORD_MAX_WORDS} words, got {bad}")
+
 
 def build_submission_block(transcript: str, m: dict) -> str:
     """The volatile half of the prompt. The rubric is NOT repeated here — it
@@ -208,6 +228,11 @@ def build_submission_block(transcript: str, m: dict) -> str:
         "— work out which one is the salesperson from the content of the call, "
         "report it in `salesperson`, and score only that person. The customer is "
         "not being assessed.\n\n"
+        "In `strengths` and `weaknesses`, give 2-3 KEYWORDS each (1-4 words, e.g. "
+        "\"confident opening\", \"missed buyer location\") naming the salesperson's "
+        "most decisive strengths and weaknesses on this call, grounded in the "
+        "rubric's axes. Keywords, not sentences — the axis reasoning carries the "
+        "detail.\n\n"
         "## Delivery metrics\n\n```json\n"
         + json.dumps(m, indent=2)
         + "\n```\n\n## Transcript\n\n"

@@ -300,5 +300,5 @@ services:
   audited and blind to anything not going through the UI. `GET /api/logs` is
   admin-only — the trail names every candidate who ever signed in.
 - Upload validation runs **before** the object is written: content type, ≤25 MB,
-  ≤10 minutes.
+  ≤7 minutes (candidates are told 5).
 - CORS restricted to the Vercel domains, even though the rewrite is same-origin.

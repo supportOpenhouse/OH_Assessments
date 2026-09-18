@@ -50,7 +50,7 @@ call. We are assessing you, not their decision.
 - Record the call lawfully, and be straightforward if the seller asks whether
   you are recording.
 - Do not include payment details or identity-document numbers.
-- Any format: MP3, M4A, WAV, WEBM or OGG, under 25 MB and under 10 minutes.
+- Any format: MP3, M4A, WAV, WEBM or OGG, under 25 MB and under 5 minutes.
 - **You get one attempt.** Listen back before you upload.
 
 ## What happens next
