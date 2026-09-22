@@ -343,3 +343,6 @@ the backend so the copy changes without a frontend deploy.
 | `GET` | `/api/candidates/{id}` | **staff** | Insights + presigned `resume_url` |
 | `POST` | `/api/candidates/{id}/resume/reevaluate` | **staff** | `202`. Audited |
 | `GET` | `/api/logs` | **admin** | The audit trail |
+| `GET` | `/api/users` | **admin** | Staff (`oh_users`), deactivated included |
+| `POST` | `/api/users` | **admin** | `{email, name, role}`. @openhouse.in only; `409` if it exists |
+| `PATCH` | `/api/users/{id}` | **admin** | `{role?, is_active?}`. `403` on your own row, `409` on the last active admin |

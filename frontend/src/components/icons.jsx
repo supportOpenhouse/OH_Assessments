@@ -20,6 +20,7 @@ import {
   // Kept for the audio player's commented-out controls — see AudioPlayer.jsx.
   LuVolume2, LuHeart, LuSkipBack, LuSkipForward,
   LuStar,
+  LuUserCog,
 } from 'react-icons/lu';
 import {
   FaFacebookF, FaInstagram, FaLinkedinIn, FaYoutube,
@@ -51,6 +52,7 @@ export const IconClose = wrap(LuX);
 export const IconSubmissions = wrap(LuInbox);
 export const IconCandidates = wrap(LuUsers);
 export const IconActivity = wrap(LuActivity);
+export const IconUsers = wrap(LuUserCog);
 export const IconProfile = wrap(LuUser);
 export const IconAssessments = wrap(LuClipboardList);
 export const IconHistory = wrap(LuHistory);

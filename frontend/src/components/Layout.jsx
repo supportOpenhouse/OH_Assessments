@@ -7,7 +7,7 @@ import { useSlideNavigate, FORWARD, BACK } from '../utils/pageTransition.js';
 import {
   IconSun, IconMoon, IconSignOut,
   IconSubmissions, IconCandidates, IconActivity, IconProfile,
-  IconAssessments, IconHistory,
+  IconAssessments, IconHistory, IconUsers,
 } from './icons.jsx';
 
 // Role-aware sidebar. The two link sets never mix: a candidate has no admin
@@ -17,6 +17,7 @@ const NAV = {
     { to: '/admin', label: 'Submissions', Icon: IconSubmissions, end: true },
     { to: '/admin/candidates', label: 'Candidates', Icon: IconCandidates },
     { to: '/admin/activity', label: 'Activity', Icon: IconActivity, adminOnly: true },
+    { to: '/admin/users', label: 'Users', Icon: IconUsers, adminOnly: true },
     { to: '/profile', label: 'Profile', Icon: IconProfile },
   ],
   user: [

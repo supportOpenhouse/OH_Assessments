@@ -34,6 +34,10 @@ SUBMISSION_VOIDED = "submission.voided"
 SUBMISSION_RESCORED = "submission.rescored"
 SUBMISSION_SWEPT = "submission.swept"
 CANDIDATE_PHONE_SET = "candidate.phone_set"
+STAFF_ADDED = "staff.added"
+STAFF_ROLE_CHANGED = "staff.role_changed"
+STAFF_DEACTIVATED = "staff.deactivated"
+STAFF_REACTIVATED = "staff.reactivated"
 RESUME_UPLOADED = "resume.uploaded"
 RESUME_REJECTED = "resume.rejected"
 RESUME_REEVALUATED = "resume.reevaluated"
@@ -43,6 +47,7 @@ RESUME_SWEPT = "resume.swept"
 
 ENTITY_SUBMISSION = "submission"   # addresses submissions.id, whatever the type
 ENTITY_CANDIDATE = "candidate"
+ENTITY_STAFF = "staff"             # addresses oh_users.id
 
 SYSTEM = "system"
 

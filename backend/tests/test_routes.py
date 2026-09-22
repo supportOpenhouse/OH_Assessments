@@ -401,9 +401,14 @@ def test_a_stale_admin_token_does_not_grant_admin(client):
     """Removing someone from oh_users (or is_active = false) must take effect
     immediately, not whenever their 7-day token happens to expire."""
     stale = hdr("ex-admin@openhouse.in", "admin")   # claim says admin
-    assert client.get("/api/submissions", headers=stale).status_code == 403
-    assert client.get("/api/candidates", headers=stale).status_code == 403
-    assert client.get("/api/logs", headers=stale).status_code == 403
+    # 401, not 403: an @openhouse.in address with no active oh_users row has NO
+    # account, so the session is refused outright — a 403 meant it was still
+    # accepted as a candidate's, able to upload a resume and grow a candidates row.
+    for path in ("/api/submissions", "/api/candidates", "/api/logs", "/api/me"):
+        assert client.get(path, headers=stale).status_code == 401, path
+    r = client.post("/api/me/resume", headers=stale,
+                    files={"file": ("cv.pdf", b"%PDF-1.4", "application/pdf")})
+    assert r.status_code == 401
 
 
 def test_a_promoted_user_gets_admin_without_signing_in_again(client):
@@ -1085,3 +1090,108 @@ def test_the_read_task_lands_any_failure_as_failed(monkeypatch):
     monkeypatch.setattr(db, "insert_log", lambda **kw: None)
     main.tasks.extract_resume(CAND_ID)
     assert failed and "529 overloaded" in failed[0]
+
+
+# ── staff users (admin only) ──────────────────────────────────────────────
+
+OTHER_ID = "22222222-0000-4000-8000-000000000009"
+
+
+@pytest.fixture
+def staff_db(monkeypatch):
+    rows = {
+        "22222222-0000-4000-8000-000000000001": {"id": "22222222-0000-4000-8000-000000000001",
+            "email": ADMIN, "name": "Admin", "role": "admin", "is_active": True,
+            "created_at": ROW["created_at"]},
+        OTHER_ID: {"id": OTHER_ID, "email": "other@openhouse.in", "name": "Other",
+                   "role": "admin", "is_active": True, "created_at": ROW["created_at"]},
+    }
+    state = {"admins": 2, "created": [], "updated": []}
+    monkeypatch.setattr(db, "list_oh_users", lambda: list(rows.values()))
+    monkeypatch.setattr(db, "get_oh_user_by_id", lambda i: rows.get(i))
+    monkeypatch.setattr(db, "active_admin_count", lambda: state["admins"])
+
+    def create(email, name, role):
+        if any(r["email"] == email for r in rows.values()):
+            return None
+        state["created"].append((email, name, role))
+        return {"id": OTHER_ID, "email": email, "name": name, "role": role,
+                "is_active": True, "created_at": ROW["created_at"]}
+    monkeypatch.setattr(db, "create_oh_user", create)
+
+    def update(i, role, active):
+        state["updated"].append((i, role, active))
+        r = dict(rows[i])
+        if role is not None: r["role"] = role
+        if active is not None: r["is_active"] = active
+        return r
+    monkeypatch.setattr(db, "update_oh_user", update)
+    return state
+
+
+def test_only_an_admin_reaches_the_users_page(client, staff_db):
+    for h in (INT(), CAND()):
+        assert client.get("/api/users", headers=h).status_code == 403
+        assert client.post("/api/users", headers=h,
+                           json={"email": "n@openhouse.in", "name": "N", "role": "internal"}).status_code == 403
+        assert client.patch(f"/api/users/{OTHER_ID}", headers=h,
+                            json={"role": "internal"}).status_code == 403
+    assert staff_db["created"] == [] and staff_db["updated"] == []
+    body = client.get("/api/users", headers=ADM()).json()
+    assert {r["email"] for r in body["items"]} == {ADMIN, "other@openhouse.in"}
+    assert body["roles"] == ["admin", "internal"], "reviewer is not offered"
+
+
+def test_adding_a_user_lowercases_and_audits(client, staff_db):
+    r = client.post("/api/users", headers=ADM(),
+                    json={"email": "  New.Person@OpenHouse.in ", "name": " New  Person ", "role": "internal"})
+    assert r.status_code == 201, r.text
+    assert staff_db["created"] == [("new.person@openhouse.in", "New Person", "internal")]
+    row = [x for x in AUDIT if x["action"] == logs.STAFF_ADDED][0]
+    assert row["actor_email"] == ADMIN and row["data"]["role"] == "internal"
+
+
+@pytest.mark.parametrize("body,code", [
+    ({"email": "someone@gmail.com", "name": "S", "role": "internal"}, 422),
+    ({"email": "x@openhouse.in.evil.com", "name": "S", "role": "internal"}, 422),
+    ({"email": "@openhouse.in", "name": "S", "role": "internal"}, 422),
+    ({"email": "s@openhouse.in", "name": "S", "role": "reviewer"}, 422),
+    ({"email": "s@openhouse.in", "name": "   ", "role": "internal"}, 422),
+    ({"email": "other@openhouse.in", "name": "Dup", "role": "internal"}, 409),
+])
+def test_bad_or_duplicate_users_are_refused(client, staff_db, body, code):
+    assert client.post("/api/users", headers=ADM(), json=body).status_code == code
+    assert staff_db["created"] == []
+
+
+def test_a_role_change_is_audited_with_both_values(client, staff_db):
+    r = client.patch(f"/api/users/{OTHER_ID}", headers=ADM(), json={"role": "internal"})
+    assert r.status_code == 200 and r.json()["role"] == "internal"
+    row = [x for x in AUDIT if x["action"] == logs.STAFF_ROLE_CHANGED][0]
+    assert row["data"] == {"email": "other@openhouse.in", "from": "admin", "to": "internal"}
+
+
+def test_deactivate_and_reactivate_are_audited(client, staff_db):
+    client.patch(f"/api/users/{OTHER_ID}", headers=ADM(), json={"is_active": False})
+    assert [x["action"] for x in AUDIT] == [logs.STAFF_DEACTIVATED]
+    assert staff_db["updated"] == [(OTHER_ID, None, False)]
+
+
+def test_an_admin_cannot_change_their_own_access(client, staff_db):
+    me_id = "22222222-0000-4000-8000-000000000001"
+    for body in ({"role": "internal"}, {"is_active": False}):
+        assert client.patch(f"/api/users/{me_id}", headers=ADM(), json=body).status_code == 403
+    assert staff_db["updated"] == []
+
+
+def test_the_last_active_admin_cannot_be_demoted_or_deactivated(client, staff_db):
+    staff_db["admins"] = 1
+    for body in ({"role": "internal"}, {"is_active": False}):
+        assert client.patch(f"/api/users/{OTHER_ID}", headers=ADM(), json=body).status_code == 409
+    assert staff_db["updated"] == []
+
+
+@pytest.mark.parametrize("body", [{}, {"role": "owner"}, {"is_active": "no"}])
+def test_a_malformed_edit_is_refused(client, staff_db, body):
+    assert client.patch(f"/api/users/{OTHER_ID}", headers=ADM(), json=body).status_code == 422
+    assert client.patch("/api/users/not-a-uuid", headers=ADM(), json={"role": "admin"}).status_code == 404

@@ -145,6 +145,10 @@ def _claims(authorization: str, cookie: str | None) -> dict:
         raise HTTPException(401, str(e))
 
 
+# Anyone on this domain must be in oh_users (and active) to have a session.
+STAFF_DOMAIN = "@openhouse.in"
+
+
 async def current_user(
     response: Response,
     authorization: str = Header(default=""),
@@ -164,6 +168,12 @@ async def current_user(
     """
     c = _claims(authorization, oha_session)
     oh = db.get_oh_user(c["email"])
+    # An @openhouse.in address with no active oh_users row has no account —
+    # sign-in refuses it, and so must a session minted BEFORE they were
+    # deactivated. Falling through to "user" would hand a removed staffer the
+    # candidate side (and a candidates row) for the rest of the token's life.
+    if not oh and c["email"].endswith(STAFF_DOMAIN):
+        raise HTTPException(401, "your access has been removed")
     role = oh["role"] if oh else "user"
 
     # Slide the window. Cookie sessions only: a caller using the Authorization

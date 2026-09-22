@@ -1929,6 +1929,24 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
   background: var(--paper-2);
 }
 
+/* ───────── Users (admin) ───────── */
+.page-head-row {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: var(--space-md);
+}
+.user-add {
+  border: 1px solid var(--hairline); border-radius: var(--r-lg);
+  background: var(--paper-2); padding: var(--space-lg);
+}
+.user-add .form-field:first-child { margin-top: 0; }
+.user-add .picked-meta { margin-top: var(--space-md); }
+.field-role { min-width: 0; width: 120px; min-height: 32px; padding-block: 2px; }
+.row-acts { text-align: right; white-space: nowrap; }
+.row-inactive td { color: var(--ink-mute); }
+/* The board's pointer + hover say "this row opens something". These do not. */
+.board-static tbody tr { cursor: default; }
+.board-static tbody tr:hover { background: none; }
+
 /* ───────── Bare layout ─────────
    /candidate-info: no sidebar and no tab bar. (0,2,0) so it beats the Mobile
    section's `.main` tab-bar padding without having to live after it.       */

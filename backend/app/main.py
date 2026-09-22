@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO)
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Anyone on this domain must be in oh_users to sign in at all.
-STAFF_DOMAIN = "@openhouse.in"
+STAFF_DOMAIN = auth.STAFF_DOMAIN
 
 MAX_BYTES = 25 * 1024 * 1024
 # Candidates are told 5 minutes everywhere; the server accepts up to 7. The gap
@@ -217,34 +217,34 @@ async def me(u: dict = Depends(auth.current_user)):
 NAME_MAX = 80
 
 
+def clean_name(raw) -> str:
+    """A display name as it will be stored. Names render into admin table cells,
+    so they are validated rather than trusted: whitespace runs collapse, and
+    control characters — invisible in a form, and how a newline or a bidi
+    override gets smuggled into a row — are dropped."""
+    if not isinstance(raw, str):
+        raise HTTPException(422, "name is required")
+    name = " ".join(raw.split())          # collapses newlines, tabs, runs of spaces
+    name = "".join(c for c in name if c.isprintable())
+    if not name:
+        raise HTTPException(422, "name cannot be empty")
+    if len(name) > NAME_MAX:
+        raise HTTPException(422, f"name cannot be longer than {NAME_MAX} characters")
+    return name
+
+
 @app.patch("/api/me")
 async def update_me(body: dict, request: Request, u: dict = Depends(auth.current_user)):
     """Change your own display name and/or phone number.
 
-    The name a person picks is what admins see on the board and the record, so it
-    is validated rather than trusted: trimmed, length-bounded, and stripped of
-    control characters, which are invisible in a form and are how someone smuggles
-    a newline or a bidi override into a table cell.
-
-    Both fields are validated before either is written, so a bad phone number
+    The name is cleaned by clean_name(). Both fields are validated before either is written, so a bad phone number
     does not leave a half-applied rename behind.
     """
     body = body or {}
     if "name" not in body and "phone" not in body:
         raise HTTPException(422, "name is required")
 
-    name = None
-    if "name" in body:
-        raw = body["name"]
-        if not isinstance(raw, str):
-            raise HTTPException(422, "name is required")
-        name = " ".join(raw.split())          # collapses newlines, tabs, runs of spaces
-        name = "".join(c for c in name if c.isprintable())
-        if not name:
-            raise HTTPException(422, "name cannot be empty")
-        if len(name) > NAME_MAX:
-            raise HTTPException(422, f"name cannot be longer than {NAME_MAX} characters")
-
+    name = clean_name(body["name"]) if "name" in body else None
     phone = normalise_phone(body["phone"]) if "phone" in body else None
 
     if name is not None:
@@ -634,6 +634,84 @@ async def rescore_submission(sub_id: str, background: BackgroundTasks, request: 
     background.add_task(tasks.score_submission, sub_id)
     return {"id": sub_id, "status": "processing"}
     return {"id": sub_id, "status": "voided"}
+
+
+# ── staff users (admin only) ──────────────────────────────────────────────
+# Who on the Openhouse side can sign in, and as what. Every change is audited,
+# and none of them can leave the product without an active admin.
+
+_STAFF_EMAIL = re.compile(r"[^@\s]+" + re.escape(STAFF_DOMAIN))
+
+
+def _staff_out(row: dict) -> dict:
+    return {**row, "id": str(row["id"])}
+
+
+@app.get("/api/users")
+async def list_users(_: dict = Depends(auth.require_admin)):
+    return {"items": [_staff_out(r) for r in db.list_oh_users()],
+            "roles": sorted(auth.STAFF_ROLES)}
+
+
+@app.post("/api/users", status_code=201)
+async def add_user(body: dict, request: Request, u: dict = Depends(auth.require_admin)):
+    body = body or {}
+    email = body.get("email")
+    if not isinstance(email, str) or not _STAFF_EMAIL.fullmatch(email.strip().lower()):
+        raise HTTPException(422, f"staff must use an {STAFF_DOMAIN} address")
+    email = email.strip().lower()   # Google hands back lowercase; match it
+    name = clean_name(body.get("name"))
+    role = body.get("role")
+    if role not in auth.STAFF_ROLES:
+        raise HTTPException(422, f"role must be one of {', '.join(sorted(auth.STAFF_ROLES))}")
+
+    row = db.create_oh_user(email, name, role)
+    if not row:
+        raise HTTPException(409, "that email is already a user — reactivate or edit it instead")
+    logs.record(logs.STAFF_ADDED, **logs.for_user(u), entity=logs.ENTITY_STAFF,
+                entity_id=row["id"], data={"email": email, "role": role}, request=request)
+    return _staff_out(row)
+
+
+@app.patch("/api/users/{user_id}")
+async def edit_user(user_id: str, body: dict, request: Request,
+                    u: dict = Depends(auth.require_admin)):
+    """Change a role and/or deactivate / reactivate. Takes effect on that
+    person's next request: current_user re-reads oh_users every time."""
+    _uuid_or_404(user_id)
+    body = body or {}
+    role, active = body.get("role"), body.get("is_active")
+    if role is None and active is None:
+        raise HTTPException(422, "nothing to change")
+    if role is not None and role not in auth.STAFF_ROLES:
+        raise HTTPException(422, f"role must be one of {', '.join(sorted(auth.STAFF_ROLES))}")
+    if active is not None and not isinstance(active, bool):
+        raise HTTPException(422, "is_active must be true or false")
+
+    target = db.get_oh_user_by_id(user_id)
+    if not target:
+        raise HTTPException(404, "not found")
+    # Demoting or deactivating yourself is how the last admin locks everyone out
+    # by accident. Another admin can do it.
+    if target["email"] == u["email"]:
+        raise HTTPException(403, "you cannot change your own access")
+    losing_admin = (target["role"] == auth.ADMIN and target["is_active"]
+                    and ((role is not None and role != auth.ADMIN) or active is False))
+    # ponytail: count-then-write, so two admins demoting each other in the same
+    # instant could both pass. Two admins, one second — a row lock if it matters.
+    if losing_admin and db.active_admin_count() <= 1:
+        raise HTTPException(409, "this is the last active admin")
+
+    row = db.update_oh_user(user_id, role, active)
+    audit = dict(**logs.for_user(u), entity=logs.ENTITY_STAFF, entity_id=user_id,
+                 request=request)
+    if role is not None and role != target["role"]:
+        logs.record(logs.STAFF_ROLE_CHANGED, **audit,
+                    data={"email": target["email"], "from": target["role"], "to": role})
+    if active is not None and active != target["is_active"]:
+        logs.record(logs.STAFF_REACTIVATED if active else logs.STAFF_DEACTIVATED, **audit,
+                    data={"email": target["email"]})
+    return _staff_out(row)
 
 
 @app.get("/api/logs")

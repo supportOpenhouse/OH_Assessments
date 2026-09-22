@@ -94,6 +94,43 @@ def get_oh_user(email: str) -> dict | None:
     )
 
 
+_STAFF_COLS = "id, email, name, role, is_active, created_at"
+
+
+def list_oh_users() -> list:
+    """Every staff row, deactivated included — they are listed, greyed, so a
+    person can be reactivated rather than re-added."""
+    return _all(f"select {_STAFF_COLS} from oh_users "
+                "order by is_active desc, created_at")
+
+
+def get_oh_user_by_id(user_id) -> dict | None:
+    return _one(f"select {_STAFF_COLS} from oh_users where id = %s", (user_id,))
+
+
+def create_oh_user(email: str, name: str | None, role: str) -> dict | None:
+    """None when the email already exists, active or not."""
+    return _one(
+        "insert into oh_users (email, name, role) values (%s, %s, %s) "
+        f"on conflict (email) do nothing returning {_STAFF_COLS}",
+        (email, name, role),
+    )
+
+
+def update_oh_user(user_id, role: str | None, is_active: bool | None) -> dict | None:
+    """Either field may be None, meaning unchanged."""
+    return _one(
+        "update oh_users set role = coalesce(%s, role), "
+        "  is_active = coalesce(%s, is_active) "
+        f"where id = %s returning {_STAFF_COLS}",
+        (role, is_active, user_id),
+    )
+
+
+def active_admin_count() -> int:
+    return _one("select count(*) as n from oh_users where role = 'admin' and is_active")["n"]
+
+
 # ── candidates ────────────────────────────────────────────────────────────
 
 def upsert_candidate(email: str, name: str | None, *, is_login: bool = False) -> tuple[str, bool]:

@@ -16,6 +16,7 @@ import AdminCandidates from './pages/AdminCandidates.jsx';
 import AdminCandidate from './pages/AdminCandidate.jsx';
 import CandidateInfo from './pages/CandidateInfo.jsx';
 import AdminLogs from './pages/AdminLogs.jsx';
+import AdminUsers from './pages/AdminUsers.jsx';
 
 function Splash() {
   return <div className="splash"><Loader /></div>;
@@ -76,12 +77,13 @@ export default function App() {
           <Route path="/history" element={<RequireDetails><History /></RequireDetails>} />
           <Route path="/profile" element={<Profile />} />
 
-          {/* Admin. The two literal segments MUST precede /admin/:id, or
-              "candidates" and "activity" parse as submission ids. */}
+          {/* Admin. The literal segments MUST precede /admin/:id, or
+              "candidates", "activity" and "users" parse as submission ids. */}
           <Route path="/admin" element={<RequireRole allow={isStaff}><AdminList /></RequireRole>} />
           <Route path="/admin/candidates" element={<RequireRole allow={isStaff}><AdminCandidates /></RequireRole>} />
           <Route path="/admin/candidates/:cid" element={<RequireRole allow={isStaff}><AdminCandidate /></RequireRole>} />
           <Route path="/admin/activity" element={<RequireRole allow={isAdmin}><AdminLogs /></RequireRole>} />
+          <Route path="/admin/users" element={<RequireRole allow={isAdmin}><AdminUsers /></RequireRole>} />
           <Route path="/admin/:id" element={<RequireRole allow={isStaff}><AdminDetail /></RequireRole>} />
         </Route>
 
