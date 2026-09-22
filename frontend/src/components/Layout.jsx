@@ -72,6 +72,26 @@ export default function Layout() {
     slide(to, index < currentIndex ? BACK : FORWARD);
   }
 
+  // /candidate-info is a gate, not a page among pages: every nav link there
+  // would only bounce back to it. So no rail — just the brand, and a way out.
+  if (pathname === '/candidate-info') {
+    return (
+      <div className="app app-bare">
+        <main className="main">
+          <div className="shell">
+            <header className="bare-head">
+              <Brand />
+              <button type="button" className="icon-btn" onClick={signOut} aria-label="Sign out">
+                <IconSignOut />
+              </button>
+            </header>
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <aside className="sidebar" data-on-profile={onProfile || undefined}>

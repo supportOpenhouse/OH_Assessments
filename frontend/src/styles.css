@@ -1929,6 +1929,16 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
   background: var(--paper-2);
 }
 
+/* ───────── Bare layout ─────────
+   /candidate-info: no sidebar and no tab bar. (0,2,0) so it beats the Mobile
+   section's `.main` tab-bar padding without having to live after it.       */
+.app-bare { grid-template-columns: 1fr; grid-template-rows: auto; }
+.app-bare .main { padding-bottom: var(--space-3xl); }
+.bare-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--space-2xl);
+}
+
 /* ───────── Mobile ─────────
    Everything here is measured, not assumed: each rule below fixes something the
    375px audit actually caught. Two problems dominated — the nav strip held
