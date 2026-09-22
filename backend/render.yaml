@@ -31,7 +31,9 @@ services:
         sync: false
       - key: R2_SECRET_ACCESS_KEY
         sync: false
-      - key: R2_BUCKET
+      - key: R2_AUDIO_BUCKET
+        sync: false
+      - key: R2_RESUME_BUCKET
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false

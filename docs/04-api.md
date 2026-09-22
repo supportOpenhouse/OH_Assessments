@@ -87,11 +87,12 @@ than after the next login. `name_set_by_user` says whether the person chose it.
 
 ## `PATCH /api/me`
 
-Change your own display name.
+Change your own display name and/or phone number. Either key alone is fine;
+both are validated before either is written.
 
 ```jsonc
 // request
-{ "name": "Asha Ramesh" }
+{ "name": "Asha Ramesh", "phone": "98765 43210" }
 
 // 200 — the same shape as GET /api/me
 { "email": "a@b.com", "name": "Asha Ramesh", "name_set_by_user": true, ... }
@@ -100,7 +101,7 @@ Change your own display name.
 | Code | When |
 |---|---|
 | `401` | No token |
-| `422` | Missing, non-string, empty after trimming, or over 80 characters |
+| `422` | Neither key; a name that is non-string, empty after trimming, or over 80 characters; a phone that is not a 10-digit Indian mobile |
 
 The name is **normalised before storage**: whitespace runs collapse to single
 spaces and non-printable characters are dropped. It is rendered into an admin
@@ -113,6 +114,42 @@ unless nothing actually changed, in which case there is no event to record.
 **The rename sticks.** `candidates.name_set_by_user` is flipped, and the sign-in
 upsert checks it before refreshing `name` from the Google profile. Without that,
 a rename is silently reverted on the person's next login.
+
+**Phone** accepts `+91` / `91` / `0` prefixes and spaces, dashes or brackets, and
+is stored as `+91XXXXXXXXXX`. A change writes `candidate.phone_set` — that it
+changed, never the number.
+
+---
+
+## `POST /api/me/resume` — candidate
+
+Multipart, one part `file`: a PDF (checked by its `%PDF-` header), at most 5 MB.
+Stored in the private `R2_RESUME_BUCKET`; any earlier resume is deleted. Returns
+the same shape as `GET /api/me`, which reports `phone`, `has_resume`,
+`resume_uploaded_at` and `details_complete` — never the key or the insights.
+
+**Only the first resume is read by Claude automatically.** A replacement is
+stored and shown to staff, but the insights stay those of the resume they were
+read from until staff call `reevaluate` below.
+
+`403` staff · `413` over 5 MB · `415` not `application/pdf` · `422` not a PDF.
+Every rejection writes `resume.rejected`.
+
+`POST /api/submissions` returns **`403`** until phone and resume are both on file.
+
+---
+
+## `GET /api/candidates/{id}` — **staff** (admin or internal)
+
+The applicant: details, `resume_status` (`processing | ready | failed`, null
+before any read), `resume_insights`, `resume_changed` (replaced since it was
+read), a presigned 1-hour `resume_url`, and every submission, voided included.
+
+## `POST /api/candidates/{id}/resume/reevaluate` — **staff**
+
+`202`. Claude reads the current resume again, overwriting the insights in place;
+the `resume.reevaluated` audit row is the only record an earlier reading
+existed. `409` while a read is in flight, `422` with no resume.
 
 ---
 
@@ -170,7 +207,7 @@ The candidate's UI treats `scored` and `failed` identically: both render the
 
 ---
 
-## `GET /api/submissions` — **admin only**
+## `GET /api/submissions` — **staff** (admin or internal)
 
 ```jsonc
 // ?limit=50&offset=0&status=scored
@@ -192,7 +229,7 @@ included so the board can warn when visible rows aren't comparable.
 
 ---
 
-## `GET /api/submissions/{id}` — **admin only**
+## `GET /api/submissions/{id}` — **staff** (admin or internal)
 
 The full record: `transcript`, `metrics`, `scores` with every reasoning string,
 `rubric_version`, `model`, `stt_model`, `error` if it failed, plus the
@@ -213,7 +250,7 @@ route that returned `404` to non-admins would leak which ids are real.
 
 ---
 
-## `POST /api/submissions/{id}/void` — **admin only**
+## `POST /api/submissions/{id}/void` — **staff** (admin or internal)
 
 Grants the candidate a retry. The row is kept in full, audio included.
 
@@ -295,11 +332,14 @@ the backend so the copy changes without a frontend deploy.
 | `GET` | `/api/health` | none | Render health check |
 | `POST` | `/api/auth/google` | none | ID token → session token |
 | `GET` | `/api/me` | user | Never returns a number |
-| `PATCH` | `/api/me` | user | Change your own display name. Audited |
+| `PATCH` | `/api/me` | user | Change your own name and/or phone. Audited |
+| `POST` | `/api/me/resume` | user | multipart PDF ≤5 MB. First one is read by Claude |
 | `GET` | `/api/instructions` | user | |
 | `POST` | `/api/submissions` | user | multipart. `202`, scores in background |
 | `GET` | `/api/submissions/{id}/status` | owner or admin | Polled every 2s |
 | `GET` | `/api/submissions` | **admin** | |
 | `GET` | `/api/submissions/{id}` | **admin** | Includes a presigned `audio_url` |
 | `POST` | `/api/submissions/{id}/void` | **admin** | Audited; the only record of who |
+| `GET` | `/api/candidates/{id}` | **staff** | Insights + presigned `resume_url` |
+| `POST` | `/api/candidates/{id}/resume/reevaluate` | **staff** | `202`. Audited |
 | `GET` | `/api/logs` | **admin** | The audit trail |

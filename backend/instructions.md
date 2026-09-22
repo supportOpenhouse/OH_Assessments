@@ -2,11 +2,11 @@
 
 Find someone selling their own home or a buyer planning to buy a house, call them, and record the call.
 
-- **1. Find a seller.** On **MagicBricks** or **99acres**, find a property for sale in **Gurugram** or **Noida** that is **listed by the owner** — not by a broker.
-- **2. Log the details.** Note down the address, the seller's name, their phone number, and the asking price. Have them in front of you before you dial. In case of a seller, ask for the location, price, area, amenities and timeline to sell. In case of a buyer, ask for their budget, location, area and amenities.
-- **3. Make the call.** You are calling as a **broker** — a property sales agent working on your own account. They are already selling or buying; you are not there to talk them into it. You are there to get them to work with you on it. Introduce yourself as a broker, say why you are calling, and find out their timeline and what condition the property is in.
-- **4. Work towards a visit.** With a seller, what you want is for them to let you come and see the property. With a buyer, offer to show them properties that match what they are looking for. Get them to trust that you are worth having on their side, and take the conversation in that direction — in your own words.
-- **5. Record and submit.** Record the call. Submit the recording here, along with your notes — the address, the seller's name, their phone number, the asking price, and what you took away from the call.
+- **1. FIND A SELLER.** On [MagicBricks](https://www.magicbricks.com/) or [99acres](https://www.99acres.com/), find a property for sale in **Gurugram** or **Noida** that is **listed by the owner** — not by a broker.
+- **2. LOG THE DETAILS.** Note down the address, the seller's name, their phone number, and the asking price. Have them in front of you before you dial. In case of a seller, ask for the location, price, area, amenities and timeline to sell. In case of a buyer, ask for their budget, location, area and amenities.
+- **3. MAKE THE CALL.** You are calling as a **broker** — a property sales agent working on your own account. They are already selling or buying; you are not there to talk them into it. You are there to get them to work with you on it. Introduce yourself as a broker, say why you are calling, and find out their timeline and what condition the property is in.
+- **4. WORK TOWARDS A VISIT.** With a seller, what you want is for them to let you come and see the property. With a buyer, offer to show them properties that match what they are looking for. Get them to trust that you are worth having on their side, and take the conversation in that direction — in your own words.
+- **5. RECORD AND SUBMIT.** Record the call. Submit the recording here, along with your notes — the address, the seller's name, their phone number, the asking price, and what you took away from the call.
 
 ## What we assess
 

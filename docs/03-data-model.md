@@ -112,11 +112,11 @@ create table if not exists oh_users (
   id          uuid primary key default gen_random_uuid(),
   email       text        not null unique,
   name        text,
-  role        text        not null default 'admin',   -- admin | reviewer
+  role        text        not null default 'admin',   -- admin | internal | reviewer (unused)
   is_active   boolean     not null default true,
   created_at  timestamptz not null default now(),
 
-  constraint oh_users_role_valid check (role in ('admin', 'reviewer'))
+  constraint oh_users_role_valid check (role in ('admin', 'reviewer', 'internal'))
 );
 ```
 
@@ -132,6 +132,8 @@ person staff, and at what level" — and staff *actions* are recorded in
 migration on live data. Today the application treats every `oh_users` row as an
 admin; `'reviewer'` becomes meaningful when there is more than one assessment to
 scope a reviewer *to*.
+
+**`internal`** (migration 007) is staff that works the Submissions and Candidates boards — including void and re-score — exactly as an admin does, but cannot open the activity log. `auth.require_staff` guards the boards; `auth.require_admin` guards only `/api/logs`.
 
 Deactivation is `is_active = false`, not a delete, so a name stays resolvable on
 submissions that person voided.

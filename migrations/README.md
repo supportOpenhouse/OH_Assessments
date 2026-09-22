@@ -7,6 +7,8 @@ psql "$DATABASE_URL" -f migrations/003_candidate_display_name.sql
 psql "$DATABASE_URL" -f migrations/004_staff_are_not_candidates.sql
 psql "$DATABASE_URL" -f migrations/005_call_notes.sql
 psql "$DATABASE_URL" -f migrations/006_fractional_stars.sql
+psql "$DATABASE_URL" -f migrations/007_internal_role.sql
+psql "$DATABASE_URL" -f migrations/008_candidate_details.sql
 ```
 
 **Numbered files run in order and are idempotent** — every statement is

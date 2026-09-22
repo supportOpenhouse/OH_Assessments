@@ -266,7 +266,8 @@ def presign(key: str, ttl_s: int = 3600) -> str: ...
 | `R2_ACCOUNT_ID` | Render | R2 endpoint host |
 | `R2_ACCESS_KEY_ID` | Render | |
 | `R2_SECRET_ACCESS_KEY` | Render | |
-| `R2_BUCKET` | Render | |
+| `R2_AUDIO_BUCKET` | Render | call recordings |
+| `R2_RESUME_BUCKET` | Render | candidate resumes (private, PDF) |
 | `ALLOWED_ORIGINS` | Render | Comma-separated Vercel domains for CORS |
 | `VITE_GOOGLE_OAUTH_CLIENT_ID` | Vercel | Same client id, public half |
 | `VITE_API_BASE` | Vercel | Blank — the rewrite makes it same-origin |

@@ -33,6 +33,13 @@ SUBMISSION_FAILED = "submission.failed"
 SUBMISSION_VOIDED = "submission.voided"
 SUBMISSION_RESCORED = "submission.rescored"
 SUBMISSION_SWEPT = "submission.swept"
+CANDIDATE_PHONE_SET = "candidate.phone_set"
+RESUME_UPLOADED = "resume.uploaded"
+RESUME_REJECTED = "resume.rejected"
+RESUME_REEVALUATED = "resume.reevaluated"
+RESUME_EXTRACTED = "resume.extracted"
+RESUME_FAILED = "resume.failed"
+RESUME_SWEPT = "resume.swept"
 
 ENTITY_SUBMISSION = "submission"   # addresses submissions.id, whatever the type
 ENTITY_CANDIDATE = "candidate"

@@ -80,6 +80,17 @@ export default function UploadDrop({ onPick, disabled }) {
         <div className="drop-cta-touch">Tap to choose your recording</div>
         <div className="drop-hint">MP3 · M4A · WAV · WEBM · OGG — max 25 MB, {SHOWN_MAX}</div>
       </div>
+      {/* OUTSIDE .drop on purpose: that box is a role="button" whose click opens
+          the file picker, so a link inside it would open the picker too — and a
+          link nested in a button is invalid to a screen reader. */}
+      <a
+        className="ext-link drop-convert"
+        href="https://cloudconvert.com/audio-converter"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        AUDIO FILE NOT IN GIVEN FORMAT? CHANGE HERE
+      </a>
       <input
         ref={inputRef}
         type="file"

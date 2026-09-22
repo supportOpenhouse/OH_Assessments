@@ -6,7 +6,7 @@ import pytest
 os.environ.setdefault("ELEVENLABS_API_KEY", "test")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
 
-from app import scoring  # noqa: E402
+from app import resume, scoring  # noqa: E402
 
 
 def test_rubric_version_is_a_stable_12_char_hash():
@@ -56,6 +56,7 @@ def test_score_schema_uses_only_keywords_the_api_accepts():
                 walk(v)
 
     walk(scoring.SCORE_SCHEMA)
+    walk(resume.INSIGHTS_SCHEMA)   # same API, same 400 at run time
     assert seen <= allowed, f"unproven schema keywords: {sorted(seen - allowed)}"
 
 
@@ -244,3 +245,28 @@ def test_the_prompt_asks_for_keywords_without_touching_the_rubric():
     incomparable."""
     block = scoring.build_submission_block("hello", {"wpm": 150})
     assert "strengths" in block and "weaknesses" in block
+
+
+def _insights(**over):
+    base = {"summary": "Four years of inside sales at a telecom firm, strong Hindi.",
+            "total_experience": "4 years", "current_role": "Sales exec, X",
+            "sales_experience": "4 years inside sales", "real_estate_experience": "Not stated",
+            "education": "B.Com", "location": "Noida", "languages": ["Hindi", "English"],
+            "strengths": ["inside sales background", "Hindi fluency"],
+            "gaps": ["no real-estate exposure", "short tenures"]}
+    return {**base, **over}
+
+
+def test_a_well_formed_resume_reading_passes():
+    resume._check(_insights())
+
+
+@pytest.mark.parametrize("bad", [
+    {"strengths": ["one"]},
+    {"gaps": ["a", "b", "c", "d"]},
+    {"strengths": ["this keyword is far too long", "ok"]},
+    {"summary": "Too short."},
+])
+def test_a_malformed_resume_reading_fails_loudly(bad):
+    with pytest.raises(resume.ResumeError):
+        resume._check(_insights(**bad))

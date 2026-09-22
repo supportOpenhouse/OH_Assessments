@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { toast } from '../utils/toast.js';
-import { stamp } from '../utils/format.js';
+import { phone as fmtPhone, stamp } from '../utils/format.js';
 import { IconCheck, IconEdit, IconClose } from '../components/icons.jsx';
 import SiteFooter from '../components/SiteFooter.jsx';
 import { Skeleton, LoadingNote } from '../components/Skeleton.jsx';
+import { checkResume } from '../components/ResumeDrop.jsx';
 
 const NAME_MAX = 80;
 
@@ -15,7 +16,7 @@ const NAME_MAX = 80;
 // The name is READ-ONLY until you ask to change it. An always-open form implies
 // a field you are expected to fill; this is something most people touch once.
 export default function Profile() {
-  const { user, rename } = useAuth();
+  const { user, rename, refresh } = useAuth();
   const [me, setMe] = useState(null);
   const [history, setHistory] = useState([]);
 
@@ -25,6 +26,13 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
   const inputRef = useRef(null);
   const savedTimer = useRef(null);
+
+  // Phone and resume: candidates only. Changing either never re-reads the
+  // resume — staff decide when the insights are refreshed.
+  const [phoneDraft, setPhoneDraft] = useState(null);   // null = not editing
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const resumeInput = useRef(null);
 
   useEffect(() => {
     api.get('/api/me').then(setMe).catch(() => {});
@@ -72,6 +80,81 @@ export default function Profile() {
     }
   }
 
+  async function savePhone(e) {
+    e.preventDefault();
+    if (phoneSaving) return;
+    setPhoneSaving(true);
+    try {
+      setMe(await api.patch('/api/me', { phone: phoneDraft }));
+      setPhoneDraft(null);
+      refresh();
+    } catch (err) {
+      toast(err.message || 'Could not update your number.', 'error');
+    } finally {
+      setPhoneSaving(false);
+    }
+  }
+
+  async function replaceResume(file) {
+    if (!file) return;
+    const why = checkResume(file);
+    if (why) { toast(why, 'error'); return; }
+    setUploading(true);
+    try {
+      setMe(await api.upload('/api/me/resume', { file }));
+      toast('Resume updated.');
+      refresh();
+    } catch (err) {
+      toast(err.message || 'Could not upload your resume.', 'error');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const isCandidate = user?.role === 'user';
+
+  const phoneValue = phoneDraft !== null ? (
+    <form className="fact-edit" onSubmit={savePhone}>
+      <input
+        className="field"
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel-national"
+        value={phoneDraft}
+        onChange={(e) => setPhoneDraft(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setPhoneDraft(null)}
+        aria-label="Mobile number"
+        autoFocus
+      />
+      <button type="submit" className="btn btn-primary btn-sm" disabled={phoneSaving || !phoneDraft.trim()}>
+        {phoneSaving ? 'Saving…' : 'Save'}
+      </button>
+      <button type="button" className="icon-btn" onClick={() => setPhoneDraft(null)} aria-label="Cancel">
+        <IconClose />
+      </button>
+    </form>
+  ) : (
+    <span className="fact-v-row">
+      {fmtPhone(me?.phone)}
+      <button type="button" className="icon-btn name-edit-btn" aria-label="Edit your mobile number"
+              onClick={() => setPhoneDraft(me?.phone ? me.phone.slice(3) : '')}>
+        <IconEdit />
+      </button>
+    </span>
+  );
+
+  const resumeValue = (
+    <span className="fact-v-row">
+      {me?.has_resume ? `Uploaded ${stamp(me.resume_uploaded_at)}` : 'Not uploaded'}
+      <button type="button" className="btn btn-ghost btn-sm" disabled={uploading}
+              onClick={() => resumeInput.current?.click()}>
+        {uploading ? 'Uploading…' : me?.has_resume ? 'Replace' : 'Upload'}
+      </button>
+      <input ref={resumeInput} type="file" accept="application/pdf" hidden
+             onChange={(e) => { replaceResume(e.target.files?.[0]); e.target.value = ''; }} />
+    </span>
+  );
+
   // Third element: render as mono. Every figure in this app is monospaced and
   // tabular — a date or a count set in the UI face reads as prose.
   // `user` comes from the session and is available immediately; `me` is fetched.
@@ -80,7 +163,12 @@ export default function Profile() {
   const loading = me === null;
   const facts = [
     ['Email', user?.email, true, false],
-    ['Role', user?.role === 'admin' ? 'Openhouse team' : 'Candidate', false, false],
+    // `internal` would otherwise fall through to "Candidate", which it is not.
+    ['Role', { admin: 'Openhouse team', internal: 'Openhouse team (internal)' }[user?.role] ?? 'Candidate', false, false],
+    ...(isCandidate ? [
+      ['Mobile', phoneValue, true, true],
+      ['Resume (PDF)', resumeValue, false, true],
+    ] : []),
     ['First signed in', me?.first_seen_at ? stamp(me.first_seen_at) : '—', true, true],
     ['Sign-ins', me?.login_count ?? '—', true, true],
     ['Assessments attempted', me?.submission_count ?? 0, true, true],

@@ -37,7 +37,7 @@ if [ -z "${JWT_SECRET:-}" ]; then
 fi
 
 # These only bite once something is actually scored, so warn rather than block.
-for v in ELEVENLABS_API_KEY ANTHROPIC_API_KEY R2_BUCKET; do
+for v in ELEVENLABS_API_KEY ANTHROPIC_API_KEY R2_AUDIO_BUCKET R2_RESUME_BUCKET; do
   [ -z "${!v:-}" ] && echo "⚠  $v is unset — uploads will fail at that step"
 done
 

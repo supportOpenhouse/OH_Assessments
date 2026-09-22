@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client.js';
+import { useSlideNavigate } from '../utils/pageTransition.js';
 import { toast } from '../utils/toast.js';
 import { SkeletonRows, LoadingNote } from '../components/Skeleton.jsx';
 import { BoardLoader } from '../components/Loader.jsx';
@@ -12,6 +13,10 @@ export default function AdminCandidates() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
+  const slide = useSlideNavigate();
+
+  // Deeper into the record, so the page arrives from the right.
+  function open(id) { slide(`/admin/candidates/${id}`); }
 
   const load = useCallback((term) => {
     const p = new URLSearchParams({ limit: '200' });
@@ -72,7 +77,12 @@ export default function AdminCandidates() {
               widths={['65%', '25%', '45%', '45%', '70%']} />}
             {rows !== null && loading && <BoardLoader cols={5} label="Loading candidates" />}
             {!loading && (rows || []).map((c) => (
-              <tr key={c.id} style={{ cursor: 'default' }}>
+              <tr
+                key={c.id}
+                tabIndex={0}
+                onClick={() => open(c.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter') open(c.id); }}
+              >
                 <td className="cand">
                   {c.name || '—'}
                   <small>{c.email}</small>

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import Brand from './Brand.jsx';
+import { isAdmin, isStaff } from '../utils/roles.js';
 import { useSlideNavigate, FORWARD, BACK } from '../utils/pageTransition.js';
 import {
   IconSun, IconMoon, IconSignOut,
@@ -15,7 +16,7 @@ const NAV = {
   admin: [
     { to: '/admin', label: 'Submissions', Icon: IconSubmissions, end: true },
     { to: '/admin/candidates', label: 'Candidates', Icon: IconCandidates },
-    { to: '/admin/activity', label: 'Activity', Icon: IconActivity },
+    { to: '/admin/activity', label: 'Activity', Icon: IconActivity, adminOnly: true },
     { to: '/profile', label: 'Profile', Icon: IconProfile },
   ],
   user: [
@@ -45,7 +46,11 @@ export default function Layout() {
     navigate('/', { replace: true });
   }
 
-  const links = NAV[user?.role === 'admin' ? 'admin' : 'user'];
+  // Staff share one link set; `adminOnly` entries drop out for `internal`, so a
+  // page they cannot open is not offered to them.
+  const links = isStaff(user)
+    ? NAV.admin.filter((l) => !l.adminOnly || isAdmin(user))
+    : NAV.user;
 
   // Moving between pages slides the content like a reel, and the DIRECTION
   // comes from the nav order: go UP the list and the page arrives from the

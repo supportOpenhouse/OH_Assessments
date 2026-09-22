@@ -185,12 +185,32 @@ async def current_user(
     }
 
 
+# Openhouse staff roles, both read from oh_users. `internal` sees and acts on
+# submissions and candidates exactly as `admin` does; what it does NOT get is
+# the activity log (user, 2026-09-22) — the one admin-only surface for now. Add
+# a route to that list by giving it `require_admin`; everything staff-facing
+# takes `require_staff`.
+ADMIN = "admin"
+STAFF_ROLES = frozenset({ADMIN, "internal"})
+
+
+async def require_staff(
+    response: Response,
+    authorization: str = Header(default=""),
+    oha_session: str | None = Cookie(default=None),
+) -> dict:
+    u = await current_user(response, authorization, oha_session)
+    if u["role"] not in STAFF_ROLES:
+        raise HTTPException(403, "staff only")
+    return u
+
+
 async def require_admin(
     response: Response,
     authorization: str = Header(default=""),
     oha_session: str | None = Cookie(default=None),
 ) -> dict:
     u = await current_user(response, authorization, oha_session)
-    if u["role"] != "admin":
+    if u["role"] != ADMIN:
         raise HTTPException(403, "admin only")
     return u

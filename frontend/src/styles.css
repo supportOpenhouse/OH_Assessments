@@ -144,6 +144,10 @@
   --grade-good-ink: #1f7a3a;   /* 5.38:1 on #fff, 5.02:1 on --paper-3 */
   --grade-bad-ink:  #c62828;   /* 5.62:1 — the bar red already clears it */
 
+  /* Orange LINK text. The brand #fa541c is 3.31:1 on white — fine for a button
+     fill, a fail as words. This is the same hue, deep enough for 4.5:1. */
+  --link: #c2410c;   /* 5.18:1 on #fff */
+
   accent-color: var(--accent);
   color-scheme: light;
 }
@@ -196,6 +200,7 @@
   --grade-bad:  #f87171;
   --grade-good-ink: #4ade80;   /* 11.3:1 on the near-black */
   --grade-bad-ink:  #f87171;   /* 7.1:1 */
+  --link: var(--accent);   /* the lifted dark accent; brand alone is 5.95:1 here */
 
   color-scheme: dark;
 }
@@ -1864,6 +1869,65 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 }
 .kw-good { --kw: var(--grade-good-ink); }
 .kw-bad  { --kw: var(--grade-bad-ink); }
+
+/* ───────── Instructions headings ─────────
+   Caps by CSS, not in the markdown: a screen reader still reads "What we
+   assess" as words rather than spelling out letters. Scoped to its own class —
+   `.step-body h3` is shared with the Assessments cards, whose title stays as is. */
+.instr-h { text-transform: uppercase; letter-spacing: .04em; }
+
+/* ───────── External links ─────────
+   Orange and ALWAYS underlined — the global `a` is ink with a hover-only
+   underline, which is right for nav but hides that these leave the site.     */
+.ext-link {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.ext-link:hover { color: var(--accent-press); text-decoration-color: currentColor; }
+.ext-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+
+.drop-convert {
+  display: block;
+  width: fit-content;
+  margin: var(--space-sm) auto 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+
+/* ───────── Candidate details ─────────
+   /candidate-info, Profile's phone + resume rows, and the staff candidate page. */
+.form-field { display: block; margin-top: var(--space-lg); }
+.form-field .field { width: 100%; max-width: 420px; }
+.form-field .picked-meta { display: block; margin-top: var(--space-xs); }
+.form-label {
+  display: block; margin-bottom: var(--space-xs);
+  font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-mute);
+}
+.form-actions { margin-top: var(--space-xl); }
+.drop-picked { color: var(--ink); font-weight: 500; overflow-wrap: anywhere; }
+
+.fact-v-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+/* The same reveal rule as the name's pencil: hover OR focus, always on touch. */
+.fact:hover .name-edit-btn { opacity: 1; }
+.fact-edit { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.fact-edit .field { flex: 0 1 220px; min-width: 0; }
+
+.record-section { margin-top: var(--space-2xl); }
+.callout-body {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--space-sm) var(--space-md);
+}
+
+/* The browser's own PDF viewer — zoom, search and download for free. */
+.pdf-frame {
+  display: block; width: 100%;
+  height: 80vh; height: 80svh;
+  border: 1px solid var(--hairline); border-radius: var(--r-lg);
+  background: var(--paper-2);
+}
 
 /* ───────── Mobile ─────────
    Everything here is measured, not assumed: each rule below fixes something the

@@ -13,7 +13,7 @@ os.environ.setdefault("JWT_SECRET", "t" * 32)  # >= MIN_SECRET_LEN
 os.environ.setdefault("GOOGLE_OAUTH_CLIENT_ID", "test-client")
 os.environ.setdefault("ELEVENLABS_API_KEY", "test")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test")
-os.environ.setdefault("R2_BUCKET", "test")
+os.environ.setdefault("R2_AUDIO_BUCKET", "test")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -21,6 +21,7 @@ from app import auth, db, logs, main, storage, tasks  # noqa: E402
 
 CANDIDATE = "cand@example.com"
 ADMIN = "admin@openhouse.in"
+INTERNAL = "internal@openhouse.in"
 SUB_ID = "9f1c0a3e-0000-4000-8000-000000000001"
 
 SCORES = {
@@ -53,10 +54,13 @@ ROW = {
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr(db, "get_oh_user", lambda e: (
-        {"id": "22222222-0000-4000-8000-000000000001", "email": ADMIN,
-         "name": "Admin", "role": "admin"} if e == ADMIN else None
-    ))
+    staff = {
+        ADMIN: {"id": "22222222-0000-4000-8000-000000000001", "email": ADMIN,
+                "name": "Admin", "role": "admin"},
+        INTERNAL: {"id": "22222222-0000-4000-8000-000000000002", "email": INTERNAL,
+                   "name": "Internal", "role": "internal"},
+    }
+    monkeypatch.setattr(db, "get_oh_user", lambda e: staff.get(e))
     monkeypatch.setattr(db, "upsert_candidate", lambda e, n, is_login=False: (CAND_ID, False))
     monkeypatch.setattr(db, "live_submission", lambda e, t="sales_insight": (
         {"id": SUB_ID, "status": "scored", "created_at": ROW["created_at"]}
@@ -65,7 +69,10 @@ def client(monkeypatch):
     monkeypatch.setattr(db, "candidate_profile", lambda e: (
         {"id": CAND_ID, "email": e, "name": "Stored Name", "name_set_by_user": True,
          "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
-         "login_count": 3, "submission_count": 1 if e == CANDIDATE else 0}
+         "login_count": 3, "submission_count": 1 if e == CANDIDATE else 0,
+         # Complete details, so every existing upload test passes the gate.
+         "phone": "+919876543210", "resume_key": "resumes/c/r.pdf",
+         "resume_uploaded_at": ROW["created_at"]}
     ))
     monkeypatch.setattr(db, "update_candidate_name",
                         lambda e, n: {"id": CAND_ID, "previous": "Stored Name"})
@@ -110,6 +117,7 @@ def hdr(email, role):
 
 CAND = lambda: hdr(CANDIDATE, "user")       # noqa: E731
 ADM = lambda: hdr(ADMIN, "admin")           # noqa: E731
+INT = lambda: hdr(INTERNAL, "internal")     # noqa: E731
 
 
 # ── the invariant ─────────────────────────────────────────────────────────
@@ -820,3 +828,260 @@ def test_seven_days_idle_still_signs_you_out(client):
         assert _renewed(r) is None, "an expired session must not be re-issued"
     finally:
         client.cookies.clear()
+
+
+# ── the `internal` staff role ─────────────────────────────────────────────
+# Everything staff-facing, EXCEPT the activity log (user, 2026-09-22).
+
+STAFF_SURFACES = [
+    ("get", "/api/submissions"),
+    ("get", "/api/candidates"),
+    ("get", f"/api/submissions/{SUB_ID}"),
+    ("get", f"/api/submissions/{SUB_ID}/status"),
+    ("post", f"/api/submissions/{SUB_ID}/void"),
+    ("post", f"/api/submissions/{SUB_ID}/rescore"),
+]
+
+
+@pytest.mark.parametrize("method,path", STAFF_SURFACES)
+def test_internal_reaches_every_staff_surface(client, method, path):
+    r = getattr(client, method)(path, headers=INT())
+    assert r.status_code < 400, f"{method.upper()} {path} → {r.status_code} {r.text}"
+
+
+def test_internal_is_refused_the_activity_log(client, monkeypatch):
+    """The one admin-only surface. It names every candidate who ever signed in.
+    The admin 200 is the control: it proves the 403 is the ROLE, not a route
+    that is broken for everybody."""
+    monkeypatch.setattr(db, "list_logs", lambda *a, **k: (0, []))
+    monkeypatch.setattr(db, "log_filter_options",
+                        lambda: {"actions": [], "categories": [], "actors": [], "entities": []})
+    assert client.get("/api/logs", headers=INT()).status_code == 403
+    assert client.get("/api/logs", headers=ADM()).status_code == 200
+
+
+def test_internal_is_staff_so_cannot_take_an_assessment(client):
+    r = client.post("/api/submissions", headers=INT(),
+                    files={"file": ("call.mp3", b"ID3", "audio/mpeg")})
+    assert r.status_code == 403
+
+
+def test_me_reports_the_internal_role(client):
+    assert client.get("/api/me", headers=INT()).json()["role"] == "internal"
+
+
+def test_claiming_internal_in_a_token_grants_nothing(client):
+    """Role comes from oh_users on every request, never from the claim — a token
+    that SAYS internal for an address not in oh_users is just a candidate."""
+    forged = hdr("someone@gmail.com", "internal")
+    assert client.get("/api/submissions", headers=forged).status_code == 403
+    assert client.get("/api/me", headers=forged).json()["role"] == "user"
+
+
+# ── candidate details: phone + resume ─────────────────────────────────────
+# Required before an assessment. The first resume is read by Claude on its own;
+# every later read is a staff decision (user, 2026-09-22).
+
+PDF = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"
+
+
+@pytest.mark.parametrize("typed", [
+    "9876543210", "+91 98765 43210", "+919876543210", "91-9876543210",
+    "09876543210", "(987) 654-3210",
+])
+def test_indian_mobiles_are_accepted_and_normalised(client, monkeypatch, typed):
+    seen = {}
+    monkeypatch.setattr(db, "update_candidate_phone",
+                        lambda e, p: (seen.update(p=p) or {"id": CAND_ID, "previous": None}))
+    assert client.patch("/api/me", headers=CAND(), json={"phone": typed}).status_code == 200
+    assert seen["p"] == "+919876543210"
+
+
+@pytest.mark.parametrize("typed", [
+    "", "12345", "5876543210", "98765432101", "+1 415 555 0100", "98765 4321x", 9876543210,
+])
+def test_anything_else_is_refused_and_nothing_is_written(client, monkeypatch, typed):
+    calls = []
+    monkeypatch.setattr(db, "update_candidate_phone", lambda *a: calls.append(a))
+    assert client.patch("/api/me", headers=CAND(), json={"phone": typed}).status_code == 422
+    assert calls == []
+
+
+def test_a_bad_phone_does_not_leave_a_half_applied_rename(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(db, "update_candidate_name", lambda *a: calls.append(a))
+    r = client.patch("/api/me", headers=CAND(), json={"name": "New Name", "phone": "123"})
+    assert r.status_code == 422
+    assert calls == [], "validate both fields before writing either"
+
+
+def test_a_phone_change_is_audited_without_the_number(client, monkeypatch):
+    monkeypatch.setattr(db, "update_candidate_phone",
+                        lambda e, p: {"id": CAND_ID, "previous": "+919000000000"})
+    client.patch("/api/me", headers=CAND(), json={"phone": "9876543210"})
+    rows = [r for r in AUDIT if r["action"] == logs.CANDIDATE_PHONE_SET]
+    assert len(rows) == 1
+    blob = repr(AUDIT)
+    assert "9876543210" not in blob and "9000000000" not in blob
+
+
+def test_me_reports_details_but_never_the_resume_key(client):
+    body = client.get("/api/me", headers=CAND()).json()
+    assert body["details_complete"] is True
+    assert body["has_resume"] is True
+    assert body["phone"] == "+919876543210"
+    assert "resumes/" not in repr(body) and "resume_key" not in body
+    assert "insight" not in repr(body).lower()
+
+
+def test_an_assessment_is_refused_until_details_are_complete(client, monkeypatch):
+    """The client routes to /candidate-info; this is what holds when someone
+    skips that page by URL or by calling the API directly."""
+    base = db.candidate_profile(CANDIDATE)
+    written = []
+    monkeypatch.setattr(storage, "put", lambda *a, **k: written.append(a))
+    for missing in ("phone", "resume_key"):
+        monkeypatch.setattr(db, "candidate_profile", lambda e, m=missing: {**base, m: None})
+        r = client.post("/api/submissions", headers=CAND(),
+                        files={"file": ("call.mp3", b"ID3", "audio/mpeg")})
+        assert r.status_code == 403, missing
+        assert "phone number and resume" in r.json()["detail"]
+    assert written == []
+
+
+def _resume(client, monkeypatch, *, data=PDF, ctype="application/pdf",
+            previous_key=None, claimed=True):
+    puts, deletes, set_calls = [], [], []
+    monkeypatch.setattr(storage, "put", lambda *a, **k: puts.append((a, k)))
+    monkeypatch.setattr(storage, "delete", lambda *a, **k: deletes.append((a, k)))
+    monkeypatch.setattr(db, "set_resume", lambda e, key: (
+        set_calls.append(key) or
+        {"id": CAND_ID, "previous_key": previous_key, "claimed": claimed}))
+    scheduled = []
+    monkeypatch.setattr(tasks, "extract_resume", lambda cid: scheduled.append(cid))
+    r = client.post("/api/me/resume", headers=CAND(),
+                    files={"file": ("cv.pdf", data, ctype)})
+    return r, puts, deletes, set_calls, scheduled
+
+
+def test_the_first_resume_is_stored_privately_and_read_automatically(client, monkeypatch):
+    r, puts, deletes, set_calls, scheduled = _resume(client, monkeypatch)
+    assert r.status_code == 200, r.text
+    (key, _, ctype), kw = puts[0]
+    assert key.startswith(f"resumes/{CAND_ID}/") and key.endswith(".pdf")
+    assert kw == {"bucket": storage.RESUME}, "resumes go to their own bucket"
+    assert set_calls == [key]
+    assert scheduled == [CAND_ID]
+    assert deletes == []
+
+
+def test_a_replacement_is_stored_but_NOT_re_read(client, monkeypatch):
+    """Insights change only when staff ask."""
+    r, puts, deletes, _, scheduled = _resume(
+        client, monkeypatch, previous_key="resumes/c/old.pdf", claimed=False)
+    assert r.status_code == 200
+    assert scheduled == []
+    assert deletes == [(("resumes/c/old.pdf",), {"bucket": storage.RESUME})]
+    row = [x for x in AUDIT if x["action"] == logs.RESUME_UPLOADED][0]
+    assert row["data"]["replaced"] is True and row["data"]["read_scheduled"] is False
+
+
+@pytest.mark.parametrize("data,ctype,code", [
+    (PDF, "application/msword", 415),
+    (b"PK\x03\x04 a docx renamed to .pdf", "application/pdf", 422),
+    (PDF + b"x" * (5 * 1024 * 1024), "application/pdf", 413),
+])
+def test_a_bad_resume_is_refused_before_anything_is_written(client, monkeypatch, data, ctype, code):
+    r, puts, _, set_calls, scheduled = _resume(client, monkeypatch, data=data, ctype=ctype)
+    assert r.status_code == code
+    assert puts == [] and set_calls == [] and scheduled == []
+    assert [x for x in AUDIT if x["action"] == logs.RESUME_REJECTED]
+
+
+def test_staff_have_no_resume_to_upload(client, monkeypatch):
+    _resume(client, monkeypatch)
+    r = client.post("/api/me/resume", headers=INT(),
+                    files={"file": ("cv.pdf", PDF, "application/pdf")})
+    assert r.status_code == 403
+
+
+# ── the staff candidate page ──────────────────────────────────────────────
+
+CANDIDATE_ROW = {
+    "id": CAND_ID, "email": CANDIDATE, "name": "Cand", "phone": "+919876543210",
+    "first_seen_at": ROW["created_at"], "last_seen_at": ROW["created_at"],
+    "login_count": 3, "resume_key": "resumes/c/r.pdf",
+    "resume_uploaded_at": ROW["created_at"], "resume_status": "ready",
+    "resume_error": None, "resume_insights": {"summary": "x"},
+    "resume_model": "claude-opus-5", "resume_extracted_at": ROW["created_at"],
+    "resume_changed": True,
+}
+
+
+@pytest.fixture
+def staff_candidate(monkeypatch):
+    monkeypatch.setattr(db, "get_candidate",
+                        lambda cid: dict(CANDIDATE_ROW) if cid == CAND_ID else None)
+    monkeypatch.setattr(db, "candidate_submissions", lambda cid: [
+        {"id": SUB_ID, "assessment_type": "sales_insight", "status": "scored",
+         "overall": 3.4, "duration_s": 150, "created_at": ROW["created_at"]}])
+    signed = []
+    monkeypatch.setattr(storage, "presign",
+                        lambda k, ttl_s=3600, bucket=storage.AUDIO:
+                        signed.append(bucket) or "https://signed.example/cv")
+    claims, scheduled = [], []
+    monkeypatch.setattr(db, "claim_resume_read",
+                        lambda cid: claims.append(cid) or {"id": cid, "resume_key": "k"})
+    monkeypatch.setattr(tasks, "extract_resume", lambda cid: scheduled.append(cid))
+    return {"signed": signed, "claims": claims, "scheduled": scheduled}
+
+
+def test_staff_see_the_whole_candidate_but_never_the_key(client, staff_candidate):
+    for h in (ADM(), INT()):
+        r = client.get(f"/api/candidates/{CAND_ID}", headers=h)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["resume_url"] == "https://signed.example/cv"
+        assert body["resume_changed"] is True
+        assert body["submissions"][0]["assessment_name"]
+        assert "resume_key" not in body and "resumes/" not in r.text
+    assert staff_candidate["signed"] == [storage.RESUME, storage.RESUME]
+
+
+def test_a_candidate_cannot_open_the_staff_candidate_page(client, staff_candidate):
+    assert client.get(f"/api/candidates/{CAND_ID}", headers=CAND()).status_code == 403
+    assert client.post(f"/api/candidates/{CAND_ID}/resume/reevaluate",
+                       headers=CAND()).status_code == 403
+
+
+def test_a_malformed_candidate_id_is_a_404_not_a_500(client, staff_candidate):
+    assert client.get("/api/candidates/not-a-uuid", headers=ADM()).status_code == 404
+
+
+def test_reevaluating_claims_audits_then_schedules(client, staff_candidate):
+    r = client.post(f"/api/candidates/{CAND_ID}/resume/reevaluate", headers=INT())
+    assert r.status_code == 202
+    assert staff_candidate["claims"] == [CAND_ID]
+    assert staff_candidate["scheduled"] == [CAND_ID]
+    row = [x for x in AUDIT if x["action"] == logs.RESUME_REEVALUATED][0]
+    assert row["actor_email"] == INTERNAL and row["data"]["resume_changed"] is True
+    assert "summary" not in repr(row), "the old insights are not copied into the log"
+
+
+def test_a_read_already_in_flight_is_a_409(client, staff_candidate, monkeypatch):
+    monkeypatch.setattr(db, "claim_resume_read", lambda cid: None)
+    r = client.post(f"/api/candidates/{CAND_ID}/resume/reevaluate", headers=ADM())
+    assert r.status_code == 409
+    assert staff_candidate["scheduled"] == []
+
+
+def test_the_read_task_lands_any_failure_as_failed(monkeypatch):
+    failed = []
+    monkeypatch.setattr(db, "resume_key_of", lambda cid: "resumes/c/r.pdf")
+    monkeypatch.setattr(storage, "get", lambda *a, **k: PDF)
+    monkeypatch.setattr(main.tasks.resume, "extract",
+                        lambda pdf: (_ for _ in ()).throw(RuntimeError("529 overloaded")))
+    monkeypatch.setattr(db, "fail_resume", lambda cid, err: failed.append(err))
+    monkeypatch.setattr(db, "insert_log", lambda **kw: None)
+    main.tasks.extract_resume(CAND_ID)
+    assert failed and "529 overloaded" in failed[0]

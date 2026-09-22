@@ -11,9 +11,14 @@ from botocore.config import Config
 
 _client = None
 
+# Which bucket, by the env var that names it. Audio is the default so every
+# existing call site reads exactly as it did; resumes pass RESUME explicitly.
+AUDIO = "R2_AUDIO_BUCKET"
+RESUME = "R2_RESUME_BUCKET"
 
-def _bucket() -> str:
-    return os.environ["R2_BUCKET"]
+
+def _bucket(which: str) -> str:
+    return os.environ[which]
 
 
 def client():
@@ -30,20 +35,20 @@ def client():
     return _client
 
 
-def put(key: str, data: bytes, content_type: str) -> None:
-    client().put_object(Bucket=_bucket(), Key=key, Body=data, ContentType=content_type)
+def put(key: str, data: bytes, content_type: str, bucket: str = AUDIO) -> None:
+    client().put_object(Bucket=_bucket(bucket), Key=key, Body=data, ContentType=content_type)
 
 
-def get(key: str) -> bytes:
-    return client().get_object(Bucket=_bucket(), Key=key)["Body"].read()
+def get(key: str, bucket: str = AUDIO) -> bytes:
+    return client().get_object(Bucket=_bucket(bucket), Key=key)["Body"].read()
 
 
-def delete(key: str) -> None:
-    client().delete_object(Bucket=_bucket(), Key=key)
+def delete(key: str, bucket: str = AUDIO) -> None:
+    client().delete_object(Bucket=_bucket(bucket), Key=key)
 
 
-def presign(key: str, ttl_s: int = 3600) -> str:
+def presign(key: str, ttl_s: int = 3600, bucket: str = AUDIO) -> str:
     """Short-lived read URL. Admin responses only — never candidate-facing."""
     return client().generate_presigned_url(
-        "get_object", Params={"Bucket": _bucket(), "Key": key}, ExpiresIn=ttl_s
+        "get_object", Params={"Bucket": _bucket(bucket), "Key": key}, ExpiresIn=ttl_s
     )

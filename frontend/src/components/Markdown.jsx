@@ -1,15 +1,28 @@
 // A ~40-line markdown renderer for content we author ourselves. Handles the
-// four things instructions.md actually uses: h2, bold, bullet lists, paragraphs.
+// five things instructions.md actually uses: h2, bold, links, bullet lists,
+// paragraphs. NOT h3 (`###` renders as literal text), NOT nested or
+// hard-wrapped bullets — a bullet must be one line — and NOT a link inside
+// **bold**: the bold span is matched first and its contents render as plain text.
 // A markdown library would be forty kilobytes for this.
 
+// [text](https://…) — http(s) ONLY, by grammar rather than by a check: the
+// pattern cannot match a `javascript:` or `data:` URL, so one written into the
+// file stays inert literal text instead of becoming a live href.
+const LINK = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/;
+
 function inline(text, key) {
-  // **bold** only. Nothing else is used, so nothing else is supported.
-  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
-  return parts.map((p, i) =>
-    p.startsWith('**') && p.endsWith('**')
-      ? <strong key={`${key}-${i}`}>{p.slice(2, -2)}</strong>
-      : <span key={`${key}-${i}`}>{p}</span>
-  );
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^)\s]+\))/g).filter(Boolean);
+  return parts.map((p, i) => {
+    const k = `${key}-${i}`;
+    if (p.startsWith('**') && p.endsWith('**')) return <strong key={k}>{p.slice(2, -2)}</strong>;
+    const m = p.match(LINK);
+    if (m) {
+      // Off-site, so a new tab: the candidate is mid-way through reading the
+      // brief and should not lose their place in it.
+      return <a key={k} className="ext-link" href={m[2]} target="_blank" rel="noopener noreferrer">{m[1]}</a>;
+    }
+    return <span key={k}>{p}</span>;
+  });
 }
 
 export function parseSections(md) {

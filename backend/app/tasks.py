@@ -7,7 +7,7 @@ audit trail covers work no human initiated.
 import logging
 from datetime import timedelta
 
-from . import db, logs, scoring, storage
+from . import db, logs, resume, scoring, storage
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +57,37 @@ def score_submission(sub_id: str) -> None:
                     data={"error": reason[:500]})
 
 
+def extract_resume(candidate_id: str) -> None:
+    """Claude reads the candidate's current resume. The caller has already set
+    resume_status='processing' (set_resume or claim_resume_read).
+
+    Same bare-except rule as scoring: ANY failure must land as 'failed', or the
+    row sits in 'processing' until the next restart's sweep.
+    """
+    try:
+        key = db.resume_key_of(candidate_id)
+        if not key:
+            raise resume.ResumeError("no resume stored")
+        result = resume.extract(storage.get(key, bucket=storage.RESUME))
+        db.finish_resume(candidate_id, insights=result["insights"], key=key,
+                         model=result["model"])
+        # Model identity only, never the insights — same rule as scores.
+        logs.record(logs.RESUME_EXTRACTED, actor_role=logs.SYSTEM,
+                    entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
+                    data={"model": result["model"]})
+        log.info("resume read for %s", candidate_id)
+    except Exception as e:
+        log.exception("resume read failed for %s", candidate_id)
+        reason = f"{type(e).__name__}: {e}"
+        try:
+            db.fail_resume(candidate_id, reason)
+        except Exception:
+            log.exception("could not even record the resume failure for %s", candidate_id)
+        logs.record(logs.RESUME_FAILED, actor_role=logs.SYSTEM,
+                    entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
+                    data={"error": reason[:500]})
+
+
 def sweep_stale() -> int:
     """Once, on startup. A row still in flight after a restart is dead.
 
@@ -67,4 +98,9 @@ def sweep_stale() -> int:
     if n:
         logs.record(logs.SUBMISSION_SWEPT, actor_role=logs.SYSTEM,
                     data={"count": n, "stale_after_minutes": STALE_AFTER.total_seconds() / 60})
-    return n
+    # A resume read stranded the same way would show "reading…" forever and
+    # never offer the re-run button.
+    r = db.fail_stale_resumes(STALE_AFTER, "interrupted by a backend restart")
+    if r:
+        logs.record(logs.RESUME_SWEPT, actor_role=logs.SYSTEM, data={"count": r})
+    return n + r

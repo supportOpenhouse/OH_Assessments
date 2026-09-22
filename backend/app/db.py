@@ -138,6 +138,112 @@ def update_candidate_name(email: str, name: str) -> dict | None:
     )
 
 
+def update_candidate_phone(email: str, phone: str) -> dict | None:
+    """Returns the previous number so the caller knows whether anything changed."""
+    return _one(
+        "update candidates set phone = %s where email = %s "
+        "returning id, (select phone from candidates where email = %s) as previous",
+        (phone, email, email),
+    )
+
+
+def set_resume(email: str, key: str) -> dict | None:
+    """Point the candidate at a newly stored resume.
+
+    Returns the previous key (the caller deletes that object) and `claimed`:
+    true only for the FIRST resume this candidate ever gave, whose null
+    resume_status this statement flips to 'processing' in the same write. That is
+    what makes the first read automatic and every later one a staff decision —
+    and, being one statement, two quick uploads cannot both claim it.
+    """
+    return _one(
+        "update candidates set "
+        "  resume_key = %s, resume_uploaded_at = now(), "
+        "  resume_status = coalesce(resume_status, 'processing'), "
+        "  resume_status_at = case when resume_status is null then now() "
+        "                          else resume_status_at end "
+        "where email = %s "
+        "returning id, "
+        "  (select resume_key from candidates where email = %s) as previous_key, "
+        "  (select resume_status from candidates where email = %s) is null as claimed",
+        (key, email, email, email),
+    )
+
+
+def claim_resume_read(candidate_id) -> dict | None:
+    """Staff asked for a (re-)read. None when there is no resume, or a read is
+    already in flight — two would race the same columns."""
+    return _one(
+        "update candidates set resume_status = 'processing', resume_status_at = now(), "
+        "  resume_error = null "
+        "where id = %s and resume_key is not null "
+        "  and resume_status is distinct from 'processing' "
+        "returning id, resume_key",
+        (candidate_id,),
+    )
+
+
+def resume_key_of(candidate_id) -> str | None:
+    row = _one("select resume_key from candidates where id = %s", (candidate_id,))
+    return row["resume_key"] if row else None
+
+
+def finish_resume(candidate_id, *, insights: dict, key: str, model: str) -> None:
+    """`key` is the resume that was READ, captured before the model call — if the
+    candidate replaced it mid-read, the mismatch still shows as a change."""
+    _exec(
+        "update candidates set resume_status = 'ready', resume_status_at = now(), "
+        "  resume_error = null, resume_insights = %s, resume_insights_key = %s, "
+        "  resume_model = %s, resume_extracted_at = now() "
+        "where id = %s",
+        (Json(insights), key, model, candidate_id),
+    )
+
+
+def fail_resume(candidate_id, error: str) -> None:
+    _exec(
+        "update candidates set resume_status = 'failed', resume_status_at = now(), "
+        "  resume_error = %s where id = %s",
+        (error[:500], candidate_id),
+    )
+
+
+def fail_stale_resumes(older_than: timedelta, reason: str) -> int:
+    return _exec(
+        "update candidates set resume_status = 'failed', resume_error = %s "
+        "where resume_status = 'processing' and resume_status_at < now() - %s::interval",
+        (reason, older_than),
+    )
+
+
+def get_candidate(candidate_id) -> dict | None:
+    """The staff view of one applicant. resume_key is for the caller to presign;
+    it is popped before the response goes out."""
+    return _one(
+        "select id, email, name, phone, first_seen_at, last_seen_at, login_count, "
+        "       resume_key, resume_uploaded_at, resume_status, resume_error, "
+        "       resume_insights, resume_model, resume_extracted_at, "
+        "       (resume_insights_key is not null "
+        "        and resume_insights_key is distinct from resume_key) as resume_changed "
+        "from candidates where id = %s",
+        (candidate_id,),
+    )
+
+
+def candidate_submissions(candidate_id) -> list:
+    """Every attempt by one candidate, voided included — the same rows the
+    Candidates board counts."""
+    return _all(
+        "select s.id, s.assessment_type, s.status, s.overall_stars as overall, "
+        "       d.duration_s, s.created_at "
+        "from submissions s "
+        "left join sales_insight_submissions d on d.id = s.id "
+        "where s.candidate_id = %s "
+        "order by s.created_at desc",
+        (candidate_id,),
+    )
+
+
 # ── submissions (parent) + sales_insight_submissions (child) ──────────────
 # The parent holds what is true of any assessment. The child holds the audio
 # bits. They share a primary key, so a "submission" is one logical row split
@@ -332,9 +438,11 @@ def my_submissions(email: str) -> list:
 
 
 def candidate_profile(email: str) -> dict | None:
+    """The candidate's own row. `resume_key` is selected so the caller can tell
+    whether a resume exists — it must never be serialised back out."""
     return _one(
         "select c.id, c.email, c.name, c.name_set_by_user, c.first_seen_at, "
-        "       c.last_seen_at, c.login_count, "
+        "       c.last_seen_at, c.login_count, c.phone, c.resume_key, c.resume_uploaded_at, "
         "       (select count(*) from submissions s where s.candidate_id = c.id) as submission_count "
         "from candidates c where c.email = %s",
         (email,),

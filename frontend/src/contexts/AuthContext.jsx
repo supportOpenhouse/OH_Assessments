@@ -66,10 +66,22 @@ export function AuthProvider({ children }) {
     // Cover BEFORE setUser: setting it makes `/` redirect to the dashboard, and
     // that swap is the thing worth hiding.
     const first = (r.user.name || '').trim().split(/\s+/)[0];
-    await cover(first ? `Welcome, ${first}` : 'Welcome');
-    setUser(r.user);
+    // The sign-in response is identity only. Where someone lands depends on
+    // /api/me's fields (details_complete, submission_count), so fetch it while
+    // the curtain covers — without it every candidate was routed as brand new.
+    let me;
+    try {
+      [me] = await Promise.all([
+        api.get('/api/me'),
+        cover(first ? `Welcome, ${first}` : 'Welcome'),
+      ]);
+    } catch (e) {
+      reveal();   // never leave the screen covered over a failed sign-in
+      throw e;
+    }
+    setUser(me);
     reveal();
-    return r.user;
+    return me;
   }, [cover, reveal]);
 
   // Called after an upload lands, so submission_count is current.

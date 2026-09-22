@@ -95,7 +95,8 @@ create table if not exists oh_users (
   is_active   boolean     not null default true,
   created_at  timestamptz not null default now(),
 
-  constraint oh_users_role_valid check (role in ('admin', 'reviewer'))
+  -- `internal`: staff who work the boards but are not admins (see 007).
+  constraint oh_users_role_valid check (role in ('admin', 'reviewer', 'internal'))
 );
 
 -- ── candidates ────────────────────────────────────────────────────────────
@@ -120,7 +121,25 @@ create table if not exists candidates (
 
   first_seen_at    timestamptz not null default now(),
   last_seen_at     timestamptz not null default now(),
-  login_count      integer     not null default 0
+  login_count      integer     not null default 0,
+
+  -- Required before an assessment (see 008). The resume file is in the private
+  -- R2_RESUME_BUCKET; resume_insights is what Claude read off it, and
+  -- resume_insights_key is WHICH resume that was — a mismatch with resume_key
+  -- means the candidate has replaced it since it was evaluated.
+  phone               text,
+  resume_key          text,
+  resume_uploaded_at  timestamptz,
+  resume_status       text,
+  resume_status_at    timestamptz,
+  resume_error        text,
+  resume_insights     jsonb,
+  resume_insights_key text,
+  resume_model        text,
+  resume_extracted_at timestamptz,
+
+  constraint candidates_resume_status_valid
+    check (resume_status in ('processing', 'ready', 'failed'))
 );
 
 -- ── submissions ───────────────────────────────────────────────────────────

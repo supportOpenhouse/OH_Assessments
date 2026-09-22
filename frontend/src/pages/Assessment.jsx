@@ -42,7 +42,7 @@ export default function Assessment() {
   async function submit() {
     setBusy(true);
     try {
-      await api.upload('/api/submissions', picked.file, notes);
+      await api.upload('/api/submissions', { file: picked.file, notes });
       await refresh();
       navigate('/history', { replace: true });
     } catch (e) {
@@ -94,7 +94,7 @@ export default function Assessment() {
             <section className="step" key={i}>
               <span className="step-n">{String(i + 1).padStart(2, '0')}</span>
               <div className="step-body">
-                {s.title && <h3>{s.title}</h3>}
+                {s.title && <h3 className="instr-h">{s.title}</h3>}
                 <Markdown lines={s.lines} />
               </div>
             </section>

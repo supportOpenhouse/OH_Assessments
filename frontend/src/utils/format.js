@@ -17,3 +17,8 @@ export function kb(bytes) {
     ? `${Math.round(bytes / 1024)} KB`
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+// +919876543210 → "+91 98765 43210". Stored normalised, so the split is fixed.
+export function phone(p) {
+  return p ? `${p.slice(0, 3)} ${p.slice(3, 8)} ${p.slice(8)}` : '—';
+}

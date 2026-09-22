@@ -212,3 +212,30 @@ def test_the_pool_checks_a_connection_before_handing_it_out(monkeypatch):
     # Recycled by us before Neon finds it stale. The library default is 600s.
     assert seen.get("max_idle", 600.0) < 600.0
     monkeypatch.setattr(db, "_pool", None)
+
+
+@pytest.mark.parametrize("call", [
+    lambda: db.update_candidate_phone("e", "+919876543210"),
+    lambda: db.set_resume("e", "resumes/c/r.pdf"),
+    lambda: db.claim_resume_read("c"),
+    lambda: db.finish_resume("c", insights={}, key="k", model="m"),
+    lambda: db.fail_resume("c", "boom"),
+    lambda: db.fail_stale_resumes(db.timedelta(minutes=10), "why"),
+    lambda: db.get_candidate("c"),
+    lambda: db.candidate_submissions("c"),
+])
+def test_candidate_detail_statements_bind_every_placeholder(pool, call):
+    """A %s without a param (or the reverse) only fails against a real DB."""
+    call()
+    (sql, params), = pool.txns[0]
+    assert sql.count("%s") == len(params), sql
+    assert sql.startswith(("select", "update")), "no statement here may insert or delete"
+
+
+def test_only_the_first_resume_claims_a_read(pool):
+    """set_resume flips resume_status only from NULL — that is the whole rule
+    that makes later uploads a staff decision."""
+    db.set_resume("e", "k")
+    (sql, _), = pool.txns[0]
+    assert "coalesce(resume_status, 'processing')" in sql
+    assert "is null as claimed" in sql

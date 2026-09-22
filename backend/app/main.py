@@ -9,6 +9,7 @@ import io
 import logging
 import os
 import pathlib
+import re
 import uuid
 from contextlib import asynccontextmanager
 
@@ -61,6 +62,29 @@ ALLOWED = {
     "audio/webm": ".webm",
     "audio/ogg": ".ogg",
 }
+
+# Resumes: PDF only (staff read them in the browser's own viewer), 5 MB.
+RESUME_MAX_BYTES = 5 * 1024 * 1024
+
+# An Indian mobile: 10 digits starting 6-9, optionally written with +91, 91 or 0
+# in front and spaces, dashes or brackets anywhere. Stored as +91XXXXXXXXXX so
+# one number is one string however the candidate typed it.
+_PHONE = re.compile(r"(?:\+91|91|0)?([6-9]\d{9})")
+
+
+def normalise_phone(raw) -> str:
+    if not isinstance(raw, str):
+        raise HTTPException(422, "phone is required")
+    m = _PHONE.fullmatch(re.sub(r"[\s\-()]", "", raw))
+    if not m:
+        raise HTTPException(422, "enter a 10-digit Indian mobile number")
+    return "+91" + m.group(1)
+
+
+def details_complete(p: dict | None) -> bool:
+    """Phone and resume both on file. The one definition, used by /api/me (for
+    the client's routing) and by the submission gate (for enforcement)."""
+    return bool(p and p["phone"] and p["resume_key"])
 
 
 @asynccontextmanager
@@ -181,6 +205,12 @@ async def me(u: dict = Depends(auth.current_user)):
         "last_seen_at": p["last_seen_at"].isoformat() if p else None,
         "login_count": p["login_count"] if p else 0,
         "submission_count": p["submission_count"] if p else 0,
+        # The candidate's own number, and WHETHER a resume exists — never its key.
+        "phone": p["phone"] if p else None,
+        "has_resume": bool(p and p["resume_key"]),
+        "resume_uploaded_at": p["resume_uploaded_at"].isoformat()
+                              if p and p["resume_uploaded_at"] else None,
+        "details_complete": details_complete(p),
     }
 
 
@@ -189,34 +219,113 @@ NAME_MAX = 80
 
 @app.patch("/api/me")
 async def update_me(body: dict, request: Request, u: dict = Depends(auth.current_user)):
-    """Change your own display name.
+    """Change your own display name and/or phone number.
 
     The name a person picks is what admins see on the board and the record, so it
     is validated rather than trusted: trimmed, length-bounded, and stripped of
     control characters, which are invisible in a form and are how someone smuggles
     a newline or a bidi override into a table cell.
+
+    Both fields are validated before either is written, so a bad phone number
+    does not leave a half-applied rename behind.
     """
-    raw = (body or {}).get("name")
-    if not isinstance(raw, str):
+    body = body or {}
+    if "name" not in body and "phone" not in body:
         raise HTTPException(422, "name is required")
 
-    name = " ".join(raw.split())          # collapses newlines, tabs, runs of spaces
-    name = "".join(c for c in name if c.isprintable())
+    name = None
+    if "name" in body:
+        raw = body["name"]
+        if not isinstance(raw, str):
+            raise HTTPException(422, "name is required")
+        name = " ".join(raw.split())          # collapses newlines, tabs, runs of spaces
+        name = "".join(c for c in name if c.isprintable())
+        if not name:
+            raise HTTPException(422, "name cannot be empty")
+        if len(name) > NAME_MAX:
+            raise HTTPException(422, f"name cannot be longer than {NAME_MAX} characters")
 
-    if not name:
-        raise HTTPException(422, "name cannot be empty")
-    if len(name) > NAME_MAX:
-        raise HTTPException(422, f"name cannot be longer than {NAME_MAX} characters")
+    phone = normalise_phone(body["phone"]) if "phone" in body else None
 
-    row = db.update_candidate_name(u["email"], name)
-    if not row:
-        raise HTTPException(404, "no profile to update")
+    if name is not None:
+        row = db.update_candidate_name(u["email"], name)
+        if not row:
+            raise HTTPException(404, "no profile to update")
+        if row["previous"] != name:
+            logs.record(logs.CANDIDATE_RENAMED, **logs.for_user(u),
+                        entity=logs.ENTITY_CANDIDATE, entity_id=str(row["id"]),
+                        data={"from": row["previous"], "to": name}, request=request)
 
-    if row["previous"] != name:
-        logs.record(logs.CANDIDATE_RENAMED, **logs.for_user(u),
-                    entity=logs.ENTITY_CANDIDATE, entity_id=str(row["id"]),
-                    data={"from": row["previous"], "to": name}, request=request)
+    if phone is not None:
+        row = db.update_candidate_phone(u["email"], phone)
+        if not row:
+            raise HTTPException(404, "no profile to update")
+        if row["previous"] != phone:
+            # That it changed, never the number — the audit log is readable by
+            # every admin and a phone number is personal data.
+            logs.record(logs.CANDIDATE_PHONE_SET, **logs.for_user(u),
+                        entity=logs.ENTITY_CANDIDATE, entity_id=str(row["id"]),
+                        data={"first_time": row["previous"] is None}, request=request)
 
+    return await me(u)
+
+
+@app.post("/api/me/resume")
+async def upload_resume(
+    background: BackgroundTasks,
+    request: Request,
+    file: UploadFile = File(...),
+    u: dict = Depends(auth.current_user),
+):
+    """Store the candidate's resume, replacing any earlier one.
+
+    Only the FIRST resume is read by Claude automatically. A replacement is
+    stored and shown to staff, but the insights stay those of the resume they
+    were read from until staff choose to re-evaluate (see db.set_resume).
+    """
+    def reject(code: int, why: str, detail: str):
+        logs.record(logs.RESUME_REJECTED, **logs.for_user(u),
+                    data={"reason": why, "status": code, "filename": file.filename,
+                          "content_type": file.content_type},
+                    request=request)
+        return HTTPException(code, detail)
+
+    if u["role"] != "user":
+        raise reject(403, "staff_account", "Openhouse team accounts do not have a resume")
+    if (file.content_type or "").lower() != "application/pdf":
+        raise reject(415, "unsupported_type", "upload your resume as a PDF")
+
+    data = await file.read()
+    if len(data) > RESUME_MAX_BYTES:
+        raise reject(413, "too_large", "resume is larger than 5 MB")
+    # The header, not the name or the browser's word for it. The spec allows
+    # junk before it, within the first 1024 bytes.
+    if b"%PDF-" not in data[:1024]:
+        raise reject(422, "not_a_pdf", "that file is not a readable PDF")
+
+    # Everything validated. Only now does anything get written.
+    candidate_id, _ = db.upsert_candidate(u["email"], u["name"])
+    key = f"resumes/{candidate_id}/{uuid.uuid4()}.pdf"
+    storage.put(key, data, "application/pdf", bucket=storage.RESUME)
+    row = db.set_resume(u["email"], key)
+
+    if row["previous_key"]:
+        # After the row points at the new file. A failed delete leaves an
+        # orphaned object, not a broken profile, so it must not fail the upload
+        # the candidate has already, in substance, completed.
+        try:
+            storage.delete(row["previous_key"], bucket=storage.RESUME)
+        except Exception:
+            log.exception("could not delete replaced resume %s", row["previous_key"])
+
+    logs.record(logs.RESUME_UPLOADED, **logs.for_user(u),
+                entity=logs.ENTITY_CANDIDATE, entity_id=candidate_id,
+                data={"bytes": len(data), "replaced": bool(row["previous_key"]),
+                      "read_scheduled": bool(row["claimed"])},
+                request=request)
+
+    if row["claimed"]:
+        background.add_task(tasks.extract_resume, candidate_id)
     return await me(u)
 
 
@@ -294,6 +403,12 @@ async def create_submission(
         raise reject(403, "staff_account",
                      "Openhouse team accounts cannot take assessments")
 
+    # The client routes an incomplete candidate to /candidate-info; this is what
+    # stops one who skips it by typing a URL or calling the API directly.
+    if not details_complete(db.candidate_profile(u["email"])):
+        raise reject(403, "details_incomplete",
+                     "add your phone number and resume before taking an assessment")
+
     # Candidate-written free text. Capped because it is stored and rendered in
     # the admin record; NOT sent to the scoring model — see the note on
     # MAX_NOTES. Empty is allowed: the recording is the assessment.
@@ -350,7 +465,7 @@ async def submission_status(sub_id: str, u: dict = Depends(auth.current_user)):
     row = db.get_status(sub_id)
     # Owner or admin only. A stranger gets 404, not 403 — a 403 would confirm
     # the id exists.
-    if not row or (u["role"] != "admin" and row["email"] != u["email"]):
+    if not row or (u["role"] not in auth.STAFF_ROLES and row["email"] != u["email"]):
         raise HTTPException(404, "not found")
     return {"id": sub_id, "status": row["status"]}
 
@@ -365,7 +480,7 @@ async def list_submissions(
     assessment_type: str | None = None,
     q: str | None = None,
     stars: int | None = None,
-    _: dict = Depends(auth.require_admin),
+    _: dict = Depends(auth.require_staff),
 ):
     """Every filter optional, all ANDed. `q` matches candidate email or name."""
     total, items = db.list_submissions(min(limit, 500), offset, status,
@@ -382,7 +497,7 @@ async def list_submissions(
 
 @app.get("/api/candidates")
 async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = None,
-                          _: dict = Depends(auth.require_admin)):
+                          _: dict = Depends(auth.require_staff)):
     """Applicants, with how many attempts and at what.
 
     No staff filter: staff never get a candidates row, so every row here is an
@@ -400,8 +515,59 @@ async def list_candidates(limit: int = 200, offset: int = 0, q: str | None = Non
     return {"total": total, "items": items}
 
 
+def _uuid_or_404(v: str) -> None:
+    """A malformed id is a missing record, not a 500 from the uuid cast."""
+    try:
+        uuid.UUID(v)
+    except ValueError:
+        raise HTTPException(404, "not found")
+
+
+@app.get("/api/candidates/{cid}")
+async def candidate_detail(cid: str, _: dict = Depends(auth.require_staff)):
+    """One applicant: details, resume insights, the resume itself, every attempt."""
+    _uuid_or_404(cid)
+    c = db.get_candidate(cid)
+    if not c:
+        raise HTTPException(404, "not found")
+    key = c.pop("resume_key")  # the key never leaves the server
+    c["id"] = str(c["id"])
+    c["resume_url"] = storage.presign(key, bucket=storage.RESUME) if key else None
+    subs = db.candidate_submissions(cid)
+    for s in subs:
+        s["id"] = str(s["id"])
+        s["assessment_name"] = assessments.name_of(s["assessment_type"])
+    return {**c, "submissions": subs}
+
+
+@app.post("/api/candidates/{cid}/resume/reevaluate", status_code=202)
+async def reevaluate_resume(cid: str, background: BackgroundTasks, request: Request,
+                            u: dict = Depends(auth.require_staff)):
+    """Claude reads the CURRENT resume again. The only way insights change after
+    the first read — a candidate replacing their resume does not trigger it."""
+    _uuid_or_404(cid)
+    c = db.get_candidate(cid)
+    if not c:
+        raise HTTPException(404, "not found")
+    if not c["resume_key"]:
+        raise HTTPException(422, "this candidate has not uploaded a resume")
+    if not db.claim_resume_read(cid):
+        raise HTTPException(409, "the resume is already being read")
+
+    # Before scheduling, like a re-score: the insights are overwritten in place,
+    # so this row is the only evidence an earlier reading existed.
+    logs.record(logs.RESUME_REEVALUATED, **logs.for_user(u),
+                entity=logs.ENTITY_CANDIDATE, entity_id=cid,
+                data={"previous_status": c["resume_status"],
+                      "previous_model": c["resume_model"],
+                      "resume_changed": bool(c["resume_changed"])},
+                request=request)
+    background.add_task(tasks.extract_resume, cid)
+    return {"id": cid, "resume_status": "processing"}
+
+
 @app.get("/api/submissions/{sub_id}")
-async def submission_detail(sub_id: str, _: dict = Depends(auth.require_admin)):
+async def submission_detail(sub_id: str, _: dict = Depends(auth.require_staff)):
     row = db.get_submission(sub_id)
     if not row:
         raise HTTPException(404, "not found")
@@ -414,7 +580,7 @@ async def submission_detail(sub_id: str, _: dict = Depends(auth.require_admin)):
 
 @app.post("/api/submissions/{sub_id}/void")
 async def void_submission(sub_id: str, request: Request,
-                          u: dict = Depends(auth.require_admin)):
+                          u: dict = Depends(auth.require_staff)):
     row = db.get_submission(sub_id)
     if not row:
         raise HTTPException(404, "not found")
@@ -430,7 +596,7 @@ async def void_submission(sub_id: str, request: Request,
 
 @app.post("/api/submissions/{sub_id}/rescore", status_code=202)
 async def rescore_submission(sub_id: str, background: BackgroundTasks, request: Request,
-                             u: dict = Depends(auth.require_admin)):
+                             u: dict = Depends(auth.require_staff)):
     """Run the whole pipeline again — Scribe, then Claude — on the stored audio.
 
     Same background task the original upload schedules, so there is exactly one
