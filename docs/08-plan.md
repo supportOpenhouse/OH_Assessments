@@ -1,8 +1,8 @@
-# Sales (Insight) Audio Assessment — Implementation Plan
+# Sales (Inside) Audio Assessment — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a Google-authenticated web app where Sales (Insight) candidates upload one audio pitch that is transcribed, measured, and scored 0–5 on four axes by Claude, with results visible only to admins.
+**Goal:** Ship a Google-authenticated web app where Sales (Inside) candidates upload one audio pitch that is transcribed, measured, and scored 0–5 on four axes by Claude, with results visible only to admins.
 
 **Architecture:** Two deploy targets, one repo. `frontend/` is a React 18 + Vite SPA on **Vercel** (Hallmark design system on openhouse.in's palette). `backend/` is a FastAPI + uvicorn service on **Render Starter** (always-on). Vercel rewrites `/api/*` to Render so the browser sees one origin. Upload returns `202` in seconds; scoring runs in a FastAPI background task — ElevenLabs Scribe v2 → a pure-Python metrics function → Claude Opus 5 with a strict JSON schema → Neon Postgres. Audio lives in Cloudflare R2, private, reachable only through admin-only presigned URLs. The dashboard polls a status endpoint.
 

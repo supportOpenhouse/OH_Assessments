@@ -1,6 +1,6 @@
 # 01 — Product Spec
 
-**Project:** OpenHouse Sales (Insight) Audio Assessment
+**Project:** OpenHouse Sales (Inside) Audio Assessment
 **Status:** Design approved 2026-08-27. Not yet built.
 **Owner:** support@openhouse.in
 
@@ -8,7 +8,7 @@
 
 ## 1. What this is
 
-A hiring assessment tool for **Sales (Insight) candidates only**. A candidate signs
+A hiring assessment tool for **Sales (Inside) candidates only**. A candidate signs
 in with Google, reads a fixed set of instructions, records a sales pitch offline,
 uploads the audio file, and the system scores it 0–5 on four axes using AI.
 
@@ -122,7 +122,7 @@ Each of these is deferred on purpose. None is forgotten.
 |---|---|---|
 | **Vocal pitch analysis** (F0 contour, intonation variance, monotone detection) | **No longer an infrastructure limit** — the Render container fits `parselmouth` fine. Deferred because it adds a sixth dimension to calibrate before the base rubric is proven | `pip install praat-parselmouth`, add a `prosody` key to `metrics`, add a glossary band block, split the Pitch axis. See [05-scoring.md §7](05-scoring.md) |
 | In-browser recording | Upload covers the requirement; recording adds MediaRecorder codec handling across browsers | A `<button>` + `MediaRecorder`, roughly a day |
-| Multiple roles / assessments | The brief is Sales (Insight) only | A `role` column and a rubric per role |
+| Multiple roles / assessments | The brief is Sales (Inside) only | A `role` column and a rubric per role |
 | Emailing candidates | Nobody asked | Resend or similar |
 | Score appeals / manual override | No process exists for it yet | An `admin_override` jsonb column on `submissions` |
 | Analytics dashboard | Admin list view answers the actual question | A few `GROUP BY` queries |

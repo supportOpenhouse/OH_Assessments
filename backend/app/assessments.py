@@ -15,7 +15,7 @@ ASSESSMENTS = {
     SALES_INSIGHT: {
         "key": SALES_INSIGHT,
         "slug": "sales-insight",
-        "name": "Sales (Insight)",
+        "name": "Sales (Inside)",
         "blurb": "A recorded sales pitch, assessed on what you said and how you said it.",
         "format": "Audio recording",
         "target_length": "2–3 minutes",

@@ -1,6 +1,6 @@
-# OpenHouse · Sales (Insight) Audio Assessment
+# OpenHouse · Sales (Inside) Audio Assessment
 
-AI-scored audio assessment for Sales (Insight) candidates. A candidate signs in
+AI-scored audio assessment for Sales (Inside) candidates. A candidate signs in
 with Google, reads a brief, uploads a recorded sales pitch, and the system scores
 it **0–5 stars** on four axes. Results are **admin-only** — the candidate never
 sees a number.

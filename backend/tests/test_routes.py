@@ -374,7 +374,7 @@ def test_candidates_reports_attempts_and_which_assessments(client):
     item = client.get("/api/candidates", headers=ADM()).json()["items"][0]
     assert item["attempts"] == 2
     assert item["login_count"] == 3
-    assert item["assessments"] == [{"key": "sales_insight", "name": "Sales (Insight)"}]
+    assert item["assessments"] == [{"key": "sales_insight", "name": "Sales (Inside)"}]
 
 
 def test_submission_filters_are_all_optional(client, monkeypatch):

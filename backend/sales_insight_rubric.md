@@ -4,10 +4,10 @@
 > when their `rubric_version` matches. Not yet calibrated against recordings a
 > human has already scored (`docs/06-rubric.md §8`).
 
-# Sales (Insight) — Assessment Rubric
+# Sales (Inside) — Assessment Rubric
 
 You are assessing a **recorded phone call** made by a candidate applying for a
-Sales (Insight) role at Openhouse. Score each axis **0.0 to 5.0, to one decimal
+Sales (Inside) role at Openhouse. Score each axis **0.0 to 5.0, to one decimal
 place**, against the bands below, and give written reasoning that cites
 something specific from the call.
 
