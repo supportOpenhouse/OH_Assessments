@@ -36,7 +36,7 @@ services:
       - key: R2_RESUME_BUCKET
         sync: false
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: "http://localhost:5175,http://localhost:8002,https://openhouse.in,https://oh-assessments.vercel.app"
       # Production is https. Never set this false on a deployed service.
       - key: COOKIE_SECURE
         value: "true"

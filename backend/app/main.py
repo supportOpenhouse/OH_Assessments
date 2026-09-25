@@ -101,13 +101,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="OpenHouse Sales Assessment", lifespan=lifespan)
 
-# The Vercel rewrite makes the browser same-origin, but the Render URL is
-# discoverable. Restrict anyway — the rewrite is a convenience, not a boundary.
-_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+# The Vercel rewrite / Next.js proxy make the browser same-origin, but the
+# Render URL is discoverable. Restrict anyway — the rewrite is a convenience,
+# not a boundary. Env ALLOWED_ORIGINS is merged with these defaults.
+_DEFAULT_ORIGINS = (
+    "http://localhost:5175",              # OH_Assessments Vite frontend
+    "http://localhost:8002",              # openhouse.in website (local Next.js)
+    "https://openhouse.in",               # openhouse.in production
+    "https://oh-assessments.vercel.app",  # assessment frontend on Vercel
+)
+_env_origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+# Strip trailing slashes — browsers send Origin without a path.
+_origins = list(dict.fromkeys(
+    [o.rstrip("/") for o in (*_DEFAULT_ORIGINS, *_env_origins)]
+))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_methods=["GET", "POST"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
